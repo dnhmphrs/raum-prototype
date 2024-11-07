@@ -62,7 +62,7 @@ export async function createRenderPipeline2D(device) {
 }
 
 // Function to update viewport size in the uniform buffer
-export function updateViewportSize2D(device, width, height) {
+export function updateViewportSize(device, width, height) {
 	const viewportSize = new Float32Array([width, height]);
 	device.queue.writeBuffer(viewportUniformBuffer, 0, viewportSize);
 }

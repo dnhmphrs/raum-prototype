@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { initializeWebGPU } from './webgpu/WebGPUContext.js';
-  import { createRenderPipeline2D, updateViewportSize2D, updateMousePosition } from './webgpu/RenderPipeline2D.js';
-  import { createRenderPipeline3D, updateViewportSize3D, updateMousePosition3d } from './webgpu/RenderPipeline3D.js';
+  import { createRenderPipeline2D, updateViewportSize, updateMousePosition } from './webgpu/RenderPipeline2D.js';
+  import { createRenderPipeline3D, updateMousePosition3d } from './webgpu/RenderPipeline3D.js';
   import { createComputePipeline, initializeComputeBuffers, readBuffer, runComputePass } from './webgpu/ComputePipeline.js';
   import Camera from './webgpu/Camera.js';
   import CameraController from './webgpu/CameraController.js';
@@ -72,8 +72,7 @@
     canvas.width = Math.floor(canvas.clientWidth * devicePixelRatio);
     canvas.height = Math.floor(canvas.clientHeight * devicePixelRatio);
 
-    updateViewportSize2D(device, canvas.width, canvas.height);
-    updateViewportSize3D(device, canvas.width, canvas.height);
+    updateViewportSize(device, canvas.width, canvas.height);
     cameraController.updateAspect(canvas.width, canvas.height); // Update camera aspect and matrices
   }
 
