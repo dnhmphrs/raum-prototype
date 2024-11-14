@@ -26,6 +26,7 @@ class Engine {
 		this.computePipeline = null;
 		this.viewportBuffer = null;
 		this.mouseBuffer = null;
+		this.depthTexture = null;
 
 		// Bind interaction handlers to the Engine instance
 		this.handleMouseDown = this.handleMouseDown.bind(this);
@@ -36,6 +37,7 @@ class Engine {
 	async start() {
 		await this.initializeWebGPU();
 		await this.initializeBuffers();
+		await this.initializeDepthTexture();
 		await this.initializePipelines();
 		this.initializeScene();
 		this.setupInteractions();
@@ -93,6 +95,19 @@ class Engine {
 		this.scene = new Scene(this.device);
 	}
 
+	async initializeDepthTexture() {
+		this.depthTexture = this.device.createTexture({
+			size: {
+				width: this.canvas.width,
+				height: this.canvas.height,
+				depthOrArrayLayers: 1
+			},
+			format: 'depth24plus',
+			usage: GPUTextureUsage.RENDER_ATTACHMENT,
+			label: 'Depth Texture'
+		});
+	}
+
 	setupInteractions() {
 		// Subscribe to viewport and mouse position stores
 		viewportSize.subscribe(({ width, height }) => {
@@ -132,6 +147,7 @@ class Engine {
 		this.renderPipeline2D.updateViewportSize(this.device, width, height);
 		this.renderPipeline3D.updateViewportSize(this.device, width, height);
 		this.cameraController.updateAspect(width, height);
+		this.initializeDepthTexture();
 	}
 
 	render() {
@@ -160,7 +176,13 @@ class Engine {
 		passEncoder2D.end();
 
 		const renderPassDescriptor3D = {
-			colorAttachments: [{ view: textureView, loadOp: 'load', storeOp: 'store' }]
+			colorAttachments: [{ view: textureView, loadOp: 'load', storeOp: 'store' }],
+			depthStencilAttachment: {
+				view: this.depthTexture.createView(),
+				depthLoadOp: 'clear',
+				depthClearValue: 1.0,
+				depthStoreOp: 'store'
+			}
 		};
 
 		const passEncoder3D = commandEncoder.beginRenderPass(renderPassDescriptor3D);

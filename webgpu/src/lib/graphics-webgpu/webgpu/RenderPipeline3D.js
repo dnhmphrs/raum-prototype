@@ -1,6 +1,7 @@
 // RenderPipeline3D.js
 import shaderCode from './shaders/theta3D.wgsl';
 
+// RenderPipeline3D.js
 export async function createRenderPipeline3D(device, camera, viewportBuffer, mouseBuffer) {
 	const format = navigator.gpu.getPreferredCanvasFormat();
 	const { projectionBuffer, viewBuffer, modelBuffer } = camera.getBuffers();
@@ -33,6 +34,11 @@ export async function createRenderPipeline3D(device, camera, viewportBuffer, mou
 			module: device.createShaderModule({ code: shaderCode }),
 			entryPoint: 'fragment_main',
 			targets: [{ format }]
+		},
+		depthStencil: {
+			format: 'depth24plus', // Match depth texture format
+			depthWriteEnabled: true,
+			depthCompare: 'less' // Objects closer to the camera will overwrite farther ones
 		}
 	});
 
