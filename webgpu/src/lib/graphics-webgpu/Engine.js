@@ -1,16 +1,16 @@
 // Engine.js
-import { initializeWebGPU } from './WebGPUContext.js';
-import { createRenderPipeline2D } from './RenderPipeline2D.js';
-import { createRenderPipeline3D } from './RenderPipeline3D.js';
+import { initializeWebGPU } from './engine/WebGPUContext.js';
+import { createRenderPipeline2D } from './engine/RenderPipeline2D.js';
+import { createRenderPipeline3D } from './engine/RenderPipeline3D.js';
 import {
 	createComputePipeline,
 	initializeComputeBuffers,
 	runComputePass,
 	readBuffer
-} from './ComputePipeline.js';
-import Camera from './Camera.js';
-import CameraController from './CameraController.js';
-import Scene from './Scene.js';
+} from './engine/ComputePipeline.js';
+import Camera from './engine/Camera.js';
+import CameraController from './engine/CameraController.js';
+import Scene from './engine/Scene.js';
 import { viewportSize, mousePosition, zoom } from '$lib/store/store.js';
 
 class Engine {

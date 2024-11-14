@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import Engine from './webgpu/Engine.js'; // Import the Engine module
+  import Engine from './Engine.js'; // Import the Engine module
   import { mousePosition, viewportSize } from '$lib//store/store.js'; // Import interaction store
   
   let canvas;
