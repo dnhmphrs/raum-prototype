@@ -1,62 +1,65 @@
 // CameraController.js
 import { vec3 } from 'gl-matrix';
+import { zoom } from '$lib/store/store.js'; // Import the zoom store
 
 export default class CameraController {
-  constructor(camera, target = vec3.fromValues(0, 0, 0)) {
-    this.camera = camera;
-    this.target = target; // The point the camera orbits around
-    this.theta = Math.PI / 2; // Horizontal angle
-    this.phi = Math.PI / 4;   // Vertical angle
-    this.distance = 5.0;      // Distance from the target
+	constructor(camera, target = vec3.fromValues(0, 0, 0)) {
+		this.camera = camera;
+		this.target = target;
+		this.theta = Math.PI / 2;
+		this.phi = Math.PI / 4;
+		this.baseDistance = 5.0; // Base distance from target
+		this.distance = this.baseDistance; // Initial distance set by zoom
 
-    this.isDragging = false;
-    this.lastMouseX = 0;
-    this.lastMouseY = 0;
+		this.isDragging = false;
+		this.lastMouseX = 0;
+		this.lastMouseY = 0;
 
-    // Update camera position initially
-    this.updateCameraPosition();
-  }
+		// Subscribe to zoom store to adjust camera distance
+		zoom.subscribe((newZoom) => {
+			this.distance = this.baseDistance * newZoom;
+			this.updateCameraPosition();
+		});
 
-  startDrag(x, y) {
-    this.isDragging = true;
-    this.lastMouseX = x;
-    this.lastMouseY = y;
-  }
+		// Initial camera position update
+		this.updateCameraPosition();
+	}
 
-  endDrag() {
-    this.isDragging = false;
-  }
+	startDrag(x, y) {
+		this.isDragging = true;
+		this.lastMouseX = x;
+		this.lastMouseY = y;
+	}
 
-  handleMouseMove(x, y) {
-    if (this.isDragging) {
-      const deltaX = x - this.lastMouseX;
-      const deltaY = y - this.lastMouseY;
+	endDrag() {
+		this.isDragging = false;
+	}
 
-      // Update angles based on mouse movement
-      this.theta -= deltaX * 0.01; // Adjust sensitivity as needed
-      this.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.phi - deltaY * 0.01));
+	handleMouseMove(x, y) {
+		if (this.isDragging) {
+			const deltaX = x - this.lastMouseX;
+			const deltaY = y - this.lastMouseY;
 
-      // Update camera position
-      this.updateCameraPosition();
+			this.theta -= deltaX * 0.01;
+			this.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.phi - deltaY * 0.01));
 
-      // Store current mouse position
-      this.lastMouseX = x;
-      this.lastMouseY = y;
-    }
-  }
+			this.updateCameraPosition();
 
-  updateCameraPosition() {
-    // Calculate spherical coordinates
-    const x = this.target[0] + this.distance * Math.sin(this.phi) * Math.cos(this.theta);
-    const y = this.target[1] + this.distance * Math.cos(this.phi);
-    const z = this.target[2] + this.distance * Math.sin(this.phi) * Math.sin(this.theta);
+			this.lastMouseX = x;
+			this.lastMouseY = y;
+		}
+	}
 
-    // Update the camera's position
-    this.camera.position = vec3.fromValues(x, y, z);
-    this.camera.updateView(); // Recalculate view matrix
-  }
+	updateCameraPosition() {
+		const x = this.target[0] + this.distance * Math.sin(this.phi) * Math.cos(this.theta);
+		const y = this.target[1] + this.distance * Math.cos(this.phi);
+		const z = this.target[2] + this.distance * Math.sin(this.phi) * Math.sin(this.theta);
 
-  updateAspect(width, height) {
-    this.camera.updateAspect(width, height); // Update projection matrix on resize
-  }
+		this.camera.position = vec3.fromValues(x, y, z);
+		this.camera.updateView();
+	}
+
+	updateAspect(width, height) {
+		this.camera.updateAspect(width, height);
+	}
 }

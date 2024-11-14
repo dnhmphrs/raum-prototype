@@ -11,7 +11,7 @@ import {
 import Camera from './Camera.js';
 import CameraController from './CameraController.js';
 import Scene from './Scene.js';
-import { viewportSize, mousePosition } from '$lib/store/store.js';
+import { viewportSize, mousePosition, zoom } from '$lib/store/store.js';
 
 class Engine {
 	constructor(canvas) {
@@ -125,6 +125,7 @@ class Engine {
 		window.addEventListener('mousedown', this.handleMouseDown);
 		window.addEventListener('mousemove', this.handleMouseMove);
 		window.addEventListener('mouseup', this.handleMouseUp);
+		window.addEventListener('wheel', this.handleMouseScroll);
 	}
 
 	handleMouseDown(event) {
@@ -139,6 +140,16 @@ class Engine {
 		if (this.cameraController.isDragging) {
 			this.cameraController.handleMouseMove(event.clientX, event.clientY);
 		}
+	}
+
+	handleMouseScroll(event) {
+		console.log('handleMouseScroll');
+		// Update zoom factor based on scroll delta
+		zoom.update((currentZoom) => {
+			const zoomSpeed = 0.5;
+			const newZoom = currentZoom - event.deltaY * zoomSpeed * 0.001;
+			return Math.min(Math.max(newZoom, 0.5), 2.0); // Clamp zoom level
+		});
 	}
 
 	updateViewport(width, height) {

@@ -10,3 +10,4 @@ export const screenSize = writable({ width: 0, height: 0 });
 // webgpu
 export const mousePosition = writable(false);
 export const viewportSize = writable(false);
+export const zoom = writable(1.0);
