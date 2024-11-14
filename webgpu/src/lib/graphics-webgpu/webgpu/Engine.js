@@ -146,7 +146,7 @@ class Engine {
 		console.log('handleMouseScroll');
 		// Update zoom factor based on scroll delta
 		zoom.update((currentZoom) => {
-			const zoomSpeed = 0.5;
+			const zoomSpeed = -0.5;
 			const newZoom = currentZoom - event.deltaY * zoomSpeed * 0.001;
 			return Math.min(Math.max(newZoom, 0.5), 2.0); // Clamp zoom level
 		});
