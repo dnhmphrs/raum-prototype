@@ -32,7 +32,7 @@
 	onMount(async () => {
 		// webgl
 		// const module = await import('$lib/graphics-webgl/webgl.svelte');
-		const module = await import('$lib/graphics-webgpu/main.svelte');
+		const module = await import('$lib/graphics/main.svelte');
 		Geometry = module.default;
 
 		handleScreen();
