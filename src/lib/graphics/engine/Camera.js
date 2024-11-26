@@ -6,7 +6,7 @@ export default class Camera {
 		this.device = device;
 		this.projectionMatrix = mat4.create();
 		this.viewMatrix = mat4.create();
-		this.position = vec3.fromValues(0, 0, 5); // Positioned along the z-axis
+		this.position = vec3.fromValues(0, 0, 0); // Positioned along the z-axis
 		this.aspect = width / height;
 
 		// Initialize buffers
@@ -40,7 +40,7 @@ export default class Camera {
 		this.updateProjection();
 	}
 
-	updateProjection(fov = Math.PI / 4, near = 0.1, far = 100) {
+	updateProjection(fov = Math.PI / 4, near = 0.1, far = 10000) {
 		mat4.perspective(this.projectionMatrix, fov, this.aspect, near, far);
 		this.updateBuffers(); // Synchronize buffer with projection matrix
 	}

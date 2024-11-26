@@ -161,6 +161,55 @@ class Engine {
 		this.initializeDepthTexture();
 	}
 
+	// render() {
+	// 	if (!this.device || !this.context || !this.scene) return;
+
+	// 	const commandEncoder = this.device.createCommandEncoder();
+	// 	const textureView = this.context.getCurrentTexture().createView();
+
+	// 	this.camera.updateBuffers();
+
+	// 	const renderPassDescriptor2D = {
+	// 		colorAttachments: [
+	// 			{
+	// 				view: textureView,
+	// 				loadOp: 'clear',
+	// 				storeOp: 'store',
+	// 				clearValue: { r: 0, g: 0, b: 0, a: 1 }
+	// 			}
+	// 		]
+	// 	};
+
+	// 	const passEncoder2D = commandEncoder.beginRenderPass(renderPassDescriptor2D);
+	// 	passEncoder2D.setPipeline(this.renderPipeline2D.pipeline);
+	// 	passEncoder2D.setBindGroup(0, this.renderPipeline2D.bindGroup);
+	// 	passEncoder2D.draw(3, 1, 0, 0);
+	// 	passEncoder2D.end();
+
+	// 	const renderPassDescriptor3D = {
+	// 		colorAttachments: [{ view: textureView, loadOp: 'load', storeOp: 'store' }],
+	// 		depthStencilAttachment: {
+	// 			view: this.depthTexture.createView(),
+	// 			depthLoadOp: 'clear',
+	// 			depthClearValue: 1.0,
+	// 			depthStoreOp: 'store'
+	// 		}
+	// 	};
+
+	// 	const passEncoder3D = commandEncoder.beginRenderPass(renderPassDescriptor3D);
+	// 	passEncoder3D.setPipeline(this.renderPipeline3D.pipeline);
+	// 	passEncoder3D.setBindGroup(0, this.renderPipeline3D.bindGroup);
+
+	// 	this.scene.objects.forEach((object) => {
+	// 		passEncoder3D.setVertexBuffer(0, object.getVertexBuffer());
+	// 		passEncoder3D.setIndexBuffer(object.getIndexBuffer(), 'uint16');
+	// 		passEncoder3D.drawIndexed(object.getIndexCount(), 1, 0, 0, 0);
+	// 	});
+
+	// 	passEncoder3D.end();
+	// 	this.device.queue.submit([commandEncoder.finish()]);
+	// 	requestAnimationFrame(this.render.bind(this));
+	// }
 	render() {
 		if (!this.device || !this.context || !this.scene) return;
 
@@ -169,7 +218,7 @@ class Engine {
 
 		this.camera.updateBuffers();
 
-		const renderPassDescriptor2D = {
+		const renderPassDescriptor3D = {
 			colorAttachments: [
 				{
 					view: textureView,
@@ -177,17 +226,7 @@ class Engine {
 					storeOp: 'store',
 					clearValue: { r: 0, g: 0, b: 0, a: 1 }
 				}
-			]
-		};
-
-		const passEncoder2D = commandEncoder.beginRenderPass(renderPassDescriptor2D);
-		passEncoder2D.setPipeline(this.renderPipeline2D.pipeline);
-		passEncoder2D.setBindGroup(0, this.renderPipeline2D.bindGroup);
-		passEncoder2D.draw(3, 1, 0, 0);
-		passEncoder2D.end();
-
-		const renderPassDescriptor3D = {
-			colorAttachments: [{ view: textureView, loadOp: 'load', storeOp: 'store' }],
+			],
 			depthStencilAttachment: {
 				view: this.depthTexture.createView(),
 				depthLoadOp: 'clear',
@@ -196,17 +235,19 @@ class Engine {
 			}
 		};
 
-		const passEncoder3D = commandEncoder.beginRenderPass(renderPassDescriptor3D);
-		passEncoder3D.setPipeline(this.renderPipeline3D.pipeline);
-		passEncoder3D.setBindGroup(0, this.renderPipeline3D.bindGroup);
+		const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor3D);
 
-		this.scene.objects.forEach((object) => {
-			passEncoder3D.setVertexBuffer(0, object.getVertexBuffer());
-			passEncoder3D.setIndexBuffer(object.getIndexBuffer(), 'uint16');
-			passEncoder3D.drawIndexed(object.getIndexCount(), 1, 0, 0, 0);
+		passEncoder.setPipeline(this.renderPipeline3D.pipeline);
+		passEncoder.setBindGroup(0, this.renderPipeline3D.bindGroup);
+
+		// Iterate through scene objects and render each
+		this.scene.getObjects().forEach((object) => {
+			passEncoder.setVertexBuffer(0, object.getVertexBuffer());
+			passEncoder.draw(object.getVertexCount(), 1, 0, 0);
 		});
 
-		passEncoder3D.end();
+		passEncoder.end();
+
 		this.device.queue.submit([commandEncoder.finish()]);
 		requestAnimationFrame(this.render.bind(this));
 	}
