@@ -2,6 +2,9 @@ import RenderPipeline2D from './RenderPipeline2D';
 import RenderPipeline3D from './RenderPipeline3D';
 import ComputePipeline from './ComputePipeline';
 
+import { get } from 'svelte/store'; // Import 'get' to access store values synchronously
+import { viewportSize } from '$lib/store/store';
+
 class PipelineManager {
 	constructor(device, camera) {
 		this.device = device;
@@ -13,9 +16,13 @@ class PipelineManager {
 
 	async initialize() {
 		try {
+			// Read initial viewport size from the store
+			const { width, height } = this.getViewportSize();
+
 			this.buffers.viewportBuffer = this.createUniformBuffer(16);
 			this.buffers.mouseBuffer = this.createUniformBuffer(16);
 
+			// Initialize pipelines
 			this.pipelines['2D'] = new RenderPipeline2D(
 				this.device,
 				this.buffers.viewportBuffer,
@@ -35,7 +42,7 @@ class PipelineManager {
 			await this.pipelines['Compute'].initialize();
 
 			// Initialize the depth texture
-			this.initializeDepthTexture(this.device.canvas.width, this.device.canvas.height);
+			this.initializeDepthTexture(width, height);
 
 			console.log('PipelineManager initialized successfully:', this.pipelines);
 		} catch (error) {
@@ -43,10 +50,29 @@ class PipelineManager {
 		}
 	}
 
+	getViewportSize() {
+		// Default fallback size
+		let size = { width: 800, height: 600 };
+
+		// Try to read from the store
+		const storeValue = get(viewportSize);
+		if (storeValue?.width && storeValue?.height) {
+			size = { width: storeValue.width, height: storeValue.height };
+		}
+
+		return size;
+	}
+
 	initializeDepthTexture(width, height) {
+		if (!width || !height) {
+			console.error('Invalid dimensions for depth texture:', { width, height });
+			return; // Exit early if dimensions are invalid
+		}
+
 		if (this.depthTexture) {
 			this.depthTexture.destroy(); // Free up the old texture
 		}
+
 		this.depthTexture = this.device.createTexture({
 			size: { width, height, depthOrArrayLayers: 1 },
 			format: 'depth24plus',
@@ -56,6 +82,10 @@ class PipelineManager {
 	}
 
 	getDepthTexture() {
+		if (!this.depthTexture) {
+			console.error('Depth texture is not initialized.');
+			return null;
+		}
 		return this.depthTexture.createView();
 	}
 
@@ -74,8 +104,16 @@ class PipelineManager {
 	}
 
 	updateViewportSize(width, height) {
+		if (!width || !height) {
+			console.error('Invalid dimensions for viewport size update:', { width, height });
+			return; // Exit early if dimensions are invalid
+		}
+
 		const viewportData = new Float32Array([width, height]);
 		this.device.queue.writeBuffer(this.buffers.viewportBuffer, 0, viewportData);
+
+		// Reinitialize depth texture with new dimensions
+		this.initializeDepthTexture(width, height);
 	}
 
 	// Access a pipeline by name

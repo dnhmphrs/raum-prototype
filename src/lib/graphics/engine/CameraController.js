@@ -40,8 +40,10 @@ export default class CameraController {
 			const deltaX = x - this.lastMouseX;
 			const deltaY = y - this.lastMouseY;
 
-			this.theta -= deltaX * 0.01;
-			this.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.phi - deltaY * 0.01));
+			const sensitivity = 10.0;
+
+			this.theta -= deltaX * sensitivity;
+			this.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.phi - deltaY * sensitivity));
 
 			this.updateCameraPosition();
 
