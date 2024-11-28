@@ -1,4 +1,4 @@
-import shaderCode from './shaders/theta3D.wgsl';
+import shaderCode from '../shaders/theta3D.wgsl';
 
 export default class RenderPipeline3D {
 	constructor(device, camera, viewportBuffer, mouseBuffer) {

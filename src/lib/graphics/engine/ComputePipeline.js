@@ -1,4 +1,4 @@
-import computeShader from './shaders/compute.wgsl';
+import computeShader from '../shaders/compute.wgsl';
 
 export default class ComputePipeline {
 	constructor(device) {

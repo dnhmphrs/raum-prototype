@@ -56,8 +56,6 @@ class Engine {
 		const commandEncoder = this.device.createCommandEncoder();
 		const textureView = this.context.getCurrentTexture().createView();
 
-		this.camera.updateBuffers();
-
 		// Render scene via the pipeline manager
 		this.scene.render(commandEncoder, textureView);
 

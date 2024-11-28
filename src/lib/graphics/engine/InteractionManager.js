@@ -51,8 +51,13 @@ class InteractionManager {
 
 		mousePosition.set({ x: mouseX, y: mouseY });
 
-		// If dragging, notify the engine's camera controller
-		if (this.isDragging && this.engine) {
+		// Update the pipelines with the mouse position
+		if (this.engine?.pipelineManager) {
+			this.engine.pipelineManager.updateMousePosition(mouseX, mouseY);
+		}
+
+		// If dragging, update the camera controller
+		if (this.isDragging && this.engine?.cameraController) {
 			this.engine.cameraController.handleMouseMove(mouseX, mouseY);
 		}
 	}

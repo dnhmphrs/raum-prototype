@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import Engine from './Engine.js';
-  import BirdExperience from './engine/BirdExperience.js';
-  import CubeExperience from './engine/CubeExperience.js';
+  import BirdExperience from './experiences/Flocking/FlockingExperience.js';
+  import CubeExperience from './experiences/Cube/CubeExperience.js';
 
   let canvas;
   let engine;

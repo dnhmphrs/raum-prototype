@@ -1,30 +1,16 @@
-import Scene from './Scene';
-import Cube from './objects/Cube';
+import Scene from '../../engine/Scene';
+import BirdGeometry from './BirdGeometry';
 
-class CubeExperience extends Scene {
+class BirdExperience extends Scene {
 	constructor(device, pipelineManager) {
 		super(device, pipelineManager);
 
-		this.addCubes();
+		this.addBirds();
 	}
 
-	addCubes() {
-		// Create and position multiple cubes in the scene
-		const gridSize = 5; // Number of cubes per row/column
-		const spacing = 2; // Spacing between cubes
-
-		for (let x = -gridSize; x <= gridSize; x++) {
-			for (let y = -gridSize; y <= gridSize; y++) {
-				for (let z = -gridSize; z <= gridSize; z++) {
-					const cube = new Cube(this.device);
-					// Set object transformation (if applicable)
-					cube.transform = {
-						position: [x * spacing, y * spacing, z * spacing],
-						scale: [1, 1, 1]
-					};
-					this.addObject(cube);
-				}
-			}
+	addBirds() {
+		for (let i = 0; i < 100; i++) {
+			this.addObject(new BirdGeometry(this.device));
 		}
 	}
 
@@ -60,12 +46,17 @@ class CubeExperience extends Scene {
 
 		this.objects.forEach((object) => {
 			passEncoder.setVertexBuffer(0, object.getVertexBuffer());
-			passEncoder.setIndexBuffer(object.getIndexBuffer(), 'uint16');
-			passEncoder.drawIndexed(object.getIndexCount(), 1, 0, 0);
+			passEncoder.draw(object.getVertexCount(), 1, 0, 0);
 		});
 
 		passEncoder.end();
+
+		// Run the compute pipeline to update bird positions
+		// const computePipeline = this.pipelineManager.getPipeline('Compute');
+		// if (computePipeline) {
+		// 	computePipeline.run();
+		// }
 	}
 }
 
-export default CubeExperience;
+export default BirdExperience;
