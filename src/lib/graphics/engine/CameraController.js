@@ -1,6 +1,5 @@
 // CameraController.js
 import { vec3 } from 'gl-matrix';
-import { zoom } from '$lib/store/store.js'; // Import the zoom store
 
 export default class CameraController {
 	constructor(camera, target = vec3.fromValues(0, 0, 0)) {
@@ -8,20 +7,14 @@ export default class CameraController {
 		this.target = target;
 		this.theta = Math.PI / 2;
 		this.phi = Math.PI / 4;
-		this.baseDistance = 500.0; // Base distance from target
+		this.currentZoom = 1.0;
+		this.baseDistance = 100.0; // Base distance from target
 		this.distance = this.baseDistance; // Initial distance set by zoom
 
 		this.isDragging = false;
 		this.lastMouseX = 0;
 		this.lastMouseY = 0;
 
-		// Subscribe to zoom store to adjust camera distance
-		zoom.subscribe((newZoom) => {
-			this.distance = this.baseDistance * newZoom;
-			this.updateCameraPosition();
-		});
-
-		// Initial camera position update
 		this.updateCameraPosition();
 	}
 
@@ -33,6 +26,24 @@ export default class CameraController {
 
 	endDrag() {
 		this.isDragging = false;
+	}
+
+	adjustZoom(deltaZoom) {
+		const sensitivity = 0.001; // Zoom sensitivity
+		const minZoom = 0.1; // Minimum zoom level
+		const maxZoom = 5.0; // Maximum zoom level
+
+		// Adjust the current zoom level and clamp it
+		this.currentZoom = Math.min(
+			Math.max(this.currentZoom + deltaZoom * sensitivity, minZoom),
+			maxZoom
+		);
+
+		// Update the distance based on the current zoom
+		this.distance = this.baseDistance * this.currentZoom;
+
+		// Update the camera position to reflect the new zoom level
+		this.updateCameraPosition();
 	}
 
 	handleMouseMove(x, y) {

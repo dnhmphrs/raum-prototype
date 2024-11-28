@@ -1,4 +1,4 @@
-import { mousePosition, viewportSize, zoom } from '$lib/store/store';
+import { mousePosition, viewportSize } from '$lib/store/store';
 
 class InteractionManager {
 	constructor(canvas, engine) {
@@ -82,22 +82,8 @@ class InteractionManager {
 	}
 
 	handleMouseWheel(event) {
-		const zoomSpeed = -0.001; // Adjust for sensitivity
-		const exponentialZoomFactor = 1.1; // Multiplier for exponential zooming
-
-		zoom.update((currentZoom) => {
-			// Adjust zoom using exponential scaling
-			let newZoom =
-				currentZoom *
-				(event.deltaY * zoomSpeed < 0 ? exponentialZoomFactor : 1 / exponentialZoomFactor);
-
-			// Optional: Limit zoom range (remove or adjust for flexibility)
-			const minZoom = 0.1; // Allow further zoom out
-			const maxZoom = 10.0; // Allow deeper zoom in
-			newZoom = Math.min(Math.max(newZoom, minZoom), maxZoom);
-
-			return newZoom;
-		});
+		const zoomDelta = event.deltaY;
+		this.engine.cameraController.adjustZoom(zoomDelta);
 	}
 }
 
