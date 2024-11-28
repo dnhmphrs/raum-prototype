@@ -82,7 +82,7 @@ class InteractionManager {
 	}
 
 	handleMouseWheel(event) {
-		const zoomSpeed = 0.001; // Adjust for sensitivity
+		const zoomSpeed = -0.001; // Adjust for sensitivity
 		const exponentialZoomFactor = 1.1; // Multiplier for exponential zooming
 
 		zoom.update((currentZoom) => {
