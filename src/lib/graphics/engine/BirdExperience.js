@@ -1,16 +1,26 @@
-class Scene {
+import Scene from './Scene';
+import BirdGeometry from './BirdGeometry';
+
+class BirdExperience extends Scene {
 	constructor(device, pipelineManager) {
-		this.device = device;
-		this.pipelineManager = pipelineManager;
-		this.objects = [];
+		super(device, pipelineManager);
+
+		this.addBirds();
 	}
 
-	addObject(object) {
-		this.objects.push(object);
+	addBirds() {
+		for (let i = 0; i < 100; i++) {
+			this.addObject(new BirdGeometry(this.device));
+		}
 	}
 
 	render(commandEncoder, textureView) {
 		const pipeline = this.pipelineManager.getPipeline('3D');
+		if (!pipeline || !pipeline.pipeline) {
+			console.error('3D pipeline is not ready for rendering.');
+			return;
+		}
+
 		const depthView = this.pipelineManager.getDepthTexture();
 
 		const passDescriptor = {
@@ -19,7 +29,7 @@ class Scene {
 					view: textureView,
 					loadOp: 'clear',
 					storeOp: 'store',
-					clearValue: { r: 0, g: 0, b: 0, a: 1 }
+					clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }
 				}
 			],
 			depthStencilAttachment: {
@@ -31,7 +41,6 @@ class Scene {
 		};
 
 		const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
-
 		passEncoder.setPipeline(pipeline.pipeline);
 		passEncoder.setBindGroup(0, pipeline.bindGroup);
 
@@ -41,7 +50,13 @@ class Scene {
 		});
 
 		passEncoder.end();
+
+		// Run the compute pipeline to update bird positions
+		// const computePipeline = this.pipelineManager.getPipeline('Compute');
+		// if (computePipeline) {
+		// 	computePipeline.run();
+		// }
 	}
 }
 
-export default Scene;
+export default BirdExperience;

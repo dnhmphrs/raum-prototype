@@ -1,84 +1,101 @@
-// webgpu/ComputePipeline.js
 import computeShader from './shaders/compute.wgsl';
 
-export let storageBuffer; // The buffer used in the compute shader
-export let readBuffer; // The buffer used to read data back to the CPU
-
-// Initialize all buffers
-export function initializeComputeBuffers(device) {
-	// Create the storage buffer for compute data
-	storageBuffer = device.createBuffer({
-		label: 'compute storage buffer',
-		size: 256 * Float32Array.BYTES_PER_ELEMENT, // Example size (256 floats)
-		// eslint-disable-next-line no-undef
-		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC // STORAGE, COPY_DST, and COPY_SRC
-	});
-
-	// Corrected: Ensure only MAP_READ and COPY_DST
-	readBuffer = device.createBuffer({
-		label: 'compute read buffer',
-		size: 256 * Float32Array.BYTES_PER_ELEMENT,
-		// eslint-disable-next-line no-undef
-		usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST // Only MAP_READ and COPY_DST
-	});
-}
-
-// Function to create and return the compute pipeline
-export async function createComputePipeline(device) {
-	// Create a compute pipeline
-	const computePipeline = device.createComputePipeline({
-		label: 'compute pipeline',
-		layout: 'auto',
-		compute: {
-			module: device.createShaderModule({ label: 'compute shader', code: computeShader }),
-			entryPoint: 'compute_main'
-		}
-	});
-
-	return computePipeline;
-}
-
-// Function to run the compute pass and copy results to the read buffer
-export async function runComputePass(device, computePipeline) {
-	if (!storageBuffer || !readBuffer) {
-		console.error('Buffers are not initialized.');
-		return;
+export default class ComputePipeline {
+	constructor(device) {
+		this.device = device;
+		this.pipeline = null;
+		this.storageBuffer = null;
+		this.readBuffer = null;
+		this.bindGroup = null;
 	}
 
-	const commandEncoder = device.createCommandEncoder();
+	async initialize() {
+		this.createBuffers();
+		await this.createPipeline();
+		this.createBindGroup();
+	}
 
-	// Start the compute pass
-	const passEncoder = commandEncoder.beginComputePass();
-	passEncoder.setPipeline(computePipeline);
-	passEncoder.setBindGroup(
-		0,
-		device.createBindGroup({
-			label: 'compute bind group',
-			layout: computePipeline.getBindGroupLayout(0),
+	createBuffers() {
+		// Create the storage buffer for compute data
+		this.storageBuffer = this.device.createBuffer({
+			label: 'Compute Storage Buffer',
+			size: 256 * Float32Array.BYTES_PER_ELEMENT, // Example size (256 floats)
+			usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+		});
+
+		// Create the read buffer for CPU-side data reading
+		this.readBuffer = this.device.createBuffer({
+			label: 'Compute Read Buffer',
+			size: 256 * Float32Array.BYTES_PER_ELEMENT,
+			usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST // Only MAP_READ and COPY_DST
+		});
+	}
+
+	async createPipeline() {
+		// Create a compute pipeline
+		this.pipeline = this.device.createComputePipeline({
+			label: 'Compute Pipeline',
+			layout: 'auto',
+			compute: {
+				module: this.device.createShaderModule({
+					label: 'Compute Shader',
+					code: computeShader
+				}),
+				entryPoint: 'compute_main'
+			}
+		});
+	}
+
+	createBindGroup() {
+		if (!this.pipeline || !this.storageBuffer) {
+			console.error('Pipeline or buffers not initialized for bind group creation.');
+			return;
+		}
+
+		// Create the bind group for the pipeline
+		this.bindGroup = this.device.createBindGroup({
+			label: 'Compute Bind Group',
+			layout: this.pipeline.getBindGroupLayout(0),
 			entries: [
 				{
 					binding: 0,
-					resource: {
-						buffer: storageBuffer
-					}
+					resource: { buffer: this.storageBuffer }
 				}
 			]
-		})
-	);
+		});
+	}
 
-	// Dispatch only 4 workgroups (256 / 64)
-	passEncoder.dispatchWorkgroups(4); // Adjust based on buffer size and workgroup layout
-	passEncoder.end();
+	async run() {
+		if (!this.pipeline || !this.storageBuffer || !this.readBuffer) {
+			console.error('Compute pipeline or buffers are not initialized.');
+			return;
+		}
 
-	// Copy the data from storageBuffer to readBuffer
-	commandEncoder.copyBufferToBuffer(
-		storageBuffer,
-		0,
-		readBuffer,
-		0,
-		256 * Float32Array.BYTES_PER_ELEMENT
-	);
+		const commandEncoder = this.device.createCommandEncoder();
 
-	// Submit the compute pass
-	device.queue.submit([commandEncoder.finish()]);
+		// Start the compute pass
+		const passEncoder = commandEncoder.beginComputePass();
+		passEncoder.setPipeline(this.pipeline);
+		passEncoder.setBindGroup(0, this.bindGroup);
+		passEncoder.dispatchWorkgroups(4); // Adjust based on buffer size and workgroup layout
+		passEncoder.end();
+
+		// Copy the data from storageBuffer to readBuffer
+		commandEncoder.copyBufferToBuffer(
+			this.storageBuffer,
+			0,
+			this.readBuffer,
+			0,
+			256 * Float32Array.BYTES_PER_ELEMENT
+		);
+
+		// Submit the compute pass
+		this.device.queue.submit([commandEncoder.finish()]);
+
+		// Map and read the buffer (optional, for CPU-side usage)
+		await this.readBuffer.mapAsync(GPUMapMode.READ);
+		const mappedData = new Float32Array(this.readBuffer.getMappedRange());
+		console.log('Compute output:', mappedData.slice(0, 10));
+		this.readBuffer.unmap();
+	}
 }

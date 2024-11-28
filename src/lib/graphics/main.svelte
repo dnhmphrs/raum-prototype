@@ -2,14 +2,15 @@
   import { onMount } from 'svelte';
   import Engine from './Engine.js'; // Import the Engine module
   import { mousePosition, viewportSize } from '$lib//store/store.js'; // Import interaction store
-  
+  import BirdExperience from './engine/BirdExperience.js'; // Import the BirdExperience module
+
   let canvas;
   let engine;
 
   onMount(() => {
     // Initialize the WebGPU engine and start the render loop
     engine = new Engine(canvas);
-    engine.start();
+    engine.start(BirdExperience);
 
     // Set up interaction listeners to update the central store
     const handleResize = () => {

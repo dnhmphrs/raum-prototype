@@ -1,255 +1,118 @@
-// Engine.js
-import { initializeWebGPU } from './engine/WebGPUContext.js';
-import { createRenderPipeline2D } from './engine/RenderPipeline2D.js';
-import { createRenderPipeline3D } from './engine/RenderPipeline3D.js';
-import {
-	createComputePipeline,
-	initializeComputeBuffers,
-	runComputePass,
-	readBuffer
-} from './engine/ComputePipeline.js';
-import Camera from './engine/Camera.js';
-import CameraController from './engine/CameraController.js';
-import Scene from './engine/Scene.js';
-import { viewportSize, mousePosition, zoom } from '$lib/store/store.js';
+import { initializeWebGPU } from './engine/WebGPUContext';
+import PipelineManager from './engine/PipelineManager';
+import Scene from './engine/Scene';
+import Camera from './engine/Camera';
+import CameraController from './engine/CameraController';
+import { viewportSize, mousePosition, zoom } from '$lib/store/store';
 
 class Engine {
 	constructor(canvas) {
 		this.canvas = canvas;
 		this.device = null;
 		this.context = null;
+		this.pipelineManager = null;
+		this.scene = null;
 		this.camera = null;
 		this.cameraController = null;
-		this.scene = null;
-		this.renderPipeline2D = null;
-		this.renderPipeline3D = null;
-		this.computePipeline = null;
-		this.viewportBuffer = null;
-		this.mouseBuffer = null;
-		this.depthTexture = null;
 
-		// Bind interaction handlers to the Engine instance
-		this.handleMouseDown = this.handleMouseDown.bind(this);
-		this.handleMouseUp = this.handleMouseUp.bind(this);
-		this.handleMouseMove = this.handleMouseMove.bind(this);
+		// State management for interactions
+		this.isDragging = false;
+		this.lastMouseX = 0;
+		this.lastMouseY = 0;
 	}
 
-	async start() {
-		await this.initializeWebGPU();
-		await this.initializeBuffers();
-		await this.initializeDepthTexture();
-		await this.initializePipelines();
-		this.initializeScene();
-		this.setupInteractions();
-		this.render(); // Start the render loop
-	}
+	async start(SceneClass) {
+		// Initialize WebGPU
+		const { device, context } = await initializeWebGPU(this.canvas);
+		this.device = device;
+		this.context = context;
 
-	async initializeWebGPU() {
-		({ device: this.device, context: this.context } = await initializeWebGPU(this.canvas));
-		if (!this.device || !this.context)
-			throw new Error('Failed to initialize WebGPU context or device.');
-	}
-
-	async initializeBuffers() {
-		this.viewportBuffer = this.device.createBuffer({
-			label: 'Viewport Uniform Buffer',
-			size: 16,
-			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-		});
-
-		this.mouseBuffer = this.device.createBuffer({
-			label: 'Mouse Uniform Buffer',
-			size: 16,
-			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-		});
-	}
-
-	async initializePipelines() {
+		// Initialize Camera and Controller
 		this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight);
 		this.cameraController = new CameraController(this.camera);
 
-		this.renderPipeline2D = await createRenderPipeline2D(
-			this.device,
-			this.viewportBuffer,
-			this.mouseBuffer
-		);
-		this.renderPipeline3D = await createRenderPipeline3D(
-			this.device,
-			this.camera,
-			this.viewportBuffer,
-			this.mouseBuffer
-		);
+		// Initialize Pipeline Manager
+		this.pipelineManager = new PipelineManager(this.device, this.camera);
+		await this.pipelineManager.initialize();
 
-		this.computePipeline = await createComputePipeline(this.device);
-		initializeComputeBuffers(this.device);
-		await runComputePass(this.device, this.computePipeline);
-		await this.device.queue.onSubmittedWorkDone();
+		// Initialize Scene
+		this.scene = new SceneClass(this.device, this.pipelineManager);
 
-		await readBuffer.mapAsync(GPUMapMode.READ);
-		const mappedData = new Float32Array(readBuffer.getMappedRange());
-		console.log('Initial compute data:', mappedData.slice(0, 10));
-		readBuffer.unmap();
-	}
+		// Set up interactions
+		this.setupInteractions();
 
-	initializeScene() {
-		this.scene = new Scene(this.device);
-	}
-
-	async initializeDepthTexture() {
-		this.depthTexture = this.device.createTexture({
-			size: {
-				width: this.canvas.width,
-				height: this.canvas.height,
-				depthOrArrayLayers: 1
-			},
-			format: 'depth24plus',
-			usage: GPUTextureUsage.RENDER_ATTACHMENT,
-			label: 'Depth Texture'
-		});
+		// Start rendering loop
+		this.render();
 	}
 
 	setupInteractions() {
-		// Subscribe to viewport and mouse position stores
+		// Handle viewport resizing
 		viewportSize.subscribe(({ width, height }) => {
 			if (this.device) this.updateViewport(width, height);
 		});
 
+		// Update mouse position in pipelines
 		mousePosition.subscribe(({ x, y }) => {
-			if (this.device) {
-				this.renderPipeline2D.updateMousePosition(this.device, x, y);
-				this.renderPipeline3D.updateMousePosition(this.device, x, y);
+			this.pipelineManager.updateMousePosition(x, y);
+		});
+
+		// Mouse interactions for camera control
+		window.addEventListener('mousedown', (e) => {
+			this.isDragging = true;
+			this.lastMouseX = e.clientX;
+			this.lastMouseY = e.clientY;
+			this.cameraController.startDrag(e.clientX, e.clientY);
+		});
+
+		window.addEventListener('mousemove', (e) => {
+			if (this.isDragging) {
+				const deltaX = e.clientX - this.lastMouseX;
+				const deltaY = e.clientY - this.lastMouseY;
+				this.lastMouseX = e.clientX;
+				this.lastMouseY = e.clientY;
+				this.cameraController.handleMouseMove(deltaX, deltaY);
 			}
 		});
 
-		// Add event listeners for camera control
-		window.addEventListener('mousedown', this.handleMouseDown);
-		window.addEventListener('mousemove', this.handleMouseMove);
-		window.addEventListener('mouseup', this.handleMouseUp);
-		window.addEventListener('wheel', this.handleMouseScroll);
-	}
+		window.addEventListener('mouseup', () => {
+			this.isDragging = false;
+			this.cameraController.endDrag();
+		});
 
-	handleMouseDown(event) {
-		this.cameraController.startDrag(event.clientX, event.clientY);
-	}
-
-	handleMouseUp() {
-		this.cameraController.endDrag();
-	}
-
-	handleMouseMove(event) {
-		if (this.cameraController.isDragging) {
-			this.cameraController.handleMouseMove(event.clientX, event.clientY);
-		}
-	}
-
-	handleMouseScroll(event) {
-		console.log('handleMouseScroll');
-		// Update zoom factor based on scroll delta
-		zoom.update((currentZoom) => {
-			const zoomSpeed = 0.25;
-			const newZoom = currentZoom + event.deltaY * zoomSpeed * 0.001;
-			return Math.min(Math.max(newZoom, 0.5), 2.0); // Clamp zoom level
+		// Zoom control using mouse wheel
+		window.addEventListener('wheel', (e) => {
+			zoom.update((currentZoom) => Math.min(Math.max(currentZoom - e.deltaY * 0.001, 0.5), 2.0));
 		});
 	}
 
 	updateViewport(width, height) {
 		this.canvas.width = width;
 		this.canvas.height = height;
-		this.renderPipeline2D.updateViewportSize(this.device, width, height);
-		this.renderPipeline3D.updateViewportSize(this.device, width, height);
+		this.pipelineManager.updateViewportSize(width, height);
 		this.cameraController.updateAspect(width, height);
-		this.initializeDepthTexture();
+
+		// Reinitialize the depth texture with the new dimensions
+		this.pipelineManager.initializeDepthTexture(width, height);
 	}
 
-	// render() {
-	// 	if (!this.device || !this.context || !this.scene) return;
-
-	// 	const commandEncoder = this.device.createCommandEncoder();
-	// 	const textureView = this.context.getCurrentTexture().createView();
-
-	// 	this.camera.updateBuffers();
-
-	// 	const renderPassDescriptor2D = {
-	// 		colorAttachments: [
-	// 			{
-	// 				view: textureView,
-	// 				loadOp: 'clear',
-	// 				storeOp: 'store',
-	// 				clearValue: { r: 0, g: 0, b: 0, a: 1 }
-	// 			}
-	// 		]
-	// 	};
-
-	// 	const passEncoder2D = commandEncoder.beginRenderPass(renderPassDescriptor2D);
-	// 	passEncoder2D.setPipeline(this.renderPipeline2D.pipeline);
-	// 	passEncoder2D.setBindGroup(0, this.renderPipeline2D.bindGroup);
-	// 	passEncoder2D.draw(3, 1, 0, 0);
-	// 	passEncoder2D.end();
-
-	// 	const renderPassDescriptor3D = {
-	// 		colorAttachments: [{ view: textureView, loadOp: 'load', storeOp: 'store' }],
-	// 		depthStencilAttachment: {
-	// 			view: this.depthTexture.createView(),
-	// 			depthLoadOp: 'clear',
-	// 			depthClearValue: 1.0,
-	// 			depthStoreOp: 'store'
-	// 		}
-	// 	};
-
-	// 	const passEncoder3D = commandEncoder.beginRenderPass(renderPassDescriptor3D);
-	// 	passEncoder3D.setPipeline(this.renderPipeline3D.pipeline);
-	// 	passEncoder3D.setBindGroup(0, this.renderPipeline3D.bindGroup);
-
-	// 	this.scene.objects.forEach((object) => {
-	// 		passEncoder3D.setVertexBuffer(0, object.getVertexBuffer());
-	// 		passEncoder3D.setIndexBuffer(object.getIndexBuffer(), 'uint16');
-	// 		passEncoder3D.drawIndexed(object.getIndexCount(), 1, 0, 0, 0);
-	// 	});
-
-	// 	passEncoder3D.end();
-	// 	this.device.queue.submit([commandEncoder.finish()]);
-	// 	requestAnimationFrame(this.render.bind(this));
-	// }
 	render() {
-		if (!this.device || !this.context || !this.scene) return;
-
+		// Create command encoder
 		const commandEncoder = this.device.createCommandEncoder();
+
+		// Get texture view from the WebGPU context
 		const textureView = this.context.getCurrentTexture().createView();
 
+		// Update camera buffers
 		this.camera.updateBuffers();
 
-		const renderPassDescriptor3D = {
-			colorAttachments: [
-				{
-					view: textureView,
-					loadOp: 'clear',
-					storeOp: 'store',
-					clearValue: { r: 0, g: 0, b: 0, a: 1 }
-				}
-			],
-			depthStencilAttachment: {
-				view: this.depthTexture.createView(),
-				depthLoadOp: 'clear',
-				depthClearValue: 1.0,
-				depthStoreOp: 'store'
-			}
-		};
+		// Render scene via the pipeline manager
+		this.scene.render(commandEncoder, textureView);
 
-		const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor3D);
-
-		passEncoder.setPipeline(this.renderPipeline3D.pipeline);
-		passEncoder.setBindGroup(0, this.renderPipeline3D.bindGroup);
-
-		// Iterate through scene objects and render each
-		this.scene.getObjects().forEach((object) => {
-			passEncoder.setVertexBuffer(0, object.getVertexBuffer());
-			passEncoder.draw(object.getVertexCount(), 1, 0, 0);
-		});
-
-		passEncoder.end();
-
+		// Submit commands to GPU queue
 		this.device.queue.submit([commandEncoder.finish()]);
-		requestAnimationFrame(this.render.bind(this));
+
+		// Schedule next frame
+		requestAnimationFrame(() => this.render());
 	}
 }
 
