@@ -1,8 +1,8 @@
-import { initializeWebGPU } from './engine/WebGPUContext';
+import { initializeWebGPU } from './core/WebGPUContext';
 import Camera from './camera/Camera';
 import CameraController from './camera/CameraController';
-import InteractionManager from './engine/InteractionManager';
-import ResourceManager from './engine/ResourceManager';
+import InteractionManager from './core/InteractionManager';
+import ResourceManager from './core/ResourceManager';
 
 class Engine {
 	constructor(canvas) {
