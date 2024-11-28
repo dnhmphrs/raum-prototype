@@ -17,9 +17,6 @@ class Engine {
 	}
 
 	async start(SceneClass) {
-		// Perform a complete cleanup before starting a new scene
-		// this.cleanup();
-
 		// Reinitialize WebGPU context
 		const { device, context } = await initializeWebGPU(this.canvas);
 		this.device = device;
