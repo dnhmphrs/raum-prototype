@@ -1,23 +1,26 @@
 import { initializeWebGPU } from './engine/WebGPUContext';
-import PipelineManager from './engine/PipelineManager';
-import Camera from './engine/Camera';
-import CameraController from './engine/CameraController';
-import InteractionManager from './engine/InteractionManager'; // Import the new manager
+import Camera from './camera/Camera';
+import CameraController from './camera/CameraController';
+import InteractionManager from './engine/InteractionManager';
+import ResourceManager from './engine/ResourceManager';
 
 class Engine {
 	constructor(canvas) {
 		this.canvas = canvas;
 		this.device = null;
 		this.context = null;
-		this.pipelineManager = null;
+		this.resourceManager = null;
 		this.scene = null;
 		this.camera = null;
 		this.cameraController = null;
-		this.interactionManager = null; // Interaction manager instance
+		this.interactionManager = null;
 	}
 
 	async start(SceneClass) {
-		// Initialize WebGPU
+		// Perform a complete cleanup before starting a new scene
+		// this.cleanup();
+
+		// Reinitialize WebGPU context
 		const { device, context } = await initializeWebGPU(this.canvas);
 		this.device = device;
 		this.context = context;
@@ -26,12 +29,13 @@ class Engine {
 		this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight);
 		this.cameraController = new CameraController(this.camera);
 
-		// Initialize Pipeline Manager
-		this.pipelineManager = new PipelineManager(this.device, this.camera);
-		await this.pipelineManager.initialize();
+		// Initialize Shared Resource Manager
+		this.resourceManager = new ResourceManager(this.device, this.camera);
+		this.resourceManager.initialize(this.canvas.width, this.canvas.height);
 
 		// Initialize Scene
-		this.scene = new SceneClass(this.device, this.pipelineManager);
+		this.scene = new SceneClass(this.device, this.resourceManager);
+		await this.scene.initialize();
 
 		// Initialize Interaction Manager
 		this.interactionManager = new InteractionManager(this.canvas, this);
@@ -45,25 +49,60 @@ class Engine {
 		this.canvas.width = width;
 		this.canvas.height = height;
 
-		// Update PipelineManager with new viewport size
-		this.pipelineManager.updateViewportSize(width, height);
+		// Update ResourceManager with new viewport size
+		this.resourceManager.updateViewportSize(width, height);
 
 		// Update camera's aspect ratio
 		this.cameraController.updateAspect(width, height);
+	}
+
+	cleanup() {
+		// Cancel the rendering loop
+		if (this.frameId) {
+			cancelAnimationFrame(this.frameId);
+			this.frameId = null;
+		}
+
+		// Cleanup scene
+		if (this.scene && this.scene.cleanup) {
+			this.scene.cleanup();
+		}
+
+		// Cleanup resource manager
+		if (this.resourceManager && this.resourceManager.cleanup) {
+			this.resourceManager.cleanup();
+		}
+
+		// Cleanup interaction manager
+		if (this.interactionManager && this.interactionManager.destroy) {
+			this.interactionManager.destroy();
+		}
+
+		// Cleanup camera and controller
+		if (this.camera && this.camera.cleanup) {
+			this.camera.cleanup();
+		}
+		if (this.cameraController && this.cameraController.cleanup) {
+			this.cameraController.cleanup();
+		}
+
+		// Reset device and context
+		this.device = null;
+		this.context = null;
 	}
 
 	render() {
 		const commandEncoder = this.device.createCommandEncoder();
 		const textureView = this.context.getCurrentTexture().createView();
 
-		// Render scene via the pipeline manager
+		// Render scene
 		this.scene.render(commandEncoder, textureView);
 
 		// Submit commands to GPU queue
 		this.device.queue.submit([commandEncoder.finish()]);
 
 		// Schedule next frame
-		requestAnimationFrame(() => this.render());
+		this.frameId = requestAnimationFrame(() => this.render());
 	}
 }
 

@@ -98,4 +98,10 @@ export default class ComputePipeline {
 		console.log('Compute output:', mappedData.slice(0, 10));
 		this.readBuffer.unmap();
 	}
+
+	cleanup() {
+		// Since GPU pipelines don't have a destroy method, we can nullify references
+		this.pipeline = null;
+		this.bindGroup = null;
+	}
 }

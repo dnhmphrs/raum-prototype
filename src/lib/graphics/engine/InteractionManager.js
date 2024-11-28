@@ -3,32 +3,38 @@ import { mousePosition, viewportSize } from '$lib/store/store';
 class InteractionManager {
 	constructor(canvas, engine) {
 		this.canvas = canvas;
-		this.engine = engine; // Reference to the Engine
+		this.engine = engine;
 		this.isDragging = false;
-
 		this.lastMouseX = 0;
 		this.lastMouseY = 0;
+
+		// Bind methods once
+		this.handleResize = this.handleResize.bind(this);
+		this.handleMouseMove = this.handleMouseMove.bind(this);
+		this.handleMouseDown = this.handleMouseDown.bind(this);
+		this.handleMouseUp = this.handleMouseUp.bind(this);
+		this.handleMouseWheel = this.handleMouseWheel.bind(this);
 	}
 
 	initialize() {
-		// Set up event listeners
-		window.addEventListener('resize', this.handleResize.bind(this));
-		window.addEventListener('mousemove', this.handleMouseMove.bind(this));
-		window.addEventListener('mousedown', this.handleMouseDown.bind(this));
-		window.addEventListener('mouseup', this.handleMouseUp.bind(this));
-		window.addEventListener('wheel', this.handleMouseWheel.bind(this));
+		// Set up event listeners using the bound methods
+		window.addEventListener('resize', this.handleResize);
+		window.addEventListener('mousemove', this.handleMouseMove);
+		window.addEventListener('mousedown', this.handleMouseDown);
+		window.addEventListener('mouseup', this.handleMouseUp);
+		window.addEventListener('wheel', this.handleMouseWheel);
 
 		// Trigger initial resize
 		this.handleResize();
 	}
 
 	destroy() {
-		// Clean up event listeners
-		window.removeEventListener('resize', this.handleResize.bind(this));
-		window.removeEventListener('mousemove', this.handleMouseMove.bind(this));
-		window.removeEventListener('mousedown', this.handleMouseDown.bind(this));
-		window.removeEventListener('mouseup', this.handleMouseUp.bind(this));
-		window.removeEventListener('wheel', this.handleMouseWheel.bind(this));
+		// Remove event listeners using the same bound methods
+		window.removeEventListener('resize', this.handleResize);
+		window.removeEventListener('mousemove', this.handleMouseMove);
+		window.removeEventListener('mousedown', this.handleMouseDown);
+		window.removeEventListener('mouseup', this.handleMouseUp);
+		window.removeEventListener('wheel', this.handleMouseWheel);
 	}
 
 	handleResize() {
@@ -52,8 +58,8 @@ class InteractionManager {
 		mousePosition.set({ x: mouseX, y: mouseY });
 
 		// Update the pipelines with the mouse position
-		if (this.engine?.pipelineManager) {
-			this.engine.pipelineManager.updateMousePosition(mouseX, mouseY);
+		if (this.engine?.resourceManager) {
+			this.engine.resourceManager.updateMousePosition(mouseX, mouseY);
 		}
 
 		// If dragging, update the camera controller

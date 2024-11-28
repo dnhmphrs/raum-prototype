@@ -8,18 +8,17 @@
   let engine;
   let currentExperience = 'Bird'; // Toggle between "Bird" and "Cube"
 
-  const startExperience = () => {
+  const startExperience = async () => {
+    if (engine) {
+      engine.cleanup();
+    }
     const Experience = currentExperience === 'Bird' ? BirdExperience : CubeExperience;
     engine = new Engine(canvas);
-    engine.start(Experience);
+    await engine.start(Experience);
   };
 
   onMount(() => {
     startExperience();
-
-    return () => {
-      engine.interactionManager.destroy(); // Clean up interactions
-    };
   });
 
   const switchExperience = () => {

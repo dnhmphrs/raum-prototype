@@ -3,34 +3,11 @@ export default class Cube {
 		this.device = device;
 
 		// Define vertex data for a cube with larger dimensions to match the bird's size
-		const scale = 20; // Scaling factor to match bird dimensions
 		this.vertices = new Float32Array([
 			// Front face
-			-0.5 * scale,
-			-0.5 * scale,
-			0.5 * scale,
-			0.5 * scale,
-			-0.5 * scale,
-			0.5 * scale,
-			0.5 * scale,
-			0.5 * scale,
-			0.5 * scale,
-			-0.5 * scale,
-			0.5 * scale,
-			0.5 * scale,
+			-10.0, -10.0, 10.0, 10.0, -10.0, 10.0, 10.0, 10.0, 10.0, -10.0, 10.0, 10.0,
 			// Back face
-			-0.5 * scale,
-			-0.5 * scale,
-			-0.5 * scale,
-			0.5 * scale,
-			-0.5 * scale,
-			-0.5 * scale,
-			0.5 * scale,
-			0.5 * scale,
-			-0.5 * scale,
-			-0.5 * scale,
-			0.5 * scale,
-			-0.5 * scale
+			-10.0, -10.0, -10.0, 10.0, -10.0, -10.0, 10.0, 10.0, -10.0, -10.0, 10.0, -10.0
 		]);
 
 		this.indices = new Uint16Array([
@@ -78,5 +55,16 @@ export default class Cube {
 
 	getIndexCount() {
 		return this.indexCount;
+	}
+
+	cleanup() {
+		if (this.vertexBuffer) {
+			this.vertexBuffer.destroy();
+			this.vertexBuffer = null;
+		}
+		if (this.indexBuffer) {
+			this.indexBuffer.destroy();
+			this.indexBuffer = null;
+		}
 	}
 }

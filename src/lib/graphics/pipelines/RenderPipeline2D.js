@@ -1,12 +1,11 @@
+import Pipeline from './Pipeline';
 import shaderCode from '../shaders/theta2D.wgsl';
 
-export default class RenderPipeline2D {
+export default class RenderPipeline2D extends Pipeline {
 	constructor(device, viewportBuffer, mouseBuffer) {
-		this.device = device;
+		super(device);
 		this.viewportBuffer = viewportBuffer;
 		this.mouseBuffer = mouseBuffer;
-		this.pipeline = null;
-		this.bindGroup = null;
 	}
 
 	async initialize() {
@@ -44,13 +43,17 @@ export default class RenderPipeline2D {
 		});
 	}
 
-	updateMousePosition(x, y) {
-		const mousePosition = new Float32Array([x, y]);
-		this.device.queue.writeBuffer(this.mouseBuffer, 0, mousePosition);
+	render(commandEncoder, passDescriptor) {
+		const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
+		passEncoder.setPipeline(this.pipeline);
+		passEncoder.setBindGroup(0, this.bindGroup);
+		passEncoder.draw(3, 1, 0, 0);
+		passEncoder.end();
 	}
 
-	updateViewportSize(width, height) {
-		const viewportSize = new Float32Array([width, height]);
-		this.device.queue.writeBuffer(this.viewportBuffer, 0, viewportSize);
+	cleanup() {
+		// Since GPU pipelines don't have a destroy method, we can nullify references
+		this.pipeline = null;
+		this.bindGroup = null;
 	}
 }

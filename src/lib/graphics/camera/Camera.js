@@ -58,4 +58,20 @@ export default class Camera {
 			this.device.queue.writeBuffer(this.viewBuffer, 0, this.viewMatrix);
 		}
 	}
+
+	cleanup() {
+		// Destroy buffers
+		if (this.projectionBuffer) {
+			this.projectionBuffer.destroy();
+			this.projectionBuffer = null;
+		}
+		if (this.viewBuffer) {
+			this.viewBuffer.destroy();
+			this.viewBuffer = null;
+		}
+		if (this.modelBuffer) {
+			this.modelBuffer.destroy();
+			this.modelBuffer = null;
+		}
+	}
 }

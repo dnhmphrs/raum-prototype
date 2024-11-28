@@ -1,35 +1,45 @@
-import Scene from '../../engine/Scene';
+import BaseExperience from '../BaseExperience';
 import BirdGeometry from './BirdGeometry';
+import RenderPipeline3D from '../../pipelines/RenderPipeline3D';
 
-class BirdExperience extends Scene {
-	constructor(device, pipelineManager) {
-		super(device, pipelineManager);
+class FlockingExperience extends BaseExperience {
+	constructor(device, resourceManager) {
+		super(device, resourceManager);
+
+		// Initialize the 3D render pipeline
+		this.pipeline3D = new RenderPipeline3D(
+			this.device,
+			resourceManager.camera,
+			resourceManager.getViewportBuffer(),
+			resourceManager.getMouseBuffer()
+		);
 
 		this.addBirds();
 	}
 
+	async initialize() {
+		// Initialize the 3D pipeline
+		await this.pipeline3D.initialize();
+	}
+
 	addBirds() {
+		// Add multiple birds to the scene
 		for (let i = 0; i < 100; i++) {
 			this.addObject(new BirdGeometry(this.device));
 		}
 	}
 
 	render(commandEncoder, textureView) {
-		const pipeline = this.pipelineManager.getPipeline('3D');
-		if (!pipeline || !pipeline.pipeline) {
-			console.error('3D pipeline is not ready for rendering.');
-			return;
-		}
+		// Render the 3D pipeline
+		const depthView = this.resourceManager.getDepthTextureView();
 
-		const depthView = this.pipelineManager.getDepthTexture();
-
-		const passDescriptor = {
+		const passDescriptor3D = {
 			colorAttachments: [
 				{
 					view: textureView,
-					loadOp: 'clear',
+					loadOp: 'clear', // Clear the screen for the first render
 					storeOp: 'store',
-					clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }
+					clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 } // Dark background
 				}
 			],
 			depthStencilAttachment: {
@@ -40,23 +50,26 @@ class BirdExperience extends Scene {
 			}
 		};
 
-		const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
-		passEncoder.setPipeline(pipeline.pipeline);
-		passEncoder.setBindGroup(0, pipeline.bindGroup);
+		this.pipeline3D.render(commandEncoder, passDescriptor3D, this.objects);
+	}
 
+	cleanup() {
+		// Cleanup pipelines
+		if (this.pipeline2D) {
+			this.pipeline2D.cleanup();
+		}
+		if (this.pipeline3D) {
+			this.pipeline3D.cleanup();
+		}
+
+		// Cleanup objects
 		this.objects.forEach((object) => {
-			passEncoder.setVertexBuffer(0, object.getVertexBuffer());
-			passEncoder.draw(object.getVertexCount(), 1, 0, 0);
+			if (object.cleanup) {
+				object.cleanup();
+			}
 		});
-
-		passEncoder.end();
-
-		// Run the compute pipeline to update bird positions
-		// const computePipeline = this.pipelineManager.getPipeline('Compute');
-		// if (computePipeline) {
-		// 	computePipeline.run();
-		// }
+		this.objects = [];
 	}
 }
 
-export default BirdExperience;
+export default FlockingExperience;
