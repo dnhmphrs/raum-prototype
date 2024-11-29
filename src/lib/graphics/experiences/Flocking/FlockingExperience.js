@@ -1,45 +1,58 @@
 import Experience from '../Experience';
 import BirdGeometry from './BirdGeometry';
-import RenderPipeline3D from '../../pipelines/RenderPipeline3D';
+import FlockingPipeline from '../../pipelines/FlockingPipeline';
 
 class FlockingExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		// Initialize the 3D render pipeline
-		this.pipeline3D = new RenderPipeline3D(
+		this.birdCount = 100;
+
+		// Initialize the Flocking pipeline
+		this.pipeline = new FlockingPipeline(
 			this.device,
 			resourceManager.camera,
 			resourceManager.getViewportBuffer(),
-			resourceManager.getMouseBuffer()
+			resourceManager.getMouseBuffer(),
+			this.birdCount
 		);
 
 		this.addBirds();
 	}
 
 	async initialize() {
-		// Initialize the 3D pipeline
-		await this.pipeline3D.initialize();
+		// Initialize the pipeline
+		await this.pipeline.initialize();
+
+		// Set initial bird positions
+		const positions = Array.from({ length: this.birdCount }, () => [
+			Math.random() * 500 - 250,
+			Math.random() * 500 - 250,
+			Math.random() * 500 - 250
+		]);
+		this.pipeline.updatePositions(positions);
 	}
 
 	addBirds() {
 		// Add multiple birds to the scene
-		for (let i = 0; i < 100; i++) {
+		for (let i = 0; i < this.birdCount; i++) {
 			this.addObject(new BirdGeometry(this.device));
 		}
 	}
 
 	render(commandEncoder, textureView) {
-		// Render the 3D pipeline
+		// Update wing phases
+		this.pipeline.updatePhases(performance.now());
+	
+		// Render the pipeline
 		const depthView = this.resourceManager.getDepthTextureView();
-
-		const passDescriptor3D = {
+		const passDescriptor = {
 			colorAttachments: [
 				{
 					view: textureView,
-					loadOp: 'clear', // Clear the screen for the first render
+					loadOp: 'clear',
 					storeOp: 'store',
-					clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 } // Dark background
+					clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }
 				}
 			],
 			depthStencilAttachment: {
@@ -49,26 +62,15 @@ class FlockingExperience extends Experience {
 				depthStoreOp: 'store'
 			}
 		};
-
-		this.pipeline3D.render(commandEncoder, passDescriptor3D, this.objects);
+	
+		// Pass the bird count to enable instanced drawing
+		this.pipeline.render(commandEncoder, passDescriptor, this.objects, this.birdCount);
 	}
+	
 
 	cleanup() {
-		// Cleanup pipelines
-		if (this.pipeline2D) {
-			this.pipeline2D.cleanup();
-		}
-		if (this.pipeline3D) {
-			this.pipeline3D.cleanup();
-		}
-
-		// Cleanup objects
-		this.objects.forEach((object) => {
-			if (object.cleanup) {
-				object.cleanup();
-			}
-		});
-		this.objects = [];
+		this.pipeline.cleanup();
+		super.cleanup();
 	}
 }
 
