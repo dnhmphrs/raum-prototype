@@ -1,8 +1,8 @@
-import BaseExperience from '../BaseExperience';
+import Experience from '../Experience';
 import BirdGeometry from './BirdGeometry';
 import RenderPipeline3D from '../../pipelines/RenderPipeline3D';
 
-class FlockingExperience extends BaseExperience {
+class FlockingExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 

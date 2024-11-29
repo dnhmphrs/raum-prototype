@@ -1,4 +1,4 @@
-class BaseExperience {
+class Experience {
 	constructor(device, resourceManager) {
 		this.device = device;
 		this.resourceManager = resourceManager;
@@ -15,4 +15,4 @@ class BaseExperience {
 	}
 }
 
-export default BaseExperience;
+export default Experience;
