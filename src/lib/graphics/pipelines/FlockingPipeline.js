@@ -100,7 +100,7 @@ export default class FlockingPipeline extends Pipeline {
 		// Update phases for wing flapping (e.g., sinusoidal animation)
 		const phases = new Float32Array(this.birdCount);
 		for (let i = 0; i < this.birdCount; i++) {
-			phases[i] = Math.sin(time * 0.001 + i * 0.1); // Add slight offset for variety
+			phases[i] = Math.sin(time * 0.01 + i * 0.1); // Add slight offset for variety
 		}
 		this.device.queue.writeBuffer(this.phaseBuffer, 0, phases);
 	}

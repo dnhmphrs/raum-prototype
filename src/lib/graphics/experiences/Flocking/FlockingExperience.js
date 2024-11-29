@@ -26,7 +26,7 @@ class FlockingExperience extends Experience {
 
 		// Set initial bird positions
 		const positions = Array.from({ length: this.birdCount }, () => [
-			Math.random() * 500 - 250,
+			Math.random() * 1000 - 500,
 			Math.random() * 500 - 250,
 			Math.random() * 500 - 250
 		]);

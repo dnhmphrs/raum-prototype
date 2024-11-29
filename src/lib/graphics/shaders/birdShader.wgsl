@@ -10,36 +10,55 @@ struct VertexOutput {
     @location(0) color: vec3<f32>
 };
 
+// Simple hash function to generate pseudo-random variation
+fn hash(value: f32) -> f32 {
+    return fract(sin(value) * 43758.5453123);
+}
+
 @vertex
 fn vertex_main(@location(0) position: vec3<f32>, @builtin(instance_index) instance: u32) -> VertexOutput {
     var out: VertexOutput;
 
-    // Fetch the bird's position and phase
+    // Get the bird's unique position and phase
     let birdPosition = positions[instance];
     let birdPhase = phases[instance];
 
-    // Create a copy of the position for animation
+    // Copy the original position to avoid unintended modifications
     var animatedPosition = position;
 
-    // Animate the wings
-    if (position.z > 15.0) { // Right wing (z > 15)
-        animatedPosition.y += sin(birdPhase) * 5.0; // Flap along the y-axis
-    } else if (position.z < -15.0) { // Left wing (z < -15)
-        animatedPosition.y += sin(birdPhase) * 5.0; // Flap symmetrically
+    // Deform the wings along the y-axis
+    if (position.x > 0.0) { // Right wing (x > 0.0)
+        animatedPosition.y -= sin(birdPhase) * 10.0; // Flap motion
+    } else if (position.x < 0.0) { // Left wing (x < 0.0)
+        animatedPosition.y -= sin(birdPhase) * 10.0; // Symmetric flap in opposite direction
     }
 
-    // Combine animated position with the bird's global position
+    // Combine the animated vertex with the bird's global position
     let worldPosition = animatedPosition + birdPosition;
 
-    // Transform to clip space
+    // Transform the world position using the projection and view matrices
     out.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
 
-    // Compute a unique color for each bird based on its position
-    out.color = vec3<f32>(
-        0.5 + birdPosition.x / 20.0,
-        0.5 + birdPosition.y / 20.0,
-        0.5 + birdPosition.z / 20.0
+    // Assign distinct colors for the body and wings
+    var bodyColor = vec3<f32>(0.8, 0.5, 0.2); // Body color (e.g., brownish)
+    var wingColor = vec3<f32>(0.2, 0.6, 0.8); // Wing color (e.g., bluish)
+
+    // Determine if the vertex belongs to the wings or the body
+    if (position.z > 15.0 || position.z < -15.0) {
+        // Wings (based on z-coordinates in bird geometry)
+        out.color = wingColor;
+    } else {
+        // Body
+        out.color = bodyColor;
+    }
+
+    // Apply global variation to both the body and wings
+    let globalVariation = vec3<f32>(
+        hash(birdPosition.x) * 0.1,
+        hash(birdPosition.y) * 0.1,
+        hash(birdPosition.z) * 0.1
     );
+    out.color += globalVariation;
 
     return out;
 }
