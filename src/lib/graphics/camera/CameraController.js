@@ -31,7 +31,7 @@ export default class CameraController {
 	adjustZoom(deltaZoom) {
 		const sensitivity = 0.001; // Zoom sensitivity
 		const minZoom = 0.1; // Minimum zoom level
-		const maxZoom = 10.0; // Maximum zoom level
+		const maxZoom = 100.0; // Maximum zoom level
 
 		// Adjust the current zoom level and clamp it
 		this.currentZoom = Math.min(
