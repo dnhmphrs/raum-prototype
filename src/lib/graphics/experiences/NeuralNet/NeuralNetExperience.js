@@ -17,7 +17,7 @@ class NeuralNetExperience extends Experience {
 		// Set initial neuron positions
 		const positions = Array.from({ length: this.neuronCount }, (_, index) => {
 			// Determine if the neuron is in the larger area (10% probability)
-			const isInLargerArea = Math.random() < 0.1;
+			const isInLargerArea = Math.random() < 0.01;
 
 			if (isInLargerArea) {
 				// Generate positions in a larger range
