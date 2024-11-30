@@ -6,7 +6,7 @@ class FlockingExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.birdCount = 1000;
+		this.birdCount = 2000;
 
 		// Initialize the Flocking pipeline
 		this.pipeline = new FlockingPipeline(
