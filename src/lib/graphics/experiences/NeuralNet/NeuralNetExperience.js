@@ -66,7 +66,7 @@ class NeuralNetExperience extends Experience {
 					view: textureView,
 					loadOp: 'clear',
 					storeOp: 'store',
-					clearValue: { r: 0.025, g: 0.025, b: 0.025, a: 1.0 }
+					clearValue: { r: 0.05, g: 0.05, b: 0.05, a: 1.0 }
 				}
 			],
 			depthStencilAttachment: {
