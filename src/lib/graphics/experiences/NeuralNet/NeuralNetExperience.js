@@ -6,7 +6,7 @@ class NeuralNetExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.neuronCount = 5000; // Number of neurons in the network
+		this.neuronCount = 10000; // Number of neurons in the network
 		this.connections = []; // Store connections between neurons
 		this.dendriteCount = 0; // Initialize dendriteCount
 
@@ -16,14 +16,14 @@ class NeuralNetExperience extends Experience {
 	async initialize() {
 		// Set initial neuron positions
 		const positions = Array.from({ length: this.neuronCount }, () => [
-			Math.random() * 200 - 100,
-			Math.random() * 200 - 100,
-			Math.random() * 200 - 100
+			Math.random() * 400 - 200,
+			Math.random() * 400 - 200,
+			Math.random() * 400 - 200
 		]);
 
 		// Generate random connections (~10 per neuron)
 		this.connections = Array.from({ length: this.neuronCount }, (_, i) =>
-			Array.from({ length: 10 }, () => ({
+			Array.from({ length: 5 }, () => ({
 				source: i,
 				target: Math.floor(Math.random() * this.neuronCount)
 			}))
