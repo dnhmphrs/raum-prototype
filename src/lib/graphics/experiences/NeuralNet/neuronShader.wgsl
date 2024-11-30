@@ -56,10 +56,10 @@ fn vertex_main(
 fn fragment_main(@location(0) activity: f32, @location(1) isDendrite: f32) -> @location(0) vec4<f32> {
     var baseColor: vec4<f32>;
     if (isDendrite > 0.0) {
-        baseColor = vec4<f32>(0.2, 0.4, 0.4, 0.15); // Gray for dendrites
+        baseColor = vec4<f32>(0.8, 0.2, 0.2, 0.15); // Gray for dendrites
     } else {
-        let inactiveColor = vec4<f32>(0.2, 0.4, 0.4, 0.2); // Default color
-        let activeColor = vec4<f32>(1.0, 0.2, 0.2, 1.0); // Flashing color
+        let inactiveColor = vec4<f32>(0.8, 0.2, 0.2, 0.1); // Default color
+        let activeColor = vec4<f32>(1.0, 0.5, 0.0, 0.8); // Flashing color
         baseColor = mix(inactiveColor, activeColor, activity);
     }
 
