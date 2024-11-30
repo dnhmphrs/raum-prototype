@@ -1,5 +1,5 @@
 {
   "functions": {
-    "nodeVersion": "18"
+    "runtime": "nodejs18.x"
   }
 }
