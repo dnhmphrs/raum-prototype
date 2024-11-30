@@ -15,11 +15,26 @@ class NeuralNetExperience extends Experience {
 
 	async initialize() {
 		// Set initial neuron positions
-		const positions = Array.from({ length: this.neuronCount }, () => [
-			Math.random() * 400 - 200,
-			Math.random() * 400 - 200,
-			Math.random() * 400 - 200
-		]);
+		const positions = Array.from({ length: this.neuronCount }, (_, index) => {
+			// Determine if the neuron is in the larger area (10% probability)
+			const isInLargerArea = Math.random() < 0.1;
+
+			if (isInLargerArea) {
+				// Generate positions in a larger range
+				return [
+					Math.random() * 2000 - 1000, // X-coordinate in a larger range
+					Math.random() * 2000 - 1000, // Y-coordinate in a larger range
+					Math.random() * 2000 - 1000 // Z-coordinate in a larger range
+				];
+			} else {
+				// Generate positions in the typical range
+				return [
+					Math.random() * 500 - 250, // X-coordinate in a typical range
+					Math.random() * 500 - 250, // Y-coordinate in a typical range
+					Math.random() * 500 - 250 // Z-coordinate in a typical range
+				];
+			}
+		});
 
 		// Generate random connections (~10 per neuron)
 		this.connections = Array.from({ length: this.neuronCount }, (_, i) =>

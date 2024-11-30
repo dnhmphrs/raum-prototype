@@ -7,15 +7,15 @@ export default class NeuronGeometry {
 			// Center
 			0, 0, 0,
 			// Point on the edge
-			2, 0, 0,
+			4, 0, 0,
 			// Another edge
-			0, 2, 0,
+			0, 4, 0,
 			// Opposite edge
-			-2, 0, 0,
+			-4, 0, 0,
 			// Another opposite edge
-			0, -2, 0,
+			0, -4, 0,
 			// Top
-			0, 0, 2
+			0, 0, 4
 		]);
 
 		const indices = new Uint16Array([
