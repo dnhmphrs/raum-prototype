@@ -6,7 +6,7 @@ class FlockingExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.birdCount = 1000;
+		this.birdCount = 100;
 
 		// Initialize the Flocking pipeline
 		this.pipeline = new FlockingPipeline(
@@ -26,9 +26,9 @@ class FlockingExperience extends Experience {
 
 		// Set initial bird positions
 		const positions = Array.from({ length: this.birdCount }, () => [
-			Math.random() * 5.0 * this.birdCount- 2.5 * this.birdCount,
-			Math.random() * 2.5 * this.birdCount- 1.25 * this.birdCount,
-			Math.random() * 2.5 * this.birdCount- 1.25 * this.birdCount
+			Math.random() * 5.0 * this.birdCount - 2.5 * this.birdCount,
+			Math.random() * 2.5 * this.birdCount - 1.25 * this.birdCount,
+			Math.random() * 2.5 * this.birdCount - 1.25 * this.birdCount
 		]);
 		this.pipeline.updatePositions(positions);
 	}
@@ -43,7 +43,7 @@ class FlockingExperience extends Experience {
 	render(commandEncoder, textureView) {
 		// Update wing phases
 		this.pipeline.updatePhases(performance.now());
-	
+
 		// Render the pipeline
 		const depthView = this.resourceManager.getDepthTextureView();
 		const passDescriptor = {
@@ -62,11 +62,10 @@ class FlockingExperience extends Experience {
 				depthStoreOp: 'store'
 			}
 		};
-	
+
 		// Pass the bird count to enable instanced drawing
 		this.pipeline.render(commandEncoder, passDescriptor, this.objects, this.birdCount);
 	}
-	
 
 	cleanup() {
 		this.pipeline.cleanup();
