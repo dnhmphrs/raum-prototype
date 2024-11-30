@@ -29,8 +29,6 @@ class NeuralNetExperience extends Experience {
 			}))
 		).flat();
 
-		console.log(`Generated Connections: ${this.connections.length}`);
-
 		this.dendriteCount = this.connections.length; // Calculate total dendrites
 
 		// Initialize the pipeline AFTER connections are generated
@@ -68,7 +66,7 @@ class NeuralNetExperience extends Experience {
 					view: textureView,
 					loadOp: 'clear',
 					storeOp: 'store',
-					clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }
+					clearValue: { r: 0.025, g: 0.025, b: 0.025, a: 1.0 }
 				}
 			],
 			depthStencilAttachment: {
