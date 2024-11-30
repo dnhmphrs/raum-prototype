@@ -6,7 +6,7 @@ class FlockingExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.birdCount = 100;
+		this.birdCount = 1000;
 
 		// Initialize the Flocking pipeline
 		this.pipeline = new FlockingPipeline(
@@ -27,8 +27,8 @@ class FlockingExperience extends Experience {
 		// Set initial bird positions
 		const positions = Array.from({ length: this.birdCount }, () => [
 			Math.random() * 5.0 * this.birdCount - 2.5 * this.birdCount,
-			Math.random() * 2.5 * this.birdCount - 1.25 * this.birdCount,
-			Math.random() * 2.5 * this.birdCount - 1.25 * this.birdCount
+			Math.random() * 5.0 * this.birdCount - 2.5 * this.birdCount,
+			Math.random() * 5.0 * this.birdCount - 2.5 * this.birdCount
 		]);
 		this.pipeline.updatePositions(positions);
 	}

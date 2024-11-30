@@ -6,7 +6,7 @@ class NeuralNetExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.neuronCount = 200; // Number of neurons in the network
+		this.neuronCount = 2000; // Number of neurons in the network
 
 		// Initialize the NeuralNet pipeline
 		this.pipeline = new NeuralNetPipeline(
@@ -26,9 +26,9 @@ class NeuralNetExperience extends Experience {
 
 		// Set initial neuron positions
 		const positions = Array.from({ length: this.neuronCount }, () => [
-			Math.random() * 40 - 20,
-			Math.random() * 20 - 10,
-			Math.random() * 20 - 10
+			Math.random() * 200 - 100,
+			Math.random() * 200 - 100,
+			Math.random() * 200 - 100
 		]);
 		this.pipeline.updatePositions(positions);
 	}

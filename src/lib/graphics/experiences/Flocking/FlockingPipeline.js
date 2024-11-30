@@ -81,16 +81,18 @@ export default class FlockingPipeline extends Pipeline {
 		});
 	}
 
-	render(commandEncoder, passDescriptor, objects, instanceCount) {
+	render(commandEncoder, passDescriptor, objects) {
 		const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
 		passEncoder.setPipeline(this.pipeline);
 		passEncoder.setBindGroup(0, this.bindGroup);
 
-		objects.forEach((object) => {
-			passEncoder.setVertexBuffer(0, object.getVertexBuffer());
-			passEncoder.setIndexBuffer(object.getIndexBuffer(), 'uint16');
-			passEncoder.drawIndexed(object.getIndexCount(), instanceCount, 0, 0, 0); // Add `instanceCount` here
-		});
+		// Assuming all objects share the same geometry
+		const firstObject = objects[0];
+		passEncoder.setVertexBuffer(0, firstObject.getVertexBuffer());
+		passEncoder.setIndexBuffer(firstObject.getIndexBuffer(), 'uint16');
+
+		// Use instancing to draw all birds in a single call
+		passEncoder.drawIndexed(firstObject.getIndexCount(), this.birdCount, 0, 0, 0);
 
 		passEncoder.end();
 	}

@@ -54,9 +54,9 @@ fn vertex_main(@location(0) position: vec3<f32>, @builtin(instance_index) instan
 
     // Apply global variation to both the body and wings
     let globalVariation = vec3<f32>(
-        hash(birdPosition.x) * 0.1,
-        hash(birdPosition.y) * 0.1,
-        hash(birdPosition.z) * 0.1
+        hash(birdPosition.x) * 0.5,
+        hash(birdPosition.y) * 0.5,
+        hash(birdPosition.z) * 0.5
     );
     out.color += globalVariation;
 

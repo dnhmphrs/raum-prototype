@@ -29,8 +29,8 @@ fn vertex_main(@location(0) position: vec3<f32>, @builtin(instance_index) instan
 @fragment
 fn fragment_main(@location(0) activity: f32) -> @location(0) vec4<f32> {
     // Color based on activity level
-    let baseColor = vec3<f32>(0.2, 0.2, 0.8); // Default color
-    let activeColor = vec3<f32>(1.0, 1.0, 0.2); // Flashing color
+    let baseColor = vec3<f32>(0.7, 0.2, 0.2); // Default color
+    let activeColor = vec3<f32>(0.2, 1.0, 1.0); // Flashing color
 
     let color = mix(baseColor, activeColor, activity);
     return vec4<f32>(color, 1.0);

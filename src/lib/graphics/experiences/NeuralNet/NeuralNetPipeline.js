@@ -86,12 +86,12 @@ export default class NeuralNetPipeline extends Pipeline {
 		passEncoder.setPipeline(this.pipeline);
 		passEncoder.setBindGroup(0, this.bindGroup);
 
-		objects.forEach((object) => {
-			passEncoder.setVertexBuffer(0, object.getVertexBuffer());
-			passEncoder.setIndexBuffer(object.getIndexBuffer(), 'uint16');
-			passEncoder.drawIndexed(object.getIndexCount(), instanceCount, 0, 0, 0);
-		});
+		const firstObject = objects[0]; // Assuming all objects share the same geometry
+		passEncoder.setVertexBuffer(0, firstObject.getVertexBuffer());
+		passEncoder.setIndexBuffer(firstObject.getIndexBuffer(), 'uint16');
 
+		// Use instancing to draw all neurons
+		passEncoder.drawIndexed(firstObject.getIndexCount(), instanceCount, 0, 0, 0);
 		passEncoder.end();
 	}
 
