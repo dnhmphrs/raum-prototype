@@ -1,5 +1,5 @@
-import Pipeline from './Pipeline';
-import birdShader from '../shaders/birdShader.wgsl';
+import Pipeline from '../../pipelines/Pipeline';
+import birdShader from './birdShader.wgsl';
 
 export default class FlockingPipeline extends Pipeline {
 	constructor(device, camera, viewportBuffer, mouseBuffer, birdCount) {
@@ -81,20 +81,19 @@ export default class FlockingPipeline extends Pipeline {
 		});
 	}
 
-    render(commandEncoder, passDescriptor, objects, instanceCount) {
-        const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
-        passEncoder.setPipeline(this.pipeline);
-        passEncoder.setBindGroup(0, this.bindGroup);
-    
-        objects.forEach((object) => {
-            passEncoder.setVertexBuffer(0, object.getVertexBuffer());
-            passEncoder.setIndexBuffer(object.getIndexBuffer(), 'uint16');
-            passEncoder.drawIndexed(object.getIndexCount(), instanceCount, 0, 0, 0); // Add `instanceCount` here
-        });
-    
-        passEncoder.end();
-    }
-    
+	render(commandEncoder, passDescriptor, objects, instanceCount) {
+		const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
+		passEncoder.setPipeline(this.pipeline);
+		passEncoder.setBindGroup(0, this.bindGroup);
+
+		objects.forEach((object) => {
+			passEncoder.setVertexBuffer(0, object.getVertexBuffer());
+			passEncoder.setIndexBuffer(object.getIndexBuffer(), 'uint16');
+			passEncoder.drawIndexed(object.getIndexCount(), instanceCount, 0, 0, 0); // Add `instanceCount` here
+		});
+
+		passEncoder.end();
+	}
 
 	updatePhases(time) {
 		// Update phases for wing flapping (e.g., sinusoidal animation)

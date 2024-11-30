@@ -1,6 +1,6 @@
 import Experience from '../Experience';
 import BirdGeometry from './BirdGeometry';
-import FlockingPipeline from '../../pipelines/FlockingPipeline';
+import FlockingPipeline from './FlockingPipeline';
 
 class FlockingExperience extends Experience {
 	constructor(device, resourceManager) {
@@ -68,8 +68,17 @@ class FlockingExperience extends Experience {
 	}
 
 	cleanup() {
-		this.pipeline.cleanup();
-		super.cleanup();
+		if (this.pipeline3D) {
+			this.pipeline3D.cleanup();
+		}
+
+		// Cleanup objects
+		this.objects.forEach((object) => {
+			if (object.cleanup) {
+				object.cleanup();
+			}
+		});
+		this.objects = [];
 	}
 }
 

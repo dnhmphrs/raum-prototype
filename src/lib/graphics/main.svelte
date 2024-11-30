@@ -3,35 +3,46 @@
   import Engine from './Engine.js';
   import BirdExperience from './experiences/Flocking/FlockingExperience.js';
   import CubeExperience from './experiences/Cube/CubeExperience.js';
+  import NeuralNetExperience from './experiences/NeuralNet/NeuralNetExperience.js';
 
   let canvas;
   let engine;
-  let currentExperience = 'Bird'; // Toggle between "Bird" and "Cube"
+  let currentExperience = 'NeuralNet'; // Default experience
 
-  const startExperience = async () => {
+  const experiences = {
+    Bird: BirdExperience,
+    Cube: CubeExperience,
+    NeuralNet: NeuralNetExperience
+  };
+
+  const startExperience = async (experienceName) => {
+    currentExperience = experienceName;
     if (engine) {
       engine.cleanup();
     }
-    const Experience = currentExperience === 'Bird' ? BirdExperience : CubeExperience;
+    const Experience = experiences[experienceName];
     engine = new Engine(canvas);
     await engine.start(Experience);
   };
 
   onMount(() => {
-    startExperience();
+    startExperience(currentExperience);
   });
-
-  const switchExperience = () => {
-    currentExperience = currentExperience === 'Bird' ? 'Cube' : 'Bird';
-    startExperience();
-  };
 </script>
 
 <canvas bind:this={canvas} class="geometry"></canvas>
 
-<button on:click={switchExperience} class="toggle-button">
-  Switch to {currentExperience === 'Bird' ? 'Cube' : 'Bird'} Experience
-</button>
+<div class="button-container">
+  {#each Object.keys(experiences) as experience}
+    <button
+      class="toggle-button"
+      on:click={() => startExperience(experience)}
+      class:active={currentExperience === experience}
+    >
+      {experience} Experience
+    </button>
+  {/each}
+</div>
 
 <style>
 .geometry {
@@ -47,20 +58,31 @@
   z-index: -1;
 }
 
-.toggle-button {
+.button-container {
   position: absolute;
   top: 10px;
   left: 10px;
   z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+.toggle-button {
   padding: 10px 20px;
   background-color: #007bff;
   color: #fff;
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-size: 14px;
 }
 
-.toggle-button:hover {
+.toggle-button.active {
+  background-color: #0056b3;
+  font-weight: bold;
+}
+
+.toggle-button:hover:not(.active) {
   background-color: #0056b3;
 }
 </style>
