@@ -6,35 +6,51 @@ class NeuralNetExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.neuronCount = 2000; // Number of neurons in the network
+		this.neuronCount = 5000; // Number of neurons in the network
+		this.connections = []; // Store connections between neurons
+		this.dendriteCount = 0; // Initialize dendriteCount
 
-		// Initialize the NeuralNet pipeline
-		this.pipeline = new NeuralNetPipeline(
-			this.device,
-			resourceManager.camera,
-			resourceManager.getViewportBuffer(),
-			resourceManager.getMouseBuffer(),
-			this.neuronCount
-		);
-
-		this.addNeurons();
+		this.addNeurons(); // Add neuron geometries
 	}
 
 	async initialize() {
-		// Initialize the pipeline
-		await this.pipeline.initialize();
-
 		// Set initial neuron positions
 		const positions = Array.from({ length: this.neuronCount }, () => [
 			Math.random() * 200 - 100,
 			Math.random() * 200 - 100,
 			Math.random() * 200 - 100
 		]);
+
+		// Generate random connections (~10 per neuron)
+		this.connections = Array.from({ length: this.neuronCount }, (_, i) =>
+			Array.from({ length: 10 }, () => ({
+				source: i,
+				target: Math.floor(Math.random() * this.neuronCount)
+			}))
+		).flat();
+
+		console.log(`Generated Connections: ${this.connections.length}`);
+
+		this.dendriteCount = this.connections.length; // Calculate total dendrites
+
+		// Initialize the pipeline AFTER connections are generated
+		this.pipeline = new NeuralNetPipeline(
+			this.device,
+			this.resourceManager.camera,
+			this.resourceManager.getViewportBuffer(),
+			this.resourceManager.getMouseBuffer(),
+			this.neuronCount,
+			this.dendriteCount
+		);
+		await this.pipeline.initialize();
+
+		// Pass positions and connections to the pipeline
 		this.pipeline.updatePositions(positions);
+		this.pipeline.updateConnections(this.connections, positions);
 	}
 
 	addNeurons() {
-		// Add multiple neurons to the scene
+		// Add neurons to the scene
 		for (let i = 0; i < this.neuronCount; i++) {
 			this.addObject(new NeuronGeometry(this.device));
 		}
@@ -63,7 +79,7 @@ class NeuralNetExperience extends Experience {
 			}
 		};
 
-		// Pass the neuron count to enable instanced drawing
+		// Pass the neuron count and connections for instanced drawing
 		this.pipeline.render(commandEncoder, passDescriptor, this.objects, this.neuronCount);
 	}
 
