@@ -1,5 +1,7 @@
 {
   "functions": {
-    "runtime": "nodejs18.x"
+    "node": {
+      "runtime": "nodejs18.x"
+    }
   }
 }
