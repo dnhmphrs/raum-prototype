@@ -50,7 +50,7 @@ fn vertex_main_dendrite(
 // Fragment shader for dendrites
 @fragment
 fn fragment_main_dendrite() -> @location(0) vec4<f32> {
-    let baseColor = vec4<f32>(0.8, 0.2, 0.2, 0.15); // Color for dendrites
+    let baseColor = vec4<f32>(0.8, 0.2, 0.2, 0.1); // Color for dendrites
     return baseColor;
 }
 
