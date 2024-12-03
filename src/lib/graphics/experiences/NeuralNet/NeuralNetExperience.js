@@ -6,7 +6,7 @@ class NeuralNetExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.neuronCount = 10000; // Number of neurons in the network
+		this.neuronCount = 2400; // Number of neurons in the network
 		this.connections = []; // Store connections between neurons
 		this.dendriteCount = 0; // Initialize dendriteCount
 
@@ -15,25 +15,34 @@ class NeuralNetExperience extends Experience {
 
 	async initialize() {
 		// Set initial neuron positions
-		const positions = Array.from({ length: this.neuronCount }, (_, index) => {
-			// Determine if the neuron is in the larger area (10% probability)
-			const isInLargerArea = Math.random() < 0.01;
+		// const positions = Array.from({ length: this.neuronCount }, (_, index) => {
+		// 	// Determine if the neuron is in the larger area (10% probability)
+		// 	const isInLargerArea = Math.random() < 0.01;
 
-			if (isInLargerArea) {
-				// Generate positions in a larger range
-				return [
-					Math.random() * 2000 - 1000, // X-coordinate in a larger range
-					Math.random() * 2000 - 1000, // Y-coordinate in a larger range
-					Math.random() * 2000 - 1000 // Z-coordinate in a larger range
-				];
-			} else {
-				// Generate positions in the typical range
-				return [
-					Math.random() * 500 - 250, // X-coordinate in a typical range
-					Math.random() * 500 - 250, // Y-coordinate in a typical range
-					Math.random() * 500 - 250 // Z-coordinate in a typical range
-				];
-			}
+		// 	if (isInLargerArea) {
+		// 		// Generate positions in a larger range
+		// 		return [
+		// 			Math.random() * 2000 - 1000, // X-coordinate in a larger range
+		// 			Math.random() * 2000 - 1000, // Y-coordinate in a larger range
+		// 			Math.random() * 2000 - 1000 // Z-coordinate in a larger range
+		// 		];
+		// 	} else {
+		// 		// Generate positions in the typical range
+		// 		return [
+		// 			Math.random() * 500 - 250, // X-coordinate in a typical range
+		// 			Math.random() * 500 - 250, // Y-coordinate in a typical range
+		// 			Math.random() * 500 - 250 // Z-coordinate in a typical range
+		// 		];
+		// 	}
+		// });
+
+		const positions = Array.from({ length: this.neuronCount }, () => {
+			// Scale each axis proportionally to achieve a 4:4:1 cuboid
+			const x = Math.random() * 400 - 200; // X is wide
+			const y = Math.random() * 100 - 50; // Y is narrow
+			const z = Math.random() * 400 - 200; // Z is wide
+
+			return [x, y, z];
 		});
 
 		// Generate random connections (~10 per neuron)
