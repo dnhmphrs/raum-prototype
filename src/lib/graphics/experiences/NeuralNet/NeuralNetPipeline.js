@@ -16,6 +16,16 @@ export default class NeuralNetPipeline extends Pipeline {
 		this.activityBuffer = null;
 		this.positionBuffer = null;
 		this.dendriteVertexBuffer = null; // For dendrite connections
+
+		// Add per-neuron firing periods and phases
+		this.firingPeriods = new Float32Array(this.neuronCount);
+		this.phases = new Float32Array(this.neuronCount);
+
+		// Initialize firing periods and phases
+		for (let i = 0; i < this.neuronCount; i++) {
+			this.firingPeriods[i] = 1000 + Math.random() * 4000; // Period between 1000ms and 5000ms
+			this.phases[i] = Math.random() * this.firingPeriods[i]; // Random phase offset
+		}
 	}
 
 	async initialize() {
@@ -314,23 +324,41 @@ export default class NeuralNetPipeline extends Pipeline {
 
 		const activities = new Float32Array(this.neuronCount);
 
-		// Define parameters for multiple activity centers
-		const numActivityCenters = 10; // Number of centers
+		// Calculate the time difference since the last update
+		const deltaTime = this.lastUpdateTime !== undefined ? time - this.lastUpdateTime : 16; // Default to ~16ms
+		this.lastUpdateTime = time;
+
+		// Decay constant for activity decay (in milliseconds)
+		const tau = 200; // Adjust this value to control decay speed
+		const decayFactor = Math.exp(-deltaTime / tau);
+
+		// Parameters for activity centers
+		const numActivityCenters = 5; // Number of moving activity centers
 		const activityCenters = [];
-		const falloffRadius = 1000; // Larger radius for broader influence
-		const falloffSteepness = 0.1; // Adjust steepness for a softer transition
+		const centerMovementSpeed = 0.001; // Controls how fast the centers move
+		const falloffRadius = 500; // Radius of influence for activity centers
+		const falloffSteepness = 0.1; // Controls how sharply activity decreases with distance
 
 		// Generate moving activity centers
 		for (let j = 0; j < numActivityCenters; j++) {
 			const center = [
-				Math.sin(time * 0.01 + j) * 1, // Move in X
-				Math.cos(time * 0.01 + j * 0.5) * 1, // Move in Y
-				Math.sin(time * 0.01 + j * 0.25) * Math.cos(time * 0.01 + j * 0.5) * 1 // Move in Z
+				Math.sin(time * centerMovementSpeed + j) * 150, // X coordinate
+				Math.cos(time * centerMovementSpeed + j * 0.5) * 150, // Y coordinate
+				Math.sin(time * centerMovementSpeed + j * 0.25) * 150 // Z coordinate
 			];
 			activityCenters.push(center);
 		}
 
-		// Calculate activity for each neuron
+		// Include low-frequency oscillation
+		const lowFrequency = 0.1; // Frequency in Hz
+		const oscillation = 0.0 + 0.5 * Math.sin(2 * Math.PI * lowFrequency * time);
+
+		// Initialize previousActivities if not present
+		if (!this.previousActivities) {
+			this.previousActivities = new Float32Array(this.neuronCount);
+		}
+
+		// For each neuron, determine if it should fire
 		for (let i = 0; i < this.neuronCount; i++) {
 			const neuronPosition = this.positions[i];
 			if (!neuronPosition) {
@@ -338,50 +366,37 @@ export default class NeuralNetPipeline extends Pipeline {
 				continue;
 			}
 
-			// Combine influences from multiple activity centers
-			let combinedActivity = 0;
+			// Calculate influence from activity centers
+			let influence = 0;
 			for (const center of activityCenters) {
-				const distance = Math.sqrt(
-					Math.pow(neuronPosition[0] - center[0], 2) +
-						Math.pow(neuronPosition[1] - center[1], 2) +
-						Math.pow(neuronPosition[2] - center[2], 2)
-				);
+				const dx = neuronPosition[0] - center[0];
+				const dy = neuronPosition[1] - center[1];
+				const dz = neuronPosition[2] - center[2];
+				const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-				// Calculate activity based on falloff
 				const normalizedDistance = Math.max(0, 1 - distance / falloffRadius);
-				combinedActivity += Math.pow(normalizedDistance, falloffSteepness);
+				influence += Math.pow(normalizedDistance, falloffSteepness);
 			}
 
-			// Normalize combined activity to avoid excessive brightness
-			activities[i] = Math.min(1.0, combinedActivity / numActivityCenters);
+			// Include low-frequency oscillation
+			const firingProbability = influence * oscillation * 0.1; // Scaling factor adjusts overall firing rate
+
+			// Random chance to fire based on firing probability and deltaTime
+			if (Math.random() < firingProbability * (deltaTime * 0.01)) {
+				// Neuron fires: sudden flash
+				activities[i] = 1.0; // Maximum activity
+			} else {
+				// Neuron does not fire: decay activity
+				activities[i] = this.previousActivities[i] * decayFactor;
+			}
 		}
 
-		// Add dynamic temporal modulation for the "pulsing" effect
-		for (let i = 0; i < this.neuronCount; i++) {
-			activities[i] *= 0.5 + 0.5 * Math.sin(time * 0.005 + i * 0.1);
-		}
-
-		// Add a pseudo-random ebb and flow modulation
-		const randomModulation = (index, time) => {
-			// Use a combination of sine waves with different frequencies and offsets
-			return (
-				0.75 +
-				0.5 *
-					Math.sin(
-						time * Math.sin(0.01 * (0.2 + 0.05 * (index % 5))) + // Low-frequency sine
-							0.5 * Math.sin(index * 0.5) // Spatial variation
-					)
-			);
-		};
-
-		for (let i = 0; i < this.neuronCount; i++) {
-			activities[i] *= randomModulation(i, time);
-		}
+		// Store current activities for next frame
+		this.previousActivities = activities;
 
 		// Update the activity buffer
 		this.device.queue.writeBuffer(this.activityBuffer, 0, activities);
 	}
-
 	updatePositions(positions) {
 		this.positions = positions; // Store positions locally
 
