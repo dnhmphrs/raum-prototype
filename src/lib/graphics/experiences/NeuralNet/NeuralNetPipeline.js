@@ -17,15 +17,13 @@ export default class NeuralNetPipeline extends Pipeline {
 		this.positionBuffer = null;
 		this.dendriteVertexBuffer = null; // For dendrite connections
 
-		// Add per-neuron firing periods and phases
-		this.firingPeriods = new Float32Array(this.neuronCount);
-		this.phases = new Float32Array(this.neuronCount);
-
-		// Initialize firing periods and phases
-		for (let i = 0; i < this.neuronCount; i++) {
-			this.firingPeriods[i] = 1000 + Math.random() * 4000; // Period between 1000ms and 5000ms
-			this.phases[i] = Math.random() * this.firingPeriods[i]; // Random phase offset
-		}
+		// Variables for pseudorandom modulation
+		this.modulationInterval = 5000; // Change modulation target every 5 seconds
+		this.modulationStartTime = undefined;
+		this.modulationChangeTime = undefined;
+		this.globalModulation = Math.random();
+		this.previousModulation = this.globalModulation;
+		this.targetModulation = Math.random();
 	}
 
 	async initialize() {
@@ -336,8 +334,8 @@ export default class NeuralNetPipeline extends Pipeline {
 		const numActivityCenters = 5; // Number of moving activity centers
 		const activityCenters = [];
 		const centerMovementSpeed = 0.001; // Controls how fast the centers move
-		const falloffRadius = 500; // Radius of influence for activity centers
-		const falloffSteepness = 0.1; // Controls how sharply activity decreases with distance
+		const falloffRadius = 5000; // Radius of influence for activity centers
+		const falloffSteepness = 10; // Controls how sharply activity decreases with distance
 
 		// Generate moving activity centers
 		for (let j = 0; j < numActivityCenters; j++) {
@@ -349,9 +347,31 @@ export default class NeuralNetPipeline extends Pipeline {
 			activityCenters.push(center);
 		}
 
-		// Include low-frequency oscillation
-		const lowFrequency = 0.1; // Frequency in Hz
-		const oscillation = 0.0 + 0.5 * Math.sin(2 * Math.PI * lowFrequency * time);
+		// Pseudorandom modulation
+		if (this.modulationStartTime === undefined) {
+			// Initialize modulation variables
+			this.modulationStartTime = time;
+			this.modulationChangeTime = time + this.modulationInterval;
+			this.globalModulation = Math.random();
+			this.previousModulation = this.globalModulation;
+			this.targetModulation = Math.random();
+		}
+
+		if (time >= this.modulationChangeTime) {
+			// Time to change the target modulation
+			this.previousModulation = this.globalModulation;
+			this.targetModulation = Math.random();
+			this.modulationStartTime = time;
+			this.modulationChangeTime = time + this.modulationInterval;
+		}
+
+		const modulationProgress = Math.min(
+			1.0,
+			(time - this.modulationStartTime) / this.modulationInterval
+		);
+		this.globalModulation =
+			this.previousModulation +
+			(this.targetModulation - this.previousModulation) * modulationProgress;
 
 		// Initialize previousActivities if not present
 		if (!this.previousActivities) {
@@ -378,11 +398,11 @@ export default class NeuralNetPipeline extends Pipeline {
 				influence += Math.pow(normalizedDistance, falloffSteepness);
 			}
 
-			// Include low-frequency oscillation
-			const firingProbability = influence * oscillation * 0.1; // Scaling factor adjusts overall firing rate
+			// Include pseudorandom modulation
+			const firingProbability = influence * this.globalModulation * 0.1; // Adjust scaling factor as needed
 
 			// Random chance to fire based on firing probability and deltaTime
-			if (Math.random() < firingProbability * (deltaTime * 0.01)) {
+			if (Math.random() < firingProbability * (deltaTime / 1000)) {
 				// Neuron fires: sudden flash
 				activities[i] = 1.0; // Maximum activity
 			} else {
@@ -397,6 +417,7 @@ export default class NeuralNetPipeline extends Pipeline {
 		// Update the activity buffer
 		this.device.queue.writeBuffer(this.activityBuffer, 0, activities);
 	}
+
 	updatePositions(positions) {
 		this.positions = positions; // Store positions locally
 
