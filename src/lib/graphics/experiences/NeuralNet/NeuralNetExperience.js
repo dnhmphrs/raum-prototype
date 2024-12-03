@@ -47,35 +47,26 @@ class NeuralNetExperience extends Experience {
 		// Create the cube geometry
 		this.cube = new CubeGeometry(this.device, minPosition, maxPosition);
 
-		const minLargerPosition = [-5000, -5000, -5000]; // Larger cube boundaries
-		const maxLargerPosition = [5000, 5000, 5000];
+		const minLargerPosition = [-2000, -2000, -2000]; // Larger cube boundaries
+		const maxLargerPosition = [2000, 2000, 2000];
 
 		// Calculate 5% of the existing connections
 		const extraConnectionCount = Math.floor(this.connections.length * 0.1);
 		const extraDendritePositions = [];
 
-		const skewFactor = 0.5; // Adjust this value between 0 and 1
-
 		for (let i = 0; i < extraConnectionCount; i++) {
-			const randomSkewedTowardsEdges = (min, max, skewFactor) => {
-				const u = Math.random();
-				const skewed_u =
-					u < 0.5 ? 0.5 * Math.pow(2 * u, skewFactor) : 1 - 0.5 * Math.pow(2 * (1 - u), skewFactor);
-				return min + (max - min) * skewed_u;
-			};
-
 			// Select a random source position from the existing neurons
 			const sourcePosition = [
-				randomSkewedTowardsEdges(minLargerPosition[0], maxLargerPosition[0], skewFactor),
-				randomSkewedTowardsEdges(minLargerPosition[1], maxLargerPosition[1], skewFactor),
-				randomSkewedTowardsEdges(minLargerPosition[2], maxLargerPosition[2], skewFactor)
+				Math.random() * (maxLargerPosition[0] - minLargerPosition[0]) + minLargerPosition[0],
+				Math.random() * (maxLargerPosition[1] - minLargerPosition[1]) + minLargerPosition[1],
+				Math.random() * (maxLargerPosition[2] - minLargerPosition[2]) + minLargerPosition[2]
 			];
 
-			// Generate a target position skewed towards the center of the larger cube
+			// Generate a target position randomly within the larger cube
 			const targetPosition = [
-				randomSkewedTowardsEdges(minLargerPosition[0], maxLargerPosition[0], skewFactor),
-				randomSkewedTowardsEdges(minLargerPosition[1], maxLargerPosition[1], skewFactor),
-				randomSkewedTowardsEdges(minLargerPosition[2], maxLargerPosition[2], skewFactor)
+				Math.random() * (maxLargerPosition[0] - minLargerPosition[0]) + minLargerPosition[0],
+				Math.random() * (maxLargerPosition[1] - minLargerPosition[1]) + minLargerPosition[1],
+				Math.random() * (maxLargerPosition[2] - minLargerPosition[2]) + minLargerPosition[2]
 			];
 
 			// Store the positions of the source and target
