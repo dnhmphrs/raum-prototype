@@ -83,7 +83,7 @@
   .toggle-button {
     padding: 10px 20px;
     background-color: transparent;
-    color: #0056b3;
+    color: #d0d0d0;
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -92,7 +92,7 @@
   }
 
   .toggle-button.active {
-    border-color: #0056b3;
+    border-color: #d0d0d0;
     font-weight: bold;
   }
 
@@ -104,7 +104,7 @@
     z-index: 10;
     padding: 10px 20px;
     background-color: transparent;
-    color: #0056b3;
+    color: #d0d0d0;
     border: none;
     border-radius: 5px;
     cursor: pointer;
