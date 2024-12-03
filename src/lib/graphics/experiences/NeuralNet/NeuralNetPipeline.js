@@ -281,8 +281,6 @@ export default class NeuralNetPipeline extends Pipeline {
 		passEncoder.drawIndexed(this.cube.getIndexCount(), 1, 0, 0, 0);
 
 		passEncoder.end();
-
-		passEncoder.end();
 	}
 
 	updateConnections(connections, positions) {
