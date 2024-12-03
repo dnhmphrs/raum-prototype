@@ -47,8 +47,8 @@ class NeuralNetExperience extends Experience {
 		// Create the cube geometry
 		this.cube = new CubeGeometry(this.device, minPosition, maxPosition);
 
-		const minLargerPosition = [-2000, -2000, -2000]; // Larger cube boundaries
-		const maxLargerPosition = [2000, 2000, 2000];
+		const minLargerPosition = [-4000, -4000, -4000]; // Larger cube boundaries
+		const maxLargerPosition = [4000, 4000, 4000];
 
 		// Calculate 5% of the existing connections
 		const extraConnectionCount = Math.floor(this.connections.length * 0.1);
