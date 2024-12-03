@@ -17,7 +17,7 @@ class NeuralNetExperience extends Experience {
 	async initialize() {
 		const positions = Array.from({ length: this.neuronCount }, () => {
 			// Skew factor less than 1 increases density towards edges
-			const skewFactor = 1.5; // Adjust this value between 0 and 1
+			const skewFactor = 1.33; // Adjust this value between 0 and 1
 
 			const randomSkewedTowardsEdges = (min, max, skewFactor) => {
 				const u = Math.random();
