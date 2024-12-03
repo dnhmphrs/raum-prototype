@@ -5,9 +5,9 @@ export default class Cube {
 		// Define vertex data for a cube with larger dimensions to match the bird's size
 		this.vertices = new Float32Array([
 			// Front face
-			-10.0, -10.0, 10.0, 10.0, -10.0, 10.0, 10.0, 10.0, 10.0, -10.0, 10.0, 10.0,
+			-100.0, -100.0, 100.0, 100.0, -100.0, 100.0, 100.0, 100.0, 100.0, -100.0, 100.0, 100.0,
 			// Back face
-			-10.0, -10.0, -10.0, 10.0, -10.0, -10.0, 10.0, 10.0, -10.0, -10.0, 10.0, -10.0
+			-100.0, -100.0, -100.0, 100.0, -100.0, -100.0, 100.0, 100.0, -100.0, -100.0, 100.0, -100.0
 		]);
 
 		this.indices = new Uint16Array([
