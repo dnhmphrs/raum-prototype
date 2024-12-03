@@ -41,13 +41,58 @@ class NeuralNetExperience extends Experience {
 			}))
 		).flat();
 
-		this.dendriteCount = this.connections.length; // Calculate total dendrites
-
 		const minPosition = [-200, -50, -200];
 		const maxPosition = [200, 50, 200];
 
 		// Create the cube geometry
 		this.cube = new CubeGeometry(this.device, minPosition, maxPosition);
+
+		const minLargerPosition = [-5000, -5000, -5000]; // Larger cube boundaries
+		const maxLargerPosition = [5000, 5000, 5000];
+
+		// Calculate 5% of the existing connections
+		const extraConnectionCount = Math.floor(this.connections.length * 0.1);
+		const extraDendritePositions = [];
+
+		const skewFactor = 0.5; // Adjust this value between 0 and 1
+
+		for (let i = 0; i < extraConnectionCount; i++) {
+			const randomSkewedTowardsEdges = (min, max, skewFactor) => {
+				const u = Math.random();
+				const skewed_u =
+					u < 0.5 ? 0.5 * Math.pow(2 * u, skewFactor) : 1 - 0.5 * Math.pow(2 * (1 - u), skewFactor);
+				return min + (max - min) * skewed_u;
+			};
+
+			// Select a random source position from the existing neurons
+			const sourcePosition = [
+				randomSkewedTowardsEdges(minLargerPosition[0], maxLargerPosition[0], skewFactor),
+				randomSkewedTowardsEdges(minLargerPosition[1], maxLargerPosition[1], skewFactor),
+				randomSkewedTowardsEdges(minLargerPosition[2], maxLargerPosition[2], skewFactor)
+			];
+
+			// Generate a target position skewed towards the center of the larger cube
+			const targetPosition = [
+				randomSkewedTowardsEdges(minLargerPosition[0], maxLargerPosition[0], skewFactor),
+				randomSkewedTowardsEdges(minLargerPosition[1], maxLargerPosition[1], skewFactor),
+				randomSkewedTowardsEdges(minLargerPosition[2], maxLargerPosition[2], skewFactor)
+			];
+
+			// Store the positions of the source and target
+			extraDendritePositions.push({
+				sourcePosition: sourcePosition,
+				targetPosition: targetPosition
+			});
+		}
+
+		// 	// Store the positions of the source and target
+		// 	extraDendritePositions.push({
+		// 		sourcePosition: sourcePosition,
+		// 		targetPosition: targetPosition
+		// 	});
+		// }
+
+		this.dendriteCount = this.connections.length + extraDendritePositions.length;
 
 		// Initialize the pipeline AFTER connections are generated
 		this.pipeline = new NeuralNetPipeline(
@@ -63,7 +108,7 @@ class NeuralNetExperience extends Experience {
 
 		// Pass positions and connections to the pipeline
 		this.pipeline.updatePositions(positions);
-		this.pipeline.updateConnections(this.connections, positions);
+		this.pipeline.updateConnections(this.connections, positions, extraDendritePositions);
 	}
 
 	addNeurons() {

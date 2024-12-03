@@ -39,7 +39,7 @@
 
 <!-- Toggle Visibility Button -->
 <button class="toggle-visibility-button" on:click={toggleButtons}>
-  {#if showButtons}Hide Buttons{:else}Show Buttons{/if}
+  {#if showButtons}Hide Buttons{:else}{/if}
 </button>
 
 <!-- Experience Buttons -->
@@ -98,6 +98,7 @@
 
   /* Styles for the Toggle Visibility Button */
   .toggle-visibility-button {
+    min-width: 150px;
     position: absolute;
     top: 10px;
     right: 10px;

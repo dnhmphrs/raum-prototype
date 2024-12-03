@@ -291,13 +291,24 @@ export default class NeuralNetPipeline extends Pipeline {
 		passEncoder.end();
 	}
 
-	updateConnections(connections, positions) {
+	updateConnections(connections, positions, extraDendritePositions = []) {
+		// Calculate total dendrites
+		const totalDendriteCount = connections.length + extraDendritePositions.length;
+
 		// Flatten dendrite positions into a Float32Array
-		const dendritePositions = new Float32Array(connections.length * 6);
+		const dendritePositions = new Float32Array(totalDendriteCount * 6);
+
+		// Existing connections
 		connections.forEach((connection, i) => {
 			const sourcePosition = positions[connection.source];
 			const targetPosition = positions[connection.target];
 			dendritePositions.set([...sourcePosition, ...targetPosition], i * 6);
+		});
+
+		// Extra connections
+		extraDendritePositions.forEach((dendrite, i) => {
+			const index = connections.length + i;
+			dendritePositions.set([...dendrite.sourcePosition, ...dendrite.targetPosition], index * 6);
 		});
 
 		// Create the dendrite vertex buffer
@@ -312,6 +323,9 @@ export default class NeuralNetPipeline extends Pipeline {
 		});
 
 		this.device.queue.writeBuffer(this.dendriteVertexBuffer, 0, dendritePositions);
+
+		// Update dendrite count
+		this.dendriteCount = totalDendriteCount;
 	}
 
 	updateActivity(time) {
