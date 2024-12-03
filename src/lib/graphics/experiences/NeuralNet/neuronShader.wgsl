@@ -53,3 +53,17 @@ fn fragment_main_dendrite() -> @location(0) vec4<f32> {
     let baseColor = vec4<f32>(0.8, 0.2, 0.2, 0.15); // Color for dendrites
     return baseColor;
 }
+
+// Vertex shader for the cube
+@vertex
+fn vertex_main_cube(
+    @location(0) position: vec3<f32>
+) -> @builtin(position) vec4<f32> {
+    return projectionMatrix * viewMatrix * vec4<f32>(position, 1.0);
+}
+
+// Fragment shader for the cube
+@fragment
+fn fragment_main_cube() -> @location(0) vec4<f32> {
+    return vec4<f32>(1.0, 1.0, 1.0, 0.5); // Solid white color
+}

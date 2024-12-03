@@ -1,12 +1,13 @@
 import Experience from '../Experience';
 import NeuronGeometry from './NeuronGeometry';
+import CubeGeometry from './CubeGeometry';
 import NeuralNetPipeline from './NeuralNetPipeline';
 
 class NeuralNetExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.neuronCount = 2400; // Number of neurons in the network
+		this.neuronCount = 1600; // Number of neurons in the network
 		this.connections = []; // Store connections between neurons
 		this.dendriteCount = 0; // Initialize dendriteCount
 
@@ -14,33 +15,20 @@ class NeuralNetExperience extends Experience {
 	}
 
 	async initialize() {
-		// Set initial neuron positions
-		// const positions = Array.from({ length: this.neuronCount }, (_, index) => {
-		// 	// Determine if the neuron is in the larger area (10% probability)
-		// 	const isInLargerArea = Math.random() < 0.01;
-
-		// 	if (isInLargerArea) {
-		// 		// Generate positions in a larger range
-		// 		return [
-		// 			Math.random() * 2000 - 1000, // X-coordinate in a larger range
-		// 			Math.random() * 2000 - 1000, // Y-coordinate in a larger range
-		// 			Math.random() * 2000 - 1000 // Z-coordinate in a larger range
-		// 		];
-		// 	} else {
-		// 		// Generate positions in the typical range
-		// 		return [
-		// 			Math.random() * 500 - 250, // X-coordinate in a typical range
-		// 			Math.random() * 500 - 250, // Y-coordinate in a typical range
-		// 			Math.random() * 500 - 250 // Z-coordinate in a typical range
-		// 		];
-		// 	}
-		// });
-
 		const positions = Array.from({ length: this.neuronCount }, () => {
-			// Scale each axis proportionally to achieve a 4:4:1 cuboid
-			const x = Math.random() * 400 - 200; // X is wide
-			const y = Math.random() * 100 - 50; // Y is narrow
-			const z = Math.random() * 400 - 200; // Z is wide
+			// Skew factor less than 1 increases density towards edges
+			const skewFactor = 1.5; // Adjust this value between 0 and 1
+
+			const randomSkewedTowardsEdges = (min, max, skewFactor) => {
+				const u = Math.random();
+				const skewed_u =
+					u < 0.5 ? 0.5 * Math.pow(2 * u, skewFactor) : 1 - 0.5 * Math.pow(2 * (1 - u), skewFactor);
+				return min + (max - min) * skewed_u;
+			};
+
+			const x = randomSkewedTowardsEdges(-200, 200, skewFactor);
+			const y = randomSkewedTowardsEdges(-50, 50, skewFactor); // Y is narrow
+			const z = randomSkewedTowardsEdges(-200, 200, skewFactor);
 
 			return [x, y, z];
 		});
@@ -55,6 +43,12 @@ class NeuralNetExperience extends Experience {
 
 		this.dendriteCount = this.connections.length; // Calculate total dendrites
 
+		const minPosition = [-200, -50, -200];
+		const maxPosition = [200, 50, 200];
+
+		// Create the cube geometry
+		this.cube = new CubeGeometry(this.device, minPosition, maxPosition);
+
 		// Initialize the pipeline AFTER connections are generated
 		this.pipeline = new NeuralNetPipeline(
 			this.device,
@@ -62,7 +56,8 @@ class NeuralNetExperience extends Experience {
 			this.resourceManager.getViewportBuffer(),
 			this.resourceManager.getMouseBuffer(),
 			this.neuronCount,
-			this.dendriteCount
+			this.dendriteCount,
+			this.cube
 		);
 		await this.pipeline.initialize();
 

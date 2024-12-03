@@ -2,7 +2,7 @@ import Pipeline from '../../pipelines/Pipeline';
 import neuronShader from './neuronShader.wgsl';
 
 export default class NeuralNetPipeline extends Pipeline {
-	constructor(device, camera, viewportBuffer, mouseBuffer, neuronCount, dendriteCount) {
+	constructor(device, camera, viewportBuffer, mouseBuffer, neuronCount, dendriteCount, cube) {
 		super(device);
 		this.device = device;
 		this.camera = camera;
@@ -10,6 +10,7 @@ export default class NeuralNetPipeline extends Pipeline {
 		this.mouseBuffer = mouseBuffer;
 		this.neuronCount = neuronCount;
 		this.dendriteCount = dendriteCount;
+		this.cube = cube;
 
 		// Buffers for neuron-specific data
 		this.activityBuffer = null;
@@ -62,6 +63,16 @@ export default class NeuralNetPipeline extends Pipeline {
 				{ binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // View Matrix
 				{ binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // Viewport Size
 				{ binding: 7, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } } // Mouse Position
+			]
+		});
+
+		// Cube bind group layout (same as dendrite if no specific uniforms are needed)
+		const cubeBindGroupLayout = this.device.createBindGroupLayout({
+			label: 'Cube Pipeline Bind Group Layout',
+			entries: [
+				{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // Projection Matrix
+				{ binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // View Matrix
+				{ binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } } // Viewport Size
 			]
 		});
 
@@ -157,6 +168,52 @@ export default class NeuralNetPipeline extends Pipeline {
 			}
 		});
 
+		// Create cube pipeline
+		this.cubePipeline = this.device.createRenderPipeline({
+			label: 'Cube Render Pipeline',
+			layout: this.device.createPipelineLayout({ bindGroupLayouts: [cubeBindGroupLayout] }),
+			vertex: {
+				module: this.device.createShaderModule({ code: neuronShader }),
+				entryPoint: 'vertex_main_cube',
+				buffers: [
+					{
+						arrayStride: 12, // Each vertex is 3 floats (x, y, z)
+						attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }]
+					}
+				]
+			},
+			fragment: {
+				module: this.device.createShaderModule({ code: neuronShader }),
+				entryPoint: 'fragment_main_cube',
+				targets: [
+					{
+						format: format,
+						blend: {
+							color: {
+								srcFactor: 'src-alpha',
+								dstFactor: 'one-minus-src-alpha',
+								operation: 'add'
+							},
+							alpha: {
+								srcFactor: 'one',
+								dstFactor: 'one-minus-src-alpha',
+								operation: 'add'
+							}
+						},
+						writeMask: GPUColorWrite.ALL
+					}
+				]
+			},
+			primitive: {
+				topology: 'line-list'
+			},
+			depthStencil: {
+				format: 'depth24plus',
+				depthWriteEnabled: true,
+				depthCompare: 'less'
+			}
+		});
+
 		// Create neuron bind group
 		this.neuronBindGroup = this.device.createBindGroup({
 			layout: neuronBindGroupLayout,
@@ -178,6 +235,16 @@ export default class NeuralNetPipeline extends Pipeline {
 				{ binding: 1, resource: { buffer: viewBuffer } },
 				{ binding: 2, resource: { buffer: this.viewportBuffer } },
 				{ binding: 7, resource: { buffer: this.mouseBuffer } }
+			]
+		});
+
+		// Create cube bind group
+		this.cubeBindGroup = this.device.createBindGroup({
+			layout: cubeBindGroupLayout,
+			entries: [
+				{ binding: 0, resource: { buffer: projectionBuffer } },
+				{ binding: 1, resource: { buffer: viewBuffer } },
+				{ binding: 2, resource: { buffer: this.viewportBuffer } }
 			]
 		});
 	}
@@ -203,6 +270,17 @@ export default class NeuralNetPipeline extends Pipeline {
 
 		// Each dendrite consists of two vertices
 		passEncoder.draw(2 * this.dendriteCount, 1, 0, 0);
+
+		// Render cube
+		passEncoder.setPipeline(this.cubePipeline);
+		passEncoder.setBindGroup(0, this.cubeBindGroup);
+
+		passEncoder.setVertexBuffer(0, this.cube.getVertexBuffer());
+		passEncoder.setIndexBuffer(this.cube.getIndexBuffer(), 'uint16');
+
+		passEncoder.drawIndexed(this.cube.getIndexCount(), 1, 0, 0, 0);
+
+		passEncoder.end();
 
 		passEncoder.end();
 	}
