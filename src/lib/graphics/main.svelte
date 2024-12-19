@@ -4,16 +4,18 @@
   import BirdExperience from './experiences/Flocking/FlockingExperience.js';
   import CubeExperience from './experiences/Cube/CubeExperience.js';
   import NeuralNetExperience from './experiences/NeuralNet/NeuralNetExperience.js';
+  import PoincaréExperience from './experiences/Poincaré/PoincaréExperience.js';
 
   let canvas;
   let engine;
-  let currentExperience = 'NeuralNet'; // Default experience
+  let currentExperience = 'Bird'; // Default experience
   let showButtons = true; // Variable to control button visibility
 
   const experiences = {
     Bird: BirdExperience,
     Cube: CubeExperience,
-    NeuralNet: NeuralNetExperience
+    NeuralNet: NeuralNetExperience,
+    Poincaré: PoincaréExperience,
   };
 
   const startExperience = async (experienceName) => {
