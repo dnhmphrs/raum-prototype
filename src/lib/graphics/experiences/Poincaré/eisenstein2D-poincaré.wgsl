@@ -16,10 +16,13 @@ fn complex_multiply(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 
 // Mobius transform to map the upper half-plane to the Poincaré disc
 fn mobius_transform(z: vec2<f32>) -> vec2<f32> {
-    let denom = z.x * z.x + (1.0 + z.y) * (1.0 + z.y);
+    let denom = (z.x + 0.0)*(z.x + 0.0) + (z.y + 1.0) * (z.y + 1.0);
+    if (denom == 0.0) {
+        return vec2<f32>(0.0, 0.0); // or some other appropriate handling
+    }
     return vec2<f32>(
-        2.0 * z.x / denom,          // x-coordinate
-        (z.x * z.x + z.y * z.y - 1.0) / denom // y-coordinate
+        2.0 * z.x / denom,
+        (z.x * z.x + z.y * z.y - 1.0) / denom
     );
 }
 
@@ -80,7 +83,7 @@ fn fragment_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f
     let screenCoord = ((fragCoord.xy / viewportSize) * 2.0 - vec2<f32>(1.0)) * vec2<f32>(aspectRatio, 1.0);
 
     // Define z in the upper half-plane based on screen coordinates
-    let z = vec2<f32>(screenCoord.x * 1.0, abs(screenCoord.y * 1.0));
+    let z = vec2<f32>(screenCoord.x * 1.0, screenCoord.y * 1.0);
 
     // Map z to the Poincaré disc using the Mobius transform
     let poincare_z = mobius_transform(z);
