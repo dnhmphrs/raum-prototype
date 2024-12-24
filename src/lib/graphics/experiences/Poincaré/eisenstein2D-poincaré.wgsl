@@ -3,8 +3,8 @@
 
 // Constants
 const pi = 3.14159265358979323846;
-const k = 2.0;
-const terms = 2;
+const k = 1.0;
+const terms = 12;
 
 // Function for complex multiplication
 fn complex_multiply(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
