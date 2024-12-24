@@ -8,7 +8,7 @@
 
   let canvas;
   let engine;
-  let currentExperience = 'Bird'; // Default experience
+  let currentExperience = 'Poincaré'; // Default experience
   let showButtons = true; // Variable to control button visibility
 
   const experiences = {
@@ -75,6 +75,9 @@
 
   .button-container {
     position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     top: 10px;
     left: 10px;
     z-index: 10;
@@ -101,6 +104,7 @@
   /* Styles for the Toggle Visibility Button */
   .toggle-visibility-button {
     min-width: 150px;
+    min-height: 35px;
     position: absolute;
     top: 10px;
     right: 10px;

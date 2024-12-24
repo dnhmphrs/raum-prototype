@@ -1,7 +1,7 @@
 import Experience from '../Experience';
 import Cube from './Cube';
-import RenderPipeline3D from '../../pipelines/RenderPipeline3D';
-import RenderPipeline2D from '../../pipelines/RenderPipeline2D';
+import RenderPipeline3D from './RenderPipeline3D';
+import RenderPipeline2D from './RenderPipeline2D';
 
 class CubeExperience extends Experience {
 	constructor(device, resourceManager) {
