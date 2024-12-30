@@ -93,7 +93,7 @@ fn fragment_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f
     // 3) Blend Identity with S: z-> -1/z
     //    Use mouse.y in [0,1] for a simple blend
     //-----------------------------------
-    let t = clamp(mousePosition.y * 10.0, 0.0, 10.0);
+    let t = clamp(mousePosition.x * 10.0 - 5.0, -5.0, 5.0);
     let zS = mobius_S(z);
     // linear blend in 2D => NOT a strict Möbius transform,
     // but a continuous “morph” from z to -1/z
