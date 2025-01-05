@@ -8,7 +8,7 @@
 
   let canvas;
   let engine;
-  let currentExperience = 'Bird'; // Default experience
+  let currentExperience = 'Poincaré'; // Default experience
   let showButtons = true; // Variable to control button visibility
 
   const experiences = {

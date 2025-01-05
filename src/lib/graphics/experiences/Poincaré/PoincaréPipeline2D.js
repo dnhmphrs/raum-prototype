@@ -1,5 +1,5 @@
 import Pipeline from '../../pipelines/Pipeline';
-import shaderCode from './eisenstein2D.wgsl';
+import shaderCode from './zeta.wgsl';
 
 export default class RenderPipeline2D extends Pipeline {
 	constructor(device, viewportBuffer, mouseBuffer) {
