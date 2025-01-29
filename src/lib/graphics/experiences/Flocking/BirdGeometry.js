@@ -40,10 +40,9 @@ export default class BirdGeometry {
 			8
 		]);
 
-		// Pad indices to ensure buffer size is a multiple of 4
 		const indexByteSize = this.indices.byteLength;
-		const alignedIndexSize = Math.ceil(indexByteSize / 4) * 4; // Align to 4 bytes
-		const paddedIndices = new Uint16Array(alignedIndexSize / 2); // Divide by 2 to get Uint16 count
+		const alignedIndexSize = Math.ceil(indexByteSize);
+		const paddedIndices = new Uint16Array(alignedIndexSize);
 		paddedIndices.set(this.indices);
 
 		// Create vertex buffer
