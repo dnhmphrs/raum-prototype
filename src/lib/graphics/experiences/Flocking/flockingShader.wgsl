@@ -1,22 +1,23 @@
-// flockingComputeShader.wgsl
+// flockingShader.wgsl
 
 struct FlockingParams {
     separation: f32,
     alignment: f32,
-    cohesion: f32
+    cohesion: f32,
+    centerGravity: vec4<f32>
 };
 
-@group(0) @binding(0) var<uniform> deltaTime: f32; // Optional: can be used for acceleration
-@group(0) @binding(1) var<storage, read> positions: array<vec3<f32>>;
+@group(0) @binding(0) var<uniform> deltaTime: f32;
+@group(0) @binding(1) var<storage, read_write> positions: array<vec3<f32>>;
 @group(0) @binding(2) var<storage, read_write> velocities: array<vec3<f32>>;
 @group(0) @binding(3) var<uniform> flockingParams: FlockingParams;
 
-const SPEED_LIMIT: f32 = 10.0;
-const SEPARATION_DISTANCE: f32 = 500.0;
+const SPEED_LIMIT: f32 = 100.0;
+const SEPARATION_DISTANCE: f32 = 1000.0;
 const NEIGHBOR_RADIUS: f32 = 250.0;
 
 @compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
+fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     let index = GlobalInvocationID.x;
     if (index >= arrayLength(&positions)) {
         return;
@@ -66,11 +67,19 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
     // Apply alignment and cohesion forces
     velocity = velocity + alignmentForce + cohesionForce;
 
+    // Apply center of gravity force
+    let centerDirection = normalize(flockingParams.centerGravity.xyz - positions[index]);
+    velocity = velocity + centerDirection * flockingParams.cohesion * 0.1;
+
     // Limit speed to prevent birds from accelerating indefinitely
     let speed = length(velocity);
     if (speed > SPEED_LIMIT) {
         velocity = normalize(velocity) * SPEED_LIMIT;
     }
+
+    // Update position based on velocity
+    let newPosition = positions[index] + velocity * deltaTime * 10;
+    positions[index] = newPosition;
 
     // Update velocity
     velocities[index] = velocity;

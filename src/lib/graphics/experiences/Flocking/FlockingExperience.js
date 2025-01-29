@@ -8,7 +8,7 @@ class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
-        this.birdCount = 2000;
+        this.birdCount = 5000; // Reduced for performance; adjust as needed
         this.lastTime = performance.now(); // Initialize lastTime
 
         // Initialize the Flocking pipeline
@@ -30,7 +30,7 @@ class FlockingExperience extends Experience {
         // Generate initial positions and velocities
         const initialPositions = [];
         const initialVelocities = [];
-        const bounds = 800;
+        const bounds = 2000;
         const boundsHalf = bounds / 2;
 
         for (let i = 0; i < this.birdCount; i++) {
@@ -50,8 +50,8 @@ class FlockingExperience extends Experience {
         // Initialize position and velocity buffers in the pipeline
         this.pipeline.initializeBuffers(initialPositions, initialVelocities);
 
-        // Optionally, set initial flocking parameters if not default
-        this.pipeline.setFlockingParameters(15.0, 20.0, 20.0); // separation, alignment, cohesion
+        // Set initial flocking parameters // done in code
+        // this.pipeline.setFlockingParameters(15.0, 20.0, 20.0, [0.0, 0.0, 0.0]);
     }
 
     addBirds() {
@@ -74,9 +74,9 @@ class FlockingExperience extends Experience {
         this.pipeline.updatePhases(now);
 
         // Optionally, adjust flocking parameters dynamically here
-        // Example: this.pipeline.setFlockingParameters(separation, alignment, cohesion);
+        // Example: this.pipeline.setFlockingParameters(separation, alignment, cohesion, centerGravity);
 
-        // Render the pipeline (includes flocking compute pass, position update compute pass, and render pass)
+        // Render the pipeline (includes compute pass and render pass)
         const depthView = this.resourceManager.getDepthTextureView();
         const passDescriptor = {
             colorAttachments: [
@@ -95,7 +95,6 @@ class FlockingExperience extends Experience {
             }
         };
 
-        // Pass the bird count to enable instanced drawing
         this.pipeline.render(commandEncoder, passDescriptor, this.objects);
     }
 

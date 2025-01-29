@@ -40,7 +40,7 @@ export default class Camera {
 		this.updateProjection();
 	}
 
-	updateProjection(fov = Math.PI / 4, near = 0.1, far = 10000) {
+	updateProjection(fov = Math.PI / 4, near = 0.1, far = 100000) {
 		mat4.perspective(this.projectionMatrix, fov, this.aspect, near, far);
 		this.updateBuffers(); // Synchronize buffer with projection matrix
 	}

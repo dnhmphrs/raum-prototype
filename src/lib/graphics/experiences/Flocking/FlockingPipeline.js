@@ -2,8 +2,7 @@
 
 import Pipeline from '../../pipelines/Pipeline';
 import birdShader from './birdShader.wgsl';
-import positionUpdateShader from './positionUpdateShader.wgsl';
-import flockingComputeShader from './flockingComputeShader.wgsl';
+import flockingShader from './flockingShader.wgsl';
 
 export default class FlockingPipeline extends Pipeline {
     constructor(device, camera, viewportBuffer, mouseBuffer, birdCount) {
@@ -19,14 +18,18 @@ export default class FlockingPipeline extends Pipeline {
         this.velocityBuffer = null; // For bird velocities
 
         // Compute Pipeline related
-        this.positionComputePipeline = null;
-        this.positionComputeBindGroup = null;
+        this.computePipeline = null;
+        this.computeBindGroup = null;
         this.deltaTimeBuffer = null;
 
-        // Flocking Compute Pipeline
-        this.flockingComputePipeline = null;
-        this.flockingBindGroup = null;
+        // Flocking Parameters
         this.flockingParamsBuffer = null;
+        this.flockingParams = {
+			separation: 1000.0,   // Reduced from 100.0
+			alignment: 5.0,    // Reduced from 25.0
+			cohesion: 10.0, 
+            centerGravity: new Float32Array([0.0, 0.0, 0.0])
+        };
     }
 
     async initialize() {
@@ -42,7 +45,7 @@ export default class FlockingPipeline extends Pipeline {
 
         this.positionBuffer = this.device.createBuffer({
             size: this.birdCount * 3 * Float32Array.BYTES_PER_ELEMENT, // Each position has x, y, z
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
             label: 'Position Buffer'
         });
 
@@ -52,112 +55,70 @@ export default class FlockingPipeline extends Pipeline {
             label: 'Velocity Buffer'
         });
 
-        // Initialize Compute Shaders
-        await this.initializeFlockingComputePipeline();
-        await this.initializePositionUpdatePipeline();
+        // Initialize Compute Shader
+        await this.initializeComputePipeline();
 
         // Initialize Render Shader Pipeline
         await this.initializeRenderPipeline(format, projectionBuffer, viewBuffer);
     }
 
-    async initializeFlockingComputePipeline() {
-        // Create a shader module for the flocking compute shader
-        const flockingComputeModule = this.device.createShaderModule({
-            code: flockingComputeShader
+    async initializeComputePipeline() {
+        // Create a shader module for the combined compute shader
+        const computeModule = this.device.createShaderModule({
+            code: flockingShader
         });
 
-        // Create a bind group layout for the flocking compute shader
-        const flockingBindGroupLayout = this.device.createBindGroupLayout({
+        // Create a bind group layout for the compute shader
+        const computeBindGroupLayout = this.device.createBindGroupLayout({
             entries: [
                 { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // deltaTime
-                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // positions
+                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // positions
                 { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // velocities
                 { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // flocking parameters
             ]
         });
 
-        // Create the flocking compute pipeline
-        this.flockingComputePipeline = this.device.createComputePipeline({
+        // Create the compute pipeline
+        this.computePipeline = this.device.createComputePipeline({
             layout: this.device.createPipelineLayout({
-                bindGroupLayouts: [flockingBindGroupLayout]
+                bindGroupLayouts: [computeBindGroupLayout]
             }),
             compute: {
-                module: flockingComputeModule,
+                module: computeModule,
                 entryPoint: 'main'
             }
         });
 
-        // Create a buffer for flocking parameters (separation, alignment, cohesion)
-        this.flockingParamsBuffer = this.device.createBuffer({
-            size: 3 * Float32Array.BYTES_PER_ELEMENT, // separation, alignment, cohesion
+        // Create a buffer for deltaTime (uniform)
+        this.deltaTimeBuffer = this.device.createBuffer({
+            size: 4, // size of f32
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            label: 'Flocking Parameters Buffer'
+            label: 'Delta Time Buffer'
         });
 
-        // Initialize default flocking parameters
-        const defaultFlockingParams = new Float32Array([15.0, 20.0, 20.0]); // separation, alignment, cohesion
-        this.device.queue.writeBuffer(this.flockingParamsBuffer, 0, defaultFlockingParams);
+        // Create a buffer for flocking parameters (uniform)
+		this.flockingParamsBuffer = this.device.createBuffer({
+			size: 8 * Float32Array.BYTES_PER_ELEMENT, // 32 bytes (8 floats)
+			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+			label: 'Flocking Parameters Buffer'
+		});
 
-        // Create the flocking compute bind group
-        this.flockingBindGroup = this.device.createBindGroup({
-            layout: flockingBindGroupLayout,
-            entries: [
-                { binding: 0, resource: { buffer: this.deltaTimeBuffer || this.createDeltaTimeBuffer() } }, // deltaTime
-                { binding: 1, resource: { buffer: this.positionBuffer } }, // positions
-                { binding: 2, resource: { buffer: this.velocityBuffer } }, // velocities
-                { binding: 3, resource: { buffer: this.flockingParamsBuffer } } // flocking parameters
-            ]
-        });
-    }
+        // Initialize flocking parameters
+        this.updateFlockingParams();
 
-    async initializePositionUpdatePipeline() {
-        // Create a shader module for the position update compute shader
-        const positionUpdateModule = this.device.createShaderModule({
-            code: positionUpdateShader
-        });
-
-        // Create a bind group layout for the position update compute shader
-        const positionUpdateBindGroupLayout = this.device.createBindGroupLayout({
-            entries: [
-                { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // deltaTime
-                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // velocities
-                { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } } // positions
-            ]
-        });
-
-        // Create the position update compute pipeline
-        this.positionComputePipeline = this.device.createComputePipeline({
-            layout: this.device.createPipelineLayout({
-                bindGroupLayouts: [positionUpdateBindGroupLayout]
-            }),
-            compute: {
-                module: positionUpdateModule,
-                entryPoint: 'main'
-            }
-        });
-
-        // Create a buffer for deltaTime (uniform) if not already created
-        if (!this.deltaTimeBuffer) {
-            this.deltaTimeBuffer = this.device.createBuffer({
-                size: 4, // size of f32
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-                label: 'Delta Time Buffer'
-            });
-        }
-
-        // Create the position update compute bind group
-        this.positionComputeBindGroup = this.device.createBindGroup({
-            layout: positionUpdateBindGroupLayout,
+        // Create the compute bind group
+        this.computeBindGroup = this.device.createBindGroup({
+            layout: computeBindGroupLayout,
             entries: [
                 { binding: 0, resource: { buffer: this.deltaTimeBuffer } },
-                { binding: 1, resource: { buffer: this.velocityBuffer } },
-                { binding: 2, resource: { buffer: this.positionBuffer } }
+                { binding: 1, resource: { buffer: this.positionBuffer } },
+                { binding: 2, resource: { buffer: this.velocityBuffer } },
+                { binding: 3, resource: { buffer: this.flockingParamsBuffer } }
             ]
         });
     }
 
     async initializeRenderPipeline(format, projectionBuffer, viewBuffer) {
-        // Create the render pipeline layout with existing bind group layout
         const bindGroupLayout = this.device.createBindGroupLayout({
             label: 'Flocking Pipeline Bind Group Layout',
             entries: [
@@ -212,35 +173,15 @@ export default class FlockingPipeline extends Pipeline {
         });
     }
 
-    createDeltaTimeBuffer() {
-        // Helper method to create deltaTime buffer if not existing
-        if (!this.deltaTimeBuffer) {
-            this.deltaTimeBuffer = this.device.createBuffer({
-                size: 4, // size of f32
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-                label: 'Delta Time Buffer'
-            });
-        }
-        return this.deltaTimeBuffer;
-    }
-
     render(commandEncoder, passDescriptor, objects) {
-        // Dispatch the flocking compute pass to update velocities
-        const flockingPassEncoder = commandEncoder.beginComputePass();
-        flockingPassEncoder.setPipeline(this.flockingComputePipeline);
-        flockingPassEncoder.setBindGroup(0, this.flockingBindGroup);
+        // Update flocking and positions via compute shader
+        const computePass = commandEncoder.beginComputePass();
+        computePass.setPipeline(this.computePipeline);
+        computePass.setBindGroup(0, this.computeBindGroup);
         const workgroupSize = 64;
-        const flockingWorkgroups = Math.ceil(this.birdCount / workgroupSize);
-        flockingPassEncoder.dispatchWorkgroups(flockingWorkgroups);
-        flockingPassEncoder.end();
-
-        // Dispatch the position update compute pass to update positions
-        const positionComputePass = commandEncoder.beginComputePass();
-        positionComputePass.setPipeline(this.positionComputePipeline);
-        positionComputePass.setBindGroup(0, this.positionComputeBindGroup);
-        const positionWorkgroups = Math.ceil(this.birdCount / workgroupSize);
-        positionComputePass.dispatchWorkgroups(positionWorkgroups);
-        positionComputePass.end();
+        const workgroups = Math.ceil(this.birdCount / workgroupSize);
+        computePass.dispatchWorkgroups(workgroups);
+        computePass.end();
 
         // Begin render pass
         const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
@@ -267,11 +208,21 @@ export default class FlockingPipeline extends Pipeline {
         this.device.queue.writeBuffer(this.phaseBuffer, 0, phases);
     }
 
-    updateVelocities(velocities) {
-        // Method to update velocities externally if needed
-        this.device.queue.writeBuffer(this.velocityBuffer, 0, velocities);
-    }
-
+	updateFlockingParams() {
+		// Update flocking parameters buffer
+		const params = new Float32Array([
+			this.flockingParams.separation,
+			this.flockingParams.alignment,
+			this.flockingParams.cohesion,
+			this.flockingParams.centerGravity[0],
+			this.flockingParams.centerGravity[1],
+			this.flockingParams.centerGravity[2],
+			0.0, // Padding for vec4
+			0.0  // Padding for vec4
+		]);
+		this.device.queue.writeBuffer(this.flockingParamsBuffer, 0, params);
+	}
+	
     initializeBuffers(initialPositions, initialVelocities) {
         // Method to initialize position and velocity buffers
         const posArray = new Float32Array(initialPositions.flat());
@@ -281,10 +232,13 @@ export default class FlockingPipeline extends Pipeline {
         this.device.queue.writeBuffer(this.velocityBuffer, 0, velArray);
     }
 
-    setFlockingParameters(separation, alignment, cohesion) {
-        // Update flocking parameters buffer
-        const params = new Float32Array([separation, alignment, cohesion]);
-        this.device.queue.writeBuffer(this.flockingParamsBuffer, 0, params);
+    setFlockingParameters(separation, alignment, cohesion, centerGravity = [0.0, 0.0, 0.0]) {
+        // Update flocking parameters
+        this.flockingParams.separation = separation;
+        this.flockingParams.alignment = alignment;
+        this.flockingParams.cohesion = cohesion;
+        this.flockingParams.centerGravity = new Float32Array(centerGravity);
+        this.updateFlockingParams();
     }
 
     updateDeltaTime(deltaTime) {
@@ -297,12 +251,11 @@ export default class FlockingPipeline extends Pipeline {
         if (this.phaseBuffer) this.phaseBuffer.destroy();
         if (this.positionBuffer) this.positionBuffer.destroy();
         if (this.velocityBuffer) this.velocityBuffer.destroy();
-        if (this.flockingComputePipeline) this.flockingComputePipeline.destroy();
-        if (this.flockingBindGroup) this.flockingBindGroup.destroy();
+        if (this.computePipeline) this.computePipeline.destroy();
+        if (this.computeBindGroup) this.computeBindGroup.destroy();
         if (this.flockingParamsBuffer) this.flockingParamsBuffer.destroy();
-        if (this.positionComputePipeline) this.positionComputePipeline.destroy();
-        if (this.positionComputeBindGroup) this.positionComputeBindGroup.destroy();
-        if (this.deltaTimeBuffer) this.deltaTimeBuffer.destroy();
+        if (this.pipeline) this.pipeline.destroy();
+        if (this.bindGroup) this.bindGroup.destroy();
         super.cleanup();
     }
 }
