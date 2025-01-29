@@ -25,8 +25,8 @@ export default class FlockingPipeline extends Pipeline {
         // Flocking Parameters
         this.flockingParamsBuffer = null;
         this.flockingParams = {
-			separation: 1000.0,   // Reduced from 100.0
-			alignment: 5.0,    // Reduced from 25.0
+			separation: 1000.0,
+			alignment: 5.0,
 			cohesion: 10.0, 
             centerGravity: new Float32Array([0.0, 0.0, 0.0])
         };
