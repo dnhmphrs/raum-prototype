@@ -69,7 +69,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
 
     // Apply center of gravity force
     let centerDirection = normalize(flockingParams.centerGravity.xyz - positions[index]);
-    velocity = velocity + centerDirection * flockingParams.cohesion * 0.1;
+    velocity = velocity + centerDirection * flockingParams.cohesion * 0.15;
 
     // Limit speed to prevent birds from accelerating indefinitely
     let speed = length(velocity);
