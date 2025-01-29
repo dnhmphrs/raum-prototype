@@ -251,11 +251,11 @@ export default class FlockingPipeline extends Pipeline {
         if (this.phaseBuffer) this.phaseBuffer.destroy();
         if (this.positionBuffer) this.positionBuffer.destroy();
         if (this.velocityBuffer) this.velocityBuffer.destroy();
-        if (this.computePipeline) this.computePipeline.destroy();
-        if (this.computeBindGroup) this.computeBindGroup.destroy();
+        // if (this.computePipeline) this.computePipeline.destroy();
+        // if (this.computeBindGroup) this.computeBindGroup.destroy();
         if (this.flockingParamsBuffer) this.flockingParamsBuffer.destroy();
-        if (this.pipeline) this.pipeline.destroy();
-        if (this.bindGroup) this.bindGroup.destroy();
+        // if (this.pipeline) this.pipeline.destroy();
+        // if (this.bindGroup) this.bindGroup.destroy();
         super.cleanup();
     }
 }

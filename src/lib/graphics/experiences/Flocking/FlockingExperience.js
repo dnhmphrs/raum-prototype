@@ -30,7 +30,7 @@ class FlockingExperience extends Experience {
         // Generate initial positions and velocities
         const initialPositions = [];
         const initialVelocities = [];
-        const bounds = 2000;
+        const bounds = 2500;
         const boundsHalf = bounds / 2;
 
         for (let i = 0; i < this.birdCount; i++) {
@@ -41,9 +41,9 @@ class FlockingExperience extends Experience {
             initialPositions.push([posX, posY, posZ]);
 
             // Random velocities with a small magnitude
-            const velX = (Math.random() - 0.5) * 10;
-            const velY = (Math.random() - 0.5) * 10;
-            const velZ = (Math.random() - 0.5) * 10;
+            const velX = (Math.random() - 0.5);
+            const velY = (Math.random() - 0.5);
+            const velZ = (Math.random() - 0.5);
             initialVelocities.push([velX, velY, velZ]);
         }
 
