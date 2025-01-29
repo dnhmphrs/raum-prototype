@@ -26,17 +26,18 @@ fn vertex_main(@location(0) position: vec3<f32>, @builtin(instance_index) instan
     let birdPosition = positions[instance];
     let birdPhase = phases[instance];
 
-    // Get bird's velocity for potential future use
+    // Get bird's velocity for potential wing animation based on movement
     let birdVelocity = velocities[instance];
+    let speed = length(birdVelocity);
 
     // Copy the original position to avoid unintended modifications
     var animatedPosition = position;
 
-    // Deform the wings along the y-axis based on phase
+    // Deform the wings along the y-axis based on phase and speed
     if (position.x > 0.0) { // Right wing (x > 0.0)
-        animatedPosition.y -= sin(birdPhase) * 10.0; // Flap motion
+        animatedPosition.y -= sin(birdPhase) * 10.0 + speed * 0.5; // Flap motion influenced by speed
     } else if (position.x < 0.0) { // Left wing (x < 0.0)
-        animatedPosition.y -= sin(birdPhase) * 10.0; // Symmetric flap in opposite direction
+        animatedPosition.y -= sin(birdPhase) * 10.0 + speed * 0.5; // Symmetric flap in opposite direction
     }
 
     // Combine the animated vertex with the bird's global position
@@ -60,9 +61,9 @@ fn vertex_main(@location(0) position: vec3<f32>, @builtin(instance_index) instan
 
     // Apply global variation to both the body and wings
     let globalVariation = vec3<f32>(
-        hash(birdVelocity.x) * 0.5,
-        hash(birdVelocity.y) * 0.5,
-        hash(birdVelocity.z) * 0.5
+        hash(birdPosition.x) * 0.5,
+        hash(birdPosition.y) * 0.5,
+        hash(birdPosition.z) * 0.5
     );
     out.color += globalVariation;
 

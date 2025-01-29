@@ -1,3 +1,5 @@
+// FlockingExperience.js
+
 import Experience from '../Experience';
 import BirdGeometry from './BirdGeometry';
 import FlockingPipeline from './FlockingPipeline';
@@ -47,6 +49,9 @@ class FlockingExperience extends Experience {
 
         // Initialize position and velocity buffers in the pipeline
         this.pipeline.initializeBuffers(initialPositions, initialVelocities);
+
+        // Optionally, set initial flocking parameters if not default
+        this.pipeline.setFlockingParameters(15.0, 20.0, 20.0); // separation, alignment, cohesion
     }
 
     addBirds() {
@@ -68,7 +73,10 @@ class FlockingExperience extends Experience {
         // Update wing phases
         this.pipeline.updatePhases(now);
 
-        // Render the pipeline (includes compute pass and render pass)
+        // Optionally, adjust flocking parameters dynamically here
+        // Example: this.pipeline.setFlockingParameters(separation, alignment, cohesion);
+
+        // Render the pipeline (includes flocking compute pass, position update compute pass, and render pass)
         const depthView = this.resourceManager.getDepthTextureView();
         const passDescriptor = {
             colorAttachments: [
