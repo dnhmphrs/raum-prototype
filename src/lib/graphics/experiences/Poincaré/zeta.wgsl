@@ -47,7 +47,7 @@ fn zeta_dirichlet(z: vec2<f32>, terms: i32) -> vec2<f32> {
 //------------------------------------
 // Functional equation for analytic continuation of zeta
 fn zeta_functional_equation(z: vec2<f32>, terms: i32) -> vec2<f32> {
-    if (z.x > 1.0) {
+    if (z.x > 0.5) { // it should be Re(z) > 1.0, but for some reason 0.5 looks more accurate
         // Direct computation using Dirichlet series
         return zeta_dirichlet(z, terms);
     } else {
