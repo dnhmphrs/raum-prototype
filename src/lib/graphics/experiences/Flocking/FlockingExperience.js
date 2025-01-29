@@ -84,7 +84,7 @@ class FlockingExperience extends Experience {
                     view: textureView,
                     loadOp: 'clear',
                     storeOp: 'store',
-                    clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }
+                    clearValue: { r: 0.2, g: 0.5, b: 0.9, a: 1.0 }
                 }
             ],
             depthStencilAttachment: {
