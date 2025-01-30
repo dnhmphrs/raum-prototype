@@ -16,15 +16,41 @@ struct VertexOutput {
 fn vertex_main(@location(0) vertexPosition: vec3<f32>) -> VertexOutput {
     var out: VertexOutput;
 
-    // Simple transformation without instancing
-    let worldPosition = vertexPosition + predatorPosition;
+    // Retrieve predator's velocity
+    let velocity = predatorVelocity;
+    let speed = length(velocity);
+
+    // Set forward direction
+    let forward = normalize(-velocity);
+
+    // Define a global up vector
+    let globalUp = vec3<f32>(0.0, 1.0, 0.0);
+
+    // Compute the right and adjusted up vectors
+    let right = normalize(cross(globalUp, forward));
+    let up = cross(forward, right);
+
+    // Create a rotation matrix from the forward, up, and right vectors
+    let rotationMatrix = mat3x3<f32>(
+        right.x, up.x, forward.x,
+        right.y, up.y, forward.y,
+        right.z, up.z, forward.z
+    );
+
+    // Apply rotation to the vertex position
+    let rotatedPosition = rotationMatrix * vertexPosition;
+
+    // Combine with predator's global position
+    let worldPosition = rotatedPosition + predatorPosition;
+
+    // Transform to clip space
     out.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
 
-    // Assign a distinct color (e.g., red) for the predator
+    // Assign a distinct red color for the predator
     out.color = vec3<f32>(1.0, 0.0, 0.0);
 
-    // Simple normal calculation (optional)
-    out.vNormal = normalize(vertexPosition);
+    // Calculate normal for potential lighting (optional)
+    out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));
 
     return out;
 }
