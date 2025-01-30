@@ -12,7 +12,7 @@ struct FlockingParams {
 @group(0) @binding(2) var<storage, read_write> velocities: array<vec3<f32>>;
 @group(0) @binding(3) var<uniform> flockingParams: FlockingParams;
 
-const SPEED_LIMIT: f32 = 100.0;
+const SPEED_LIMIT: f32 = 150.0;
 const SEPARATION_DISTANCE: f32 = 250.0;
 const NEIGHBOR_RADIUS: f32 = 250.0;
 
@@ -78,7 +78,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     }
 
     // Update position based on velocity
-    let newPosition = positions[index] + velocity * deltaTime * 10;
+    let newPosition = positions[index] + velocity * deltaTime * 5;
     positions[index] = newPosition;
 
     // Update velocity
