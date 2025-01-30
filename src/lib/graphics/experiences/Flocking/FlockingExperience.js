@@ -10,6 +10,7 @@ class FlockingExperience extends Experience {
 
         this.birdCount = 8192; // Reduced for performance; adjust as needed
         this.lastTime = performance.now(); // Initialize lastTime
+        this.objects = []; // Initialize objects array
 
         // Initialize the Flocking pipeline
         this.pipeline = new FlockingPipeline(
@@ -30,7 +31,7 @@ class FlockingExperience extends Experience {
         // Generate initial positions and velocities
         const initialPositions = [];
         const initialVelocities = [];
-        const bounds = 5000;
+        const bounds = 2500;
         const boundsHalf = bounds / 2;
 
         for (let i = 0; i < this.birdCount; i++) {
