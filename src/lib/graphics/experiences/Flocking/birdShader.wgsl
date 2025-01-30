@@ -24,10 +24,10 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     let birdVelocity = velocities[instance];
 
     // Calculate orientation based on velocity
-    let forward = normalize(birdVelocity);
-    let up = vec3<f32>(0.0, 1.0, 0.0);
-    let right = normalize(cross(up, forward));
-    let adjustedUp = cross(forward, right);
+    let forward = normalize(-birdVelocity); // negative to make birds fly in correct direction
+    let up = normalize(vec3<f32>(0.1, 1.0, 0.0)); // Small X component prevents zero cross-product
+    let right = cross(forward, up);  // Swapped order
+    let adjustedUp = cross(right, forward);
 
     // Create a rotation matrix
     let rotationMatrix = mat3x3<f32>(
