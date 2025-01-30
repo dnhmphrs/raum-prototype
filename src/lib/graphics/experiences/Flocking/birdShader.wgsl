@@ -56,7 +56,7 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // Assign colors based on vertex position
     if (vertexPosition.z > 15.0 || vertexPosition.z < -15.0) {
         // Wings
-        out.color = vec3<f32>(1.0, 1.0, 1.0);
+        out.color = vec3<f32>(1.0, 0.6, 0.4);
     } else {
         // Body
         out.color = vec3<f32>(0.0, 0.0, 0.0);
