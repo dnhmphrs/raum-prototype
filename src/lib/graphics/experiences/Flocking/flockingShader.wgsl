@@ -13,7 +13,7 @@ struct FlockingParams {
 @group(0) @binding(3) var<uniform> flockingParams: FlockingParams;
 
 const SPEED_LIMIT: f32 = 100.0;
-const SEPARATION_DISTANCE: f32 = 500.0;
+const SEPARATION_DISTANCE: f32 = 250.0;
 const NEIGHBOR_RADIUS: f32 = 250.0;
 
 @compute @workgroup_size(64)
