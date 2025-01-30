@@ -11,6 +11,8 @@ struct FlockingParams {
 @group(0) @binding(1) var<storage, read_write> positions: array<vec3<f32>>;
 @group(0) @binding(2) var<storage, read_write> velocities: array<vec3<f32>>;
 @group(0) @binding(3) var<uniform> flockingParams: FlockingParams;
+@group(0) @binding(4) var<storage, read> predatorPosition: vec3<f32>;
+@group(0) @binding(5) var<storage, read> predatorVelocity: vec3<f32>;
 
 const SPEED_LIMIT: f32 = 150.0;
 const SEPARATION_DISTANCE: f32 = 250.0;
@@ -70,6 +72,23 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     // Apply center of gravity force
     let centerDirection = normalize(flockingParams.centerGravity.xyz - positions[index]);
     velocity = velocity + centerDirection;
+
+    // Predator Repulsion
+    let birdPos = positions[index];
+    let toPredator = predatorPosition - birdPos;
+    let distance = length(toPredator);
+
+    const PREDATOR_INFLUENCE_RADIUS: f32 = 100000.0; // Adjust as needed
+    const REPULSION_CONSTANT: f32 = 1000000.0; // Adjust strength as needed
+
+    if (distance < PREDATOR_INFLUENCE_RADIUS && distance > 0.0) {
+        let repulsionDir = normalize(birdPos - predatorPosition);
+        let repulsionForce = repulsionDir * (REPULSION_CONSTANT / (distance * distance));
+        velocity += repulsionForce;
+    }
+
+    // Update velocity with accumulated forces
+    velocities[index] = velocity;
 
     // Limit speed to prevent birds from accelerating indefinitely
     let speed = length(velocity);

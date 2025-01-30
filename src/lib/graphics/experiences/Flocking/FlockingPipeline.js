@@ -101,6 +101,8 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // positions
                 { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // velocities
                 { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // flocking parameters
+                { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // predatorPosition
+                { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // predatorVelocity
             ]
         });
 
@@ -139,7 +141,9 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 0, resource: { buffer: this.deltaTimeBuffer } },
                 { binding: 1, resource: { buffer: this.positionBuffer } },
                 { binding: 2, resource: { buffer: this.velocityBuffer } },
-                { binding: 3, resource: { buffer: this.flockingParamsBuffer } }
+                { binding: 3, resource: { buffer: this.flockingParamsBuffer } },
+                { binding: 4, resource: { buffer: this.predatorPositionBuffer } },
+                { binding: 5, resource: { buffer: this.predatorVelocityBuffer } },
             ]
         });
     }
