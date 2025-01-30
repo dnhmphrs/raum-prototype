@@ -9,13 +9,13 @@ export default class PredatorGeometry {
             // Body - Bottom
             0, -12, 15, // Extended body
             // Body - Head
-            0, 0, 30, // Extended head
+            0, 0, 35, // Extended head
 
             // Left Wing
-            0, 0, -25, -80, 0, -40, 0, 0, 25,
+            0, 0, -25, -80, 0, -50, 0, 0, 25,
 
             // Right Wing
-            0, 0, 25, 80, 0, -40, 0, 0, -25
+            0, 0, 25, 80, 0, -50, 0, 0, -25
         ]);
 
 		// Pad vertices to ensure buffer size is a multiple of 4
