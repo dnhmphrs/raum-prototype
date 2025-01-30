@@ -9,7 +9,7 @@
   let canvas;
   let engine;
   let currentExperience = 'Bird'; // Default experience
-  let showButtons = true; // Variable to control button visibility
+  let showButtons = false; // Variable to control button visibility
 
   const experiences = {
     Bird: BirdExperience,
@@ -38,6 +38,10 @@
 </script>
 
 <canvas bind:this={canvas} class="geometry"></canvas>
+
+<div class="music">
+  <iframe title="music" style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/album=1967289637/size=small/bgcol=333333/linkcol=ffffff/transparent=true/" seamless><a href="https://masayoshifujita.bandcamp.com/album/bird-ambience">Bird Ambience by Masayoshi Fujita</a></iframe>
+</div>
 
 <!-- Toggle Visibility Button -->
 <button class="toggle-visibility-button" on:click={toggleButtons}>
@@ -71,6 +75,15 @@
     margin: 0;
     border: none;
     z-index: -1;
+  }
+
+  .music {
+    position: absolute;
+    padding: 0;
+    margin: 0;
+    border: none;
+    z-index: 10;
+    overflow: hidden;
   }
 
   .button-container {
