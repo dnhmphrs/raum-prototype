@@ -13,6 +13,10 @@ class FlockingExperience extends Experience {
         this.birdCount = 8192; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
 
+        // Timer variables
+        this.targetChangeInterval = 10000; // 10 seconds in milliseconds
+        this.lastTargetChangeTime = this.lastTime;
+
         // Separate storage for birds and predator
         this.birds = []; // Array to hold all bird geometries
         this.predator = null; // Single reference for the predator
@@ -66,8 +70,9 @@ class FlockingExperience extends Experience {
         // Initialize predator position and velocity buffers in the pipeline
         this.pipeline.initializePredatorBuffers(initialPredatorPosition, initialPredatorVelocity);
 
-        // Set initial flocking parameters (if necessary)
-        // this.pipeline.setFlockingParameters(15.0, 20.0, 20.0, [0.0, 0.0, 0.0, 0.0]);
+        // Set initial targetIndex to a random bird
+        const initialTargetIndex = Math.floor(Math.random() * this.birdCount);
+        this.pipeline.updateTargetIndex(initialTargetIndex);
     }
 
     addBirds() {
@@ -98,6 +103,12 @@ class FlockingExperience extends Experience {
         // Update wing phases
         this.pipeline.updatePhases(now);
 
+        // Handle target change every 10 seconds
+        if (now - this.lastTargetChangeTime >= this.targetChangeInterval) {
+            this.changeTarget();
+            this.lastTargetChangeTime = now;
+        }
+
         // Optionally, adjust flocking parameters dynamically here
         // Example: this.pipeline.setFlockingParameters(separation, alignment, cohesion, centerGravity);
 
@@ -121,6 +132,16 @@ class FlockingExperience extends Experience {
         };
 
         this.pipeline.render(commandEncoder, passDescriptor, this.birds, this.predator);
+    }
+
+    changeTarget() {
+        // Select a new target index different from the current one
+        let newTargetIndex = Math.floor(Math.random() * this.birdCount);
+
+        // Update the target index in the pipeline
+        this.pipeline.updateTargetIndex(newTargetIndex);
+
+        // console.log(`Predator target changed to bird index: ${newTargetIndex}`);
     }
 
     cleanup() {

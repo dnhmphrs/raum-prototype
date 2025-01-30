@@ -489,6 +489,12 @@ export default class FlockingPipeline extends Pipeline {
         this.device.queue.writeBuffer(this.deltaTimeBuffer, 0, deltaTimeArray);
     }
 
+    updateTargetIndex(newIndex) {
+        // Ensure newIndex is a 32-bit unsigned integer
+        const buffer = new Uint32Array([newIndex]);
+        this.device.queue.writeBuffer(this.targetIndexBuffer, 0, buffer);
+    }
+
     cleanup() {
         if (this.phaseBuffer) this.phaseBuffer.destroy();
         if (this.positionBuffer) this.positionBuffer.destroy();
