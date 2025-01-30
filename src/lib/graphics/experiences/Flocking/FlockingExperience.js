@@ -2,15 +2,19 @@
 
 import Experience from '../Experience';
 import BirdGeometry from './BirdGeometry';
+import PredatorGeometry from './PredatorGeometry';
 import FlockingPipeline from './FlockingPipeline';
 
 class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
-        this.birdCount = 8192; // Reduced for performance; adjust as needed
+        this.birdCount = 8192; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
-        this.objects = []; // Initialize objects array
+
+        // Separate storage for birds and predator
+        this.birds = []; // Array to hold all bird geometries
+        this.predator = null; // Single reference for the predator
 
         // Initialize the Flocking pipeline
         this.pipeline = new FlockingPipeline(
@@ -22,13 +26,14 @@ class FlockingExperience extends Experience {
         );
 
         this.addBirds();
+        this.addPredator();
     }
 
     async initialize() {
         // Initialize the pipeline
         await this.pipeline.initialize();
 
-        // Generate initial positions and velocities
+        // Generate initial positions and velocities for birds
         const initialPositions = [];
         const initialVelocities = [];
         const bounds = 2500;
@@ -49,17 +54,32 @@ class FlockingExperience extends Experience {
         }
 
         // Initialize position and velocity buffers in the pipeline
-        this.pipeline.initializeBuffers(initialPositions, initialVelocities);
+        this.pipeline.initializeBirdBuffers(initialPositions, initialVelocities);
 
-        // Set initial flocking parameters // done in code
-        // this.pipeline.setFlockingParameters(15.0, 20.0, 20.0, [0.0, 0.0, 0.0]);
+        const initialPredatorPosition = new Float32Array([0.0, 0.0, 0.0]); // Starting at origin
+        const initialPredatorVelocity = new Float32Array([0.0, 0.0, 0.0]); // Initially stationary
+
+        // Initialize predator position and velocity buffers in the pipeline
+        this.pipeline.initializePredatorBuffers(initialPredatorPosition, initialPredatorVelocity);
+
+        // Set initial flocking parameters (if necessary)
+        // this.pipeline.setFlockingParameters(15.0, 20.0, 20.0, [0.0, 0.0, 0.0, 0.0]);
     }
 
     addBirds() {
-        // Add multiple birds to the scene
+        // Add multiple birds to the scene and store references
         for (let i = 0; i < this.birdCount; i++) {
-            this.addObject(new BirdGeometry(this.device));
+            const bird = new BirdGeometry(this.device);
+            this.birds.push(bird);
+            this.addObject(bird);
         }
+    }
+
+    addPredator() {
+        // Add a single predator to the scene and store its reference
+        const predator = new PredatorGeometry(this.device);
+        this.predator = predator;
+        this.addObject(predator);
     }
 
     render(commandEncoder, textureView) {
@@ -96,7 +116,7 @@ class FlockingExperience extends Experience {
             }
         };
 
-        this.pipeline.render(commandEncoder, passDescriptor, this.objects);
+        this.pipeline.render(commandEncoder, passDescriptor, this.birds, this.predator);
     }
 
     cleanup() {
@@ -104,13 +124,19 @@ class FlockingExperience extends Experience {
             this.pipeline.cleanup();
         }
 
-        // Cleanup objects
-        this.objects.forEach((object) => {
-            if (object.cleanup) {
-                object.cleanup();
+        // Cleanup birds
+        this.birds.forEach((bird) => {
+            if (bird.cleanup) {
+                bird.cleanup();
             }
         });
-        this.objects = [];
+        this.birds = [];
+
+        // Cleanup predator
+        if (this.predator) {
+            this.predator.cleanup();
+            this.predator = null;
+        }
     }
 }
 
