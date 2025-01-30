@@ -26,6 +26,7 @@ export default class FlockingPipeline extends Pipeline {
         this.predatorPositionBuffer = null;
         this.predatorVelocityBuffer = null;
         this.targetIndexBuffer = null;
+        this.guidingLineBuffer = null;
 
         // Compute Pipeline related
         this.flockingComputePipeline = null;
@@ -93,6 +94,13 @@ export default class FlockingPipeline extends Pipeline {
             size: 4, // Size of a single u32
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             label: 'Target Index Buffer'
+        });
+
+        // Guiding Line Buffer (3 vec3<f32>)
+        this.guidingLineBuffer = this.device.createBuffer({
+            size: 2 * 4 * Float32Array.BYTES_PER_ELEMENT, // 2 vertices, each with x, y, z + padding
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            label: 'Guiding Line Buffer'
         });
 
         // Initialize Compute Shaders
@@ -176,6 +184,7 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // predatorPosition
                 { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // predatorVelocity
                 { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // targetIndex
+                { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // guidingLineBuffer
             ]
         });
 
@@ -198,6 +207,7 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 1, resource: { buffer: this.predatorPositionBuffer } },
                 { binding: 2, resource: { buffer: this.predatorVelocityBuffer } },
                 { binding: 3, resource: { buffer: this.targetIndexBuffer } },
+                { binding: 4, resource: { buffer: this.guidingLineBuffer } },
             ]
         });
     }
@@ -306,6 +316,60 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 4, resource: { buffer: this.predatorVelocityBuffer } },
             ]
         });
+
+        // Create Bind Group Layout for Guiding Line
+        const guidingLineBindGroupLayout = this.device.createBindGroupLayout({
+            label: 'Guiding Line Bind Group Layout',
+            entries: [
+                { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // Projection Matrix
+                { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // View Matrix
+                { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }, // Guiding Line Buffer
+            ]
+        });
+
+        // Create the Guiding Line Render Pipeline
+        this.guidingLinePipeline = this.device.createRenderPipeline({
+            label: 'Guiding Line Render Pipeline',
+            layout: this.device.createPipelineLayout({ bindGroupLayouts: [guidingLineBindGroupLayout] }),
+            vertex: {
+                module: this.device.createShaderModule({ code: guidingLineShaderCode }),
+                entryPoint: 'vertex_main',
+                buffers: [
+                    {
+                        arrayStride: 12, // Each vertex is 3 floats (x, y, z)
+                        attributes: [
+                            { shaderLocation: 0, offset: 0, format: 'float32x3' }
+                        ]
+                    }
+                ]
+            },
+            fragment: {
+                module: this.device.createShaderModule({ code: guidingLineShaderCode }),
+                entryPoint: 'fragment_main',
+                targets: [{ format }]
+            },
+            primitive: {
+                topology: 'line-strip',
+                stripIndexFormat: undefined,
+                frontFace: 'cw',
+                cullMode: 'none'
+            },
+            depthStencil: {
+                format: 'depth24plus',
+                depthWriteEnabled: true,
+                depthCompare: 'less'
+            }
+        });
+
+        // Create Bind Group for Guiding Line
+        this.guidingLineBindGroup = this.device.createBindGroup({
+            layout: guidingLineBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: projectionBuffer } },
+                { binding: 1, resource: { buffer: viewBuffer } },
+                { binding: 2, resource: { buffer: this.guidingLineBuffer } },
+            ]
+        });
     }
 
     render(commandEncoder, passDescriptor, birds, predator) {
@@ -355,6 +419,12 @@ export default class FlockingPipeline extends Pipeline {
             passEncoder.drawIndexed(predator.getIndexCount(), 1, 0, 0, 0);
         }
 
+        // Render Guiding Line
+        passEncoder.setPipeline(this.guidingLinePipeline);
+        passEncoder.setBindGroup(0, this.guidingLineBindGroup);
+        // passEncoder.setVertexBuffer(0, this.guidingLineBuffer); // Bind the guiding line buffer directly
+        passEncoder.draw(2, 1, 0, 0); // Draw two vertices
+               
         passEncoder.end();
     }
 
