@@ -6,6 +6,9 @@ import predatorShader from './predatorShader.wgsl'; // Import the predator shade
 import flockingShader from './flockingShader.wgsl';
 import huntingShader from './huntingShader.wgsl';
 
+import GuidingLineGeometry from './GuidingLineGeometry.js';
+import guidingLineShaderCode from './guidingLineShader.wgsl'; // Ensure correct path
+
 export default class FlockingPipeline extends Pipeline {
     constructor(device, camera, viewportBuffer, mouseBuffer, birdCount) {
         super(device);

@@ -3,6 +3,7 @@
 import Experience from '../Experience';
 import BirdGeometry from './BirdGeometry';
 import PredatorGeometry from './PredatorGeometry';
+import GuidingLineGeometry from './GuidingLineGeometry'
 import FlockingPipeline from './FlockingPipeline';
 
 class FlockingExperience extends Experience {
@@ -27,6 +28,9 @@ class FlockingExperience extends Experience {
 
         this.addBirds();
         this.addPredator();
+
+        this.guidingLine = new GuidingLineGeometry(this.device);
+        this.addObject(this.guidingLine); // Add to the scene if necessary
     }
 
     async initialize() {
