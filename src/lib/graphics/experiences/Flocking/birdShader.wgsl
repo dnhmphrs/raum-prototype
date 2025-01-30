@@ -53,15 +53,17 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // Transform to clip space
     out.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
 
-    // Assign colors based on vertex position
-    if (vertexPosition.z > 15.0 || vertexPosition.z < -15.0) {
-        // Wings
-        out.color = vec3<f32>(1.0, 1.0, 1.0);
-    } else {
-        // Body
-        out.color = vec3<f32>(0.0, 0.0, 0.0);
-    }
+    out.color = vec3<f32>(0.0, 0.0, 0.0);
 
+    // // Assign colors based on vertex position
+    // if (vertexPosition.z > 15.0 || vertexPosition.z < -15.0) {
+    //     // Wings
+    //     out.color = vec3<f32>(1.0, 1.0, 1.0);
+    // } else {
+    //     // Body
+    //     out.color = vec3<f32>(0.0, 0.0, 0.0);
+    // }
+    
     // // Add variation
     // out.color += vec3<f32>(
     //     fract(sin(birdVelocity.x) * 43758.5453123),
