@@ -4,6 +4,7 @@ import Pipeline from '../../pipelines/Pipeline';
 import birdShader from './birdShader.wgsl';
 import predatorShader from './predatorShader.wgsl'; // Import the predator shader
 import flockingShader from './flockingShader.wgsl';
+import huntingShader from './huntingShader.wgsl';
 
 export default class FlockingPipeline extends Pipeline {
     constructor(device, camera, viewportBuffer, mouseBuffer, birdCount) {
@@ -21,10 +22,13 @@ export default class FlockingPipeline extends Pipeline {
         // Predator Buffers
         this.predatorPositionBuffer = null;
         this.predatorVelocityBuffer = null;
+        this.targetIndexBuffer = null;
 
         // Compute Pipeline related
-        this.computePipeline = null;
-        this.computeBindGroup = null;
+        this.flockingComputePipeline = null;
+        this.flockingComputeBindGroup = null;
+        this.huntingComputePipeline = null;
+        this.huntingComputeBindGroup = null;
         this.deltaTimeBuffer = null;
 
         // Render Pipelines
@@ -81,21 +85,29 @@ export default class FlockingPipeline extends Pipeline {
             label: 'Predator Velocity Buffer'
         });
 
-        // Initialize Compute Shader
-        await this.initializeComputePipeline();
+        // Create a buffer to hold the targetIndex (u32)
+        this.targetIndexBuffer = this.device.createBuffer({
+            size: 4, // Size of a single u32
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            label: 'Target Index Buffer'
+        });
+
+        // Initialize Compute Shaders
+        await this.initializeFlockingComputePipeline();
+        await this.initializeHuntingComputePipeline();
 
         // Initialize Render Shader Pipelines
         await this.initializeRenderPipelines(format, projectionBuffer, viewBuffer);
     }
 
-    async initializeComputePipeline() {
+    async initializeFlockingComputePipeline() {
         // Create a shader module for the compute shader
         const computeModule = this.device.createShaderModule({
             code: flockingShader
         });
 
         // Create a bind group layout for the compute shader
-        const computeBindGroupLayout = this.device.createBindGroupLayout({
+        const flockingComputeBindGroupLayout = this.device.createBindGroupLayout({
             entries: [
                 { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // deltaTime
                 { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // positions
@@ -107,9 +119,9 @@ export default class FlockingPipeline extends Pipeline {
         });
 
         // Create the compute pipeline
-        this.computePipeline = this.device.createComputePipeline({
+        this.flockingComputePipeline = this.device.createComputePipeline({
             layout: this.device.createPipelineLayout({
-                bindGroupLayouts: [computeBindGroupLayout]
+                bindGroupLayouts: [flockingComputeBindGroupLayout]
             }),
             compute: {
                 module: computeModule,
@@ -135,8 +147,8 @@ export default class FlockingPipeline extends Pipeline {
         this.updateFlockingParams();
 
         // Create the compute bind group
-        this.computeBindGroup = this.device.createBindGroup({
-            layout: computeBindGroupLayout,
+        this.flockingComputeBindGroup = this.device.createBindGroup({
+            layout: flockingComputeBindGroupLayout,
             entries: [
                 { binding: 0, resource: { buffer: this.deltaTimeBuffer } },
                 { binding: 1, resource: { buffer: this.positionBuffer } },
@@ -144,6 +156,45 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 3, resource: { buffer: this.flockingParamsBuffer } },
                 { binding: 4, resource: { buffer: this.predatorPositionBuffer } },
                 { binding: 5, resource: { buffer: this.predatorVelocityBuffer } },
+            ]
+        });
+    }
+
+    async initializeHuntingComputePipeline() {
+        // Create shader module
+        const huntingModule = this.device.createShaderModule({
+            code: huntingShader
+        });
+
+        // Define bind group layout matching the shader bindings
+        const huntingComputeBindGroupLayout = this.device.createBindGroupLayout({
+            entries: [
+                { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // positions
+                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // predatorPosition
+                { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // predatorVelocity
+                { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // targetIndex
+            ]
+        });
+
+        // Create the compute pipeline
+        this.huntingComputePipeline = this.device.createComputePipeline({
+            layout: this.device.createPipelineLayout({
+                bindGroupLayouts: [huntingComputeBindGroupLayout]
+            }),
+            compute: {
+                module: huntingModule,
+                entryPoint: 'main'
+            }
+        });
+
+        // Create the bind group
+        this.huntingComputeBindGroup = this.device.createBindGroup({
+            layout: huntingComputeBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.positionBuffer } },
+                { binding: 1, resource: { buffer: this.predatorPositionBuffer } },
+                { binding: 2, resource: { buffer: this.predatorVelocityBuffer } },
+                { binding: 3, resource: { buffer: this.targetIndexBuffer } },
             ]
         });
     }
@@ -255,15 +306,23 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     render(commandEncoder, passDescriptor, birds, predator) {
+
         // Update flocking and positions via compute shader
-        const computePass = commandEncoder.beginComputePass();
-        computePass.setPipeline(this.computePipeline);
-        computePass.setBindGroup(0, this.computeBindGroup);
+        const flockingPass = commandEncoder.beginComputePass();
+        flockingPass.setPipeline(this.flockingComputePipeline);
+        flockingPass.setBindGroup(0, this.flockingComputeBindGroup);
         const workgroupSize = 64;
         const workgroups = Math.ceil(this.birdCount / workgroupSize);
-        computePass.dispatchWorkgroups(workgroups);
-        computePass.end();
+        flockingPass.dispatchWorkgroups(workgroups);
+        flockingPass.end();
 
+        // Update predator via. hunting shader
+        const huntingPass = commandEncoder.beginComputePass();
+        huntingPass.setPipeline(this.huntingComputePipeline);
+        huntingPass.setBindGroup(0, this.huntingComputeBindGroup);
+        huntingPass.dispatchWorkgroups(1); // Single workgroup as per shader
+        huntingPass.end();
+        
         // Begin main render pass
         const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
 
@@ -333,6 +392,13 @@ export default class FlockingPipeline extends Pipeline {
         // Initialize predator position and velocity
         this.device.queue.writeBuffer(this.predatorPositionBuffer, 0, initialPredatorPosition);
         this.device.queue.writeBuffer(this.predatorVelocityBuffer, 0, initialPredatorVelocity);
+
+        // Initialize targetIndex to 0
+        this.device.queue.writeBuffer(
+            this.targetIndexBuffer,
+            0,
+            new Uint32Array([0])
+        );
     }
 
     setFlockingParameters(separation, alignment, cohesion, centerGravity = [0.0, 0.0, 0.0, 0.0]) {
