@@ -71,7 +71,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
 
     // Apply center of gravity force
     let centerDirection = normalize(flockingParams.centerGravity.xyz - positions[index]);
-    velocity = velocity + centerDirection * 1.0;
+    velocity = velocity + centerDirection * 1.25;
 
     // Predator Repulsion
     let birdPos = positions[index];
@@ -79,7 +79,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     let distance = length(toPredator);
 
     const PREDATOR_INFLUENCE_RADIUS: f32 = 100000.0; // Adjust as needed
-    const REPULSION_CONSTANT: f32 = 1000000.0; // Adjust strength as needed
+    const REPULSION_CONSTANT: f32 = 2000000.0; // Adjust strength as needed
 
     if (distance < PREDATOR_INFLUENCE_RADIUS && distance > 0.0) {
         let repulsionDir = normalize(birdPos - predatorPosition);

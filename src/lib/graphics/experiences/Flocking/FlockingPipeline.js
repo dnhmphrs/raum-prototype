@@ -5,8 +5,6 @@ import birdShader from './birdShader.wgsl';
 import predatorShader from './predatorShader.wgsl'; // Import the predator shader
 import flockingShader from './flockingShader.wgsl';
 import huntingShader from './huntingShader.wgsl';
-
-import GuidingLineGeometry from './GuidingLineGeometry.js';
 import guidingLineShaderCode from './guidingLineShader.wgsl'; // Ensure correct path
 
 export default class FlockingPipeline extends Pipeline {
