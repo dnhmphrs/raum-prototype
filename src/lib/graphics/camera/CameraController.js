@@ -8,7 +8,7 @@ export default class CameraController {
 		this.theta = Math.PI / 2;
 		this.phi = Math.PI / 4;
 		this.currentZoom = 1.0;
-		this.baseDistance = 1000.0; // Base distance from target
+		this.baseDistance = 4000.0; // Base distance from target
 		this.distance = this.baseDistance; // Initial distance set by zoom
 
 		this.isDragging = false;
