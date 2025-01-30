@@ -56,18 +56,18 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // Assign colors based on vertex position
     if (vertexPosition.z > 15.0 || vertexPosition.z < -15.0) {
         // Wings
-        out.color = vec3<f32>(0.2, 0.6, 0.8);
+        out.color = vec3<f32>(1.0, 1.0, 1.0);
     } else {
         // Body
-        out.color = vec3<f32>(0.8, 0.5, 0.2);
+        out.color = vec3<f32>(0.0, 0.0, 0.0);
     }
 
-    // Add variation
-    out.color += vec3<f32>(
-        fract(sin(birdVelocity.x) * 43758.5453123),
-        fract(sin(birdVelocity.y) * 43758.5453123),
-        fract(sin(birdVelocity.z) * 43758.5453123)
-    );
+    // // Add variation
+    // out.color += vec3<f32>(
+    //     fract(sin(birdVelocity.x) * 43758.5453123),
+    //     fract(sin(birdVelocity.y) * 43758.5453123),
+    //     fract(sin(birdVelocity.z) * 43758.5453123)
+    // );
 
     // Set normal for potential lighting (optional)
     out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));

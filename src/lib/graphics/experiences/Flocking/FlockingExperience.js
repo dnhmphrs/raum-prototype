@@ -8,7 +8,7 @@ class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
-        this.birdCount = 5000; // Reduced for performance; adjust as needed
+        this.birdCount = 8192; // Reduced for performance; adjust as needed
         this.lastTime = performance.now(); // Initialize lastTime
 
         // Initialize the Flocking pipeline
