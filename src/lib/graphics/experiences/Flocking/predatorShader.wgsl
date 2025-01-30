@@ -21,13 +21,13 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>) -> VertexOutput {
     let speed = length(velocity);
 
     // Set forward direction
-    let forward = normalize(-velocity);
+    let forward = normalize(velocity);
 
     // Define a global up vector
     let globalUp = vec3<f32>(0.0, 1.0, 0.0);
 
     // Compute the right and adjusted up vectors
-    let right = normalize(cross(globalUp, forward));
+    let right = normalize(cross(forward, globalUp));
     let up = cross(forward, right);
 
     // Create a rotation matrix from the forward, up, and right vectors
