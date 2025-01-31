@@ -62,7 +62,7 @@ class FlockingExperience extends Experience {
             initialVelocities.push([velX, velY, velZ]);
 
             // Random wing phases
-            const wingPhase = Math.random() * 2 * Math.PI;
+            const wingPhase = 0;
             initialPhases.push(wingPhase);
         }
 
