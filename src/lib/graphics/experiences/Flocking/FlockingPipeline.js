@@ -259,10 +259,9 @@ export default class FlockingPipeline extends Pipeline {
                 entryPoint: 'vertex_main',
                 buffers: [
                     {
-                        arrayStride: 16, // 3 floats for position + 1 float for birdVertex
+                        arrayStride: 12, // 3 floats for position
                         attributes: [
                             { shaderLocation: 0, offset: 0, format: 'float32x3' }, // vertexPosition
-                            { shaderLocation: 1, offset: 12, format: 'float32' }   // birdVertex
                         ]
                     }
                 ]
