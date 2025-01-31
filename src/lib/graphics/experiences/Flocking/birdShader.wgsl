@@ -15,7 +15,11 @@ struct VertexOutput {
 };
 
 @vertex
-fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) instance: u32) -> VertexOutput {
+fn vertex_main(
+    @location(0) vertexPosition: vec3<f32>,
+    @location(1) birdVertex: f32, // Added birdVertex attribute
+    @builtin(instance_index) instance: u32
+) -> VertexOutput {
     var out: VertexOutput;
 
     // Get the bird's unique position and phase
@@ -24,9 +28,9 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     let birdVelocity = velocities[instance];
 
     // Calculate orientation based on velocity
-    let forward = normalize(-birdVelocity); // negative to make birds fly in correct direction
+    let forward = normalize(-birdVelocity); // Negative to make birds fly in correct direction
     let up = normalize(vec3<f32>(0.1, 1.0, 0.0)); // Small X component prevents zero cross-product
-    let right = cross(forward, up);  // Swapped order
+    let right = cross(forward, up);
     let adjustedUp = cross(right, forward);
 
     // Create a rotation matrix
@@ -37,13 +41,15 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     );
 
     // Apply rotation to vertex position
-    var rotatedPosition = rotationMatrix * vertexPosition; // Changed to var
+    var rotatedPosition = rotationMatrix * vertexPosition;
 
-    // Animate wings based on phase and velocity
-    let wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
-    if (rotatedPosition.x > 0.0) { // Right wing
+    // Determine if the vertex is a wing vertex based on birdVertex attribute
+    var wingFlap = 0.0;
+    if (birdVertex >= 3.0 && birdVertex < 6.0) { // Left Wing
+        wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
         rotatedPosition.y += wingFlap;
-    } else if (rotatedPosition.x < 0.0) { // Left wing
+    } else if (birdVertex >= 6.0 && birdVertex < 9.0) { // Right Wing
+        wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
         rotatedPosition.y += wingFlap;
     }
 
@@ -53,23 +59,8 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // Transform to clip space
     out.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
 
+    // Assign color (you can customize this as needed)
     out.color = vec3<f32>(0.0, 0.0, 0.0);
-
-    // // Assign colors based on vertex position
-    // if (vertexPosition.z > 15.0 || vertexPosition.z < -15.0) {
-    //     // Wings
-    //     out.color = vec3<f32>(1.0, 1.0, 1.0);
-    // } else {
-    //     // Body
-    //     out.color = vec3<f32>(0.0, 0.0, 0.0);
-    // }
-    
-    // // Add variation
-    // out.color += vec3<f32>(
-    //     fract(sin(birdVelocity.x) * 43758.5453123),
-    //     fract(sin(birdVelocity.y) * 43758.5453123),
-    //     fract(sin(birdVelocity.z) * 43758.5453123)
-    // );
 
     // Set normal for potential lighting (optional)
     out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));

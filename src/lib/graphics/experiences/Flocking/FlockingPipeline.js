@@ -5,6 +5,7 @@ import birdShader from './birdShader.wgsl';
 import predatorShader from './predatorShader.wgsl'; // Import the predator shader
 import flockingShader from './flockingShader.wgsl';
 import huntingShader from './huntingShader.wgsl';
+import backgroundShader from './backgroundShader.wgsl';
 import guidingLineShaderCode from './guidingLineShader.wgsl'; // Ensure correct path
 
 export default class FlockingPipeline extends Pipeline {
@@ -24,7 +25,6 @@ export default class FlockingPipeline extends Pipeline {
         this.predatorPositionBuffer = null;
         this.predatorVelocityBuffer = null;
         this.targetIndexBuffer = null;
-        this.guidingLineBuffer = null;
 
         // Compute Pipeline related
         this.flockingComputePipeline = null;
@@ -40,6 +40,9 @@ export default class FlockingPipeline extends Pipeline {
         // Bind Groups
         this.birdBindGroup = null;
         this.predatorBindGroup = null;
+
+        this.guidingLineBindGroup = null; // Bind group for guiding line
+        this.backgroundBindGroup = null; // Bind group for background
 
         // Flocking Parameters
         this.flockingParamsBuffer = null;
@@ -121,9 +124,10 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // deltaTime
                 { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // positions
                 { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // velocities
-                { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // flocking parameters
-                { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // predatorPosition
-                { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // predatorVelocity
+                { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // phases
+                { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // flocking parameters
+                { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // predatorPosition
+                { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // predatorVelocity
             ]
         });
 
@@ -162,9 +166,10 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 0, resource: { buffer: this.deltaTimeBuffer } },
                 { binding: 1, resource: { buffer: this.positionBuffer } },
                 { binding: 2, resource: { buffer: this.velocityBuffer } },
-                { binding: 3, resource: { buffer: this.flockingParamsBuffer } },
-                { binding: 4, resource: { buffer: this.predatorPositionBuffer } },
-                { binding: 5, resource: { buffer: this.predatorVelocityBuffer } },
+                { binding: 3, resource: { buffer: this.phaseBuffer } },
+                { binding: 4, resource: { buffer: this.flockingParamsBuffer } },
+                { binding: 5, resource: { buffer: this.predatorPositionBuffer } },
+                { binding: 6, resource: { buffer: this.predatorVelocityBuffer } },
             ]
         });
     }
@@ -237,7 +242,15 @@ export default class FlockingPipeline extends Pipeline {
             ]
         });
 
-        // Create the Bird Render Pipeline
+        // Create Bind Group Layout for Background
+        const backgroundBindGroupLayout = this.device.createBindGroupLayout({
+            label: 'Background Bind Group Layout',
+            entries: [] // No bindings needed as the gradient is fixed
+        });
+
+        // -----------------------
+        // 1. Create the Bird Render Pipeline
+        // -----------------------
         this.birdPipeline = this.device.createRenderPipeline({
             label: 'Bird Render Pipeline',
             layout: this.device.createPipelineLayout({ bindGroupLayouts: [birdBindGroupLayout] }),
@@ -246,11 +259,15 @@ export default class FlockingPipeline extends Pipeline {
                 entryPoint: 'vertex_main',
                 buffers: [
                     {
-                        arrayStride: 12, // Each vertex is 3 floats (x, y, z)
-                        attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }]
+                        arrayStride: 16, // 3 floats for position + 1 float for birdVertex
+                        attributes: [
+                            { shaderLocation: 0, offset: 0, format: 'float32x3' }, // vertexPosition
+                            { shaderLocation: 1, offset: 12, format: 'float32' }   // birdVertex
+                        ]
                     }
                 ]
             },
+            
             fragment: {
                 module: this.device.createShaderModule({ code: birdShader }),
                 entryPoint: 'fragment_main',
@@ -263,7 +280,9 @@ export default class FlockingPipeline extends Pipeline {
             }
         });
 
-        // Create the Predator Render Pipeline
+        // -----------------------
+        // 2. Create the Predator Render Pipeline
+        // -----------------------
         this.predatorPipeline = this.device.createRenderPipeline({
             label: 'Predator Render Pipeline',
             layout: this.device.createPipelineLayout({ bindGroupLayouts: [predatorBindGroupLayout] }),
@@ -315,7 +334,9 @@ export default class FlockingPipeline extends Pipeline {
             ]
         });
 
-        // Create Bind Group Layout for Guiding Line
+        // -----------------------
+        // 3. Create the Guiding Line Render Pipeline
+        // -----------------------
         const guidingLineBindGroupLayout = this.device.createBindGroupLayout({
             label: 'Guiding Line Bind Group Layout',
             entries: [
@@ -368,10 +389,44 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 2, resource: { buffer: this.guidingLineBuffer } },
             ]
         });
+
+        // -----------------------
+        // 4. Create the Background Render Pipeline
+        // -----------------------
+        this.backgroundPipeline = this.device.createRenderPipeline({
+            label: 'Background Render Pipeline',
+            layout: this.device.createPipelineLayout({ bindGroupLayouts: [backgroundBindGroupLayout] }),
+            vertex: {
+                module: this.device.createShaderModule({ code: backgroundShader }),
+                entryPoint: 'vertex_main',
+                buffers: [] // No vertex buffers needed
+            },
+            fragment: {
+                module: this.device.createShaderModule({ code: backgroundShader }),
+                entryPoint: 'fragment_main',
+                targets: [{ format }]
+            },
+            primitive: {
+                topology: 'triangle-list',
+                stripIndexFormat: undefined,
+                frontFace: 'ccw',
+                cullMode: 'none'
+            },
+            depthStencil: {
+                format: 'depth24plus',
+                depthWriteEnabled: false, // Background doesn't write to depth
+                depthCompare: 'always'     // Always pass depth test to render first
+            }
+        });
+
+        this.backgroundBindGroup = this.device.createBindGroup({
+            layout: backgroundBindGroupLayout,
+            entries: [] // No bindings
+        });
+        
     }
 
-    render(commandEncoder, passDescriptor, birds, predator) {
-
+    runComputePasses(commandEncoder) {
         // Update flocking and positions via compute shader
         const flockingPass = commandEncoder.beginComputePass();
         flockingPass.setPipeline(this.flockingComputePipeline);
@@ -387,11 +442,26 @@ export default class FlockingPipeline extends Pipeline {
         huntingPass.setBindGroup(0, this.huntingComputeBindGroup);
         huntingPass.dispatchWorkgroups(1); // Single workgroup as per shader
         huntingPass.end();
+    }
+
+    render(commandEncoder, passDescriptor, birds, predator) {
         
+        // Execute compute passes (flocking and hunting)
+        this.runComputePasses(commandEncoder);
+
         // Begin main render pass
         const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
 
-        // Render Birds
+        // -----------------------
+        // 1. Render Background
+        // -----------------------
+        passEncoder.setPipeline(this.backgroundPipeline);
+        passEncoder.setBindGroup(0, this.backgroundBindGroup);
+        passEncoder.draw(3, 1, 0, 0); // Draw 3 vertices to form the fullscreen triangle
+
+        // -----------------------
+        // 2. Render Birds
+        // -----------------------
         passEncoder.setPipeline(this.birdPipeline);
         passEncoder.setBindGroup(0, this.birdBindGroup);
 
@@ -405,7 +475,9 @@ export default class FlockingPipeline extends Pipeline {
             passEncoder.drawIndexed(firstBird.getIndexCount(), this.birdCount, 0, 0, 0);
         }
 
-        // Render Predator
+        // -----------------------
+        // 3. Render Predator
+        // -----------------------
         passEncoder.setPipeline(this.predatorPipeline);
         passEncoder.setBindGroup(0, this.predatorBindGroup);
 
@@ -417,22 +489,15 @@ export default class FlockingPipeline extends Pipeline {
             passEncoder.drawIndexed(predator.getIndexCount(), 1, 0, 0, 0);
         }
 
-        // Render Guiding Line
+        // -----------------------
+        // 4. Render Guiding Line
+        // -----------------------
         passEncoder.setPipeline(this.guidingLinePipeline);
         passEncoder.setBindGroup(0, this.guidingLineBindGroup);
-        // passEncoder.setVertexBuffer(0, this.guidingLineBuffer); // Bind the guiding line buffer directly
+        // passEncoder.setVertexBuffer(0, this.guidingLineBuffer); // Removed as per previous corrections
         passEncoder.draw(2, 1, 0, 0); // Draw two vertices
-               
-        passEncoder.end();
-    }
 
-    updatePhases(time) {
-        // Update phases for wing flapping (e.g., sinusoidal animation)
-        const phases = new Float32Array(this.birdCount);
-        for (let i = 0; i < this.birdCount; i++) {
-            phases[i] = Math.sin(time * 0.01 + i * 0.1); // Add slight offset for variety
-        }
-        this.device.queue.writeBuffer(this.phaseBuffer, 0, phases);
+        passEncoder.end();
     }
 
     updateFlockingParams() {
@@ -450,13 +515,16 @@ export default class FlockingPipeline extends Pipeline {
         this.device.queue.writeBuffer(this.flockingParamsBuffer, 0, params);
     }
     
-    initializeBirdBuffers(initialPositions, initialVelocities) {
+    initializeBirdBuffers(initialPositions, initialVelocities, initialPhases) {
         // Method to initialize position and velocity buffers
         const posArray = new Float32Array(initialPositions.flat());
         this.device.queue.writeBuffer(this.positionBuffer, 0, posArray);
 
         const velArray = new Float32Array(initialVelocities.flat());
         this.device.queue.writeBuffer(this.velocityBuffer, 0, velArray);
+
+        const phaseArray = new Float32Array(initialPhases.flat());
+        this.device.queue.writeBuffer(this.phaseBuffer, 0, velArray);
     }
 
     initializePredatorBuffers(initialPredatorPosition, initialPredatorVelocity) {

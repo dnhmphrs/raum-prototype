@@ -44,6 +44,7 @@ class FlockingExperience extends Experience {
         // Generate initial positions and velocities for birds
         const initialPositions = [];
         const initialVelocities = [];
+        const initialPhases = [];
         const bounds = 2500;
         const boundsHalf = bounds / 2;
 
@@ -59,10 +60,14 @@ class FlockingExperience extends Experience {
             const velY = (Math.random() - 0.5);
             const velZ = (Math.random() - 0.5);
             initialVelocities.push([velX, velY, velZ]);
+
+            // Random wing phases
+            const wingPhase = Math.random() * 2 * Math.PI;
+            initialPhases.push(wingPhase);
         }
 
         // Initialize position and velocity buffers in the pipeline
-        this.pipeline.initializeBirdBuffers(initialPositions, initialVelocities);
+        this.pipeline.initializeBirdBuffers(initialPositions, initialVelocities, initialPhases);
 
         const initialPredatorPosition = new Float32Array([0.0, 0.0, 0.0]); // Starting at origin
         const initialPredatorVelocity = new Float32Array([0.0, 0.0, 0.0]); // Initially stationary
@@ -101,7 +106,7 @@ class FlockingExperience extends Experience {
         this.pipeline.updateDeltaTime(deltaTime);
 
         // Update wing phases
-        this.pipeline.updatePhases(now);
+        // this.pipeline.updatePhases(now);
 
         // Handle target change every 10 seconds
         if (now - this.lastTargetChangeTime >= this.targetChangeInterval) {

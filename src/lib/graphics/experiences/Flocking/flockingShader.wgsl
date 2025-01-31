@@ -10,9 +10,10 @@ struct FlockingParams {
 @group(0) @binding(0) var<uniform> deltaTime: f32;
 @group(0) @binding(1) var<storage, read_write> positions: array<vec3<f32>>;
 @group(0) @binding(2) var<storage, read_write> velocities: array<vec3<f32>>;
-@group(0) @binding(3) var<uniform> flockingParams: FlockingParams;
-@group(0) @binding(4) var<storage, read> predatorPosition: vec3<f32>;
-@group(0) @binding(5) var<storage, read> predatorVelocity: vec3<f32>;
+@group(0) @binding(3) var<storage, read_write> phases: array<f32>;
+@group(0) @binding(4) var<uniform> flockingParams: FlockingParams;
+@group(0) @binding(5) var<storage, read> predatorPosition: vec3<f32>;
+@group(0) @binding(6) var<storage, read> predatorVelocity: vec3<f32>;
 
 const SPEED_LIMIT: f32 = 100.0;
 const SEPARATION_DISTANCE: f32 = 250.0;
@@ -102,4 +103,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
 
     // Update velocity
     velocities[index] = velocity;
+
+    // Update phase
+    phases[index] = phases[index] + deltaTime * 5.0; // Adjust speed as needed
+    if (phases[index] > 2.0 * 3.14159265359) {
+        phases[index] = phases[index] - 2.0 * 3.14159265359;
+    }
 }
