@@ -28,7 +28,8 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>) -> VertexOutput {
 
     // Compute the right and adjusted up vectors
     let right = normalize(cross(forward, globalUp));
-    let up = normalize(cross(forward, right ));
+    let up = normalize(cross(right, forward));
+
 
     // Create a rotation matrix from the forward, up, and right vectors
     let rotationMatrix = mat3x3<f32>(
