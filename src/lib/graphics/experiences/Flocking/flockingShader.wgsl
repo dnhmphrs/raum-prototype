@@ -98,7 +98,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     }
 
     // Update position based on velocity
-    let newPosition = positions[index] + velocity * deltaTime * 10;
+    let newPosition = positions[index] + (velocity * 11.0) * deltaTime;
     positions[index] = newPosition;
 
     // Update velocity

@@ -12,10 +12,15 @@ export default class PredatorGeometry {
             0, 0, 35, // Extended head
 
             // Left Wing
-            0, 0, -25, -60, 0, -50, 0, 0, 25,
+            0, 0, -25, -60, 0, 20, 0, 0, 25,
 
             // Right Wing
-            0, 0, 25, 60, 0, -50, 0, 0, -25
+            0, 0, 25, 60, 0, 20, 0, 0, -25,
+
+            // // Tail (New)
+			// -20, 0, -45,  // Left Tail Tip (extends outward)
+			// 20, 0, -45,  // Right Tail Tip (extends outward)
+			//  0, 0, -15   // Rear Tail Center (closer to body)
         ]);
 
 		// Pad vertices to ensure buffer size is a multiple of 4
@@ -27,17 +32,16 @@ export default class PredatorGeometry {
 		// Define indices for indexed drawing
 		this.indices = new Uint16Array([
 			// Body
-			0,
-			1,
-			2, // Tail to bottom to head
+			0, 1, 2, // Tail to bottom to head
+
 			// Left Wing
-			3,
-			4,
-			5,
+			3, 4, 5,
+
 			// Right Wing
-			6,
-			7,
-			8
+			6, 7, 8,
+
+			// // Tail
+			// 9, 10, 11  // Tail triangle (left tip, right tip, rear center)
 		]);
 
 		const indexByteSize = this.indices.byteLength;
