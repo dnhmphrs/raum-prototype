@@ -469,6 +469,7 @@ export default class FlockingPipeline extends Pipeline {
         if (birds.length > 0) {
             const firstBird = birds[0];
             passEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
+            // passEncoder.setVertexBuffer(1, firstBird.getVertexBuffer()); // Bind birdVertex buffer
             passEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
 
             // Use instancing to draw all birds in a single call
@@ -524,7 +525,7 @@ export default class FlockingPipeline extends Pipeline {
         this.device.queue.writeBuffer(this.velocityBuffer, 0, velArray);
 
         const phaseArray = new Float32Array(initialPhases.flat());
-        this.device.queue.writeBuffer(this.phaseBuffer, 0, velArray);
+        this.device.queue.writeBuffer(this.phaseBuffer, 0, phaseArray);
     }
 
     initializePredatorBuffers(initialPredatorPosition, initialPredatorVelocity) {

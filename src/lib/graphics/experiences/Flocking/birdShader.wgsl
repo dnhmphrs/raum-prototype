@@ -44,14 +44,14 @@ fn vertex_main(
     var rotatedPosition = rotationMatrix * vertexPosition;
 
     // Determine if the vertex is a wing vertex based on birdVertex attribute
-    var wingFlap = 0.0;
-    if (birdVertex >= 3.0 && birdVertex < 6.0) { // Left Wing
-        wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
-        rotatedPosition.y += wingFlap;
-    } else if (birdVertex >= 6.0 && birdVertex < 9.0) { // Right Wing
-        wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
-        rotatedPosition.y += wingFlap;
-    }
+    // var wingFlap = 0.0;
+    // if (birdVertex >= 3.0 && birdVertex < 6.0) { // Left Wing
+    //     wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
+    //     rotatedPosition.y += wingFlap;
+    // } else if (birdVertex >= 6.0 && birdVertex < 9.0) { // Right Wing
+    //     wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
+    //     rotatedPosition.y += wingFlap;
+    // }
 
     // Combine with bird's global position
     let worldPosition = rotatedPosition + birdPosition;
