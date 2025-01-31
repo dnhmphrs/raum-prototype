@@ -35,6 +35,9 @@ class FlockingExperience extends Experience {
 
         this.guidingLine = new GuidingLineGeometry(this.device);
         this.addObject(this.guidingLine); // Add to the scene if necessary
+
+                // Bind the visibility change handler
+                document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
     }
 
     async initialize() {
@@ -99,7 +102,13 @@ class FlockingExperience extends Experience {
     render(commandEncoder, textureView) {
         // Calculate deltaTime
         const now = performance.now();
-        const deltaTime = (now - this.lastTime) / 1000; // in seconds
+        let deltaTime = (now - this.lastTime) / 1000; // in seconds
+
+        if (document.visibilityState !== 'visible') {
+            // If not visible, set deltaTime to zero to pause updates
+            deltaTime = 0;
+        }
+
         this.lastTime = now;
 
         // Update deltaTime in the compute shader
@@ -149,6 +158,13 @@ class FlockingExperience extends Experience {
         // console.log(`Predator target changed to bird index: ${newTargetIndex}`);
     }
 
+    handleVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+            // Reset lastTime to prevent large deltaTime
+            this.lastTime = performance.now();
+        }
+    }
+
     cleanup() {
         if (this.pipeline) {
             this.pipeline.cleanup();
@@ -167,6 +183,8 @@ class FlockingExperience extends Experience {
             this.predator.cleanup();
             this.predator = null;
         }
+
+        document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
     }
 }
 
