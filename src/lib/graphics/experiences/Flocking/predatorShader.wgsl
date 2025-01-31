@@ -24,8 +24,8 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>) -> VertexOutput {
     let forward = normalize(velocity);
 
     // Define a global up vector
-    let globalUp = normalize(vec3<f32>(0.01, 1.0, 0.0)); // Small X component prevents zero cross-product
-
+    let globalUp = normalize(vec3<f32>(0.0, 1.0, 0.0)); // Standard up vector
+    
     // Compute the right and adjusted up vectors
     let right = normalize(cross(forward, globalUp));
     let up = normalize(cross(right, forward));
