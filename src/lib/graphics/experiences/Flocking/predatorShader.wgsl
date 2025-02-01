@@ -20,18 +20,26 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>) -> VertexOutput {
     let velocity = predatorVelocity;
     let speed = length(velocity);
 
-    // Set forward direction
+    // Calculate forward direction (negative velocity for correct orientation)
     let forward = normalize(velocity);
 
-    // Define a global up vector
-    let globalUp = normalize(vec3<f32>(0.0, 1.0, 0.0)); // Standard up vector
+    // Use a stable up vector calculation
+    var up = vec3<f32>(0.0, 1.0, 0.0);
     
-    // Compute the right and adjusted up vectors
-    let right = normalize(cross(forward, globalUp));
-    let up = normalize(cross(right, forward));
+    // Handle near-vertical cases
+    let upAlignment = abs(dot(forward, up));
+    if (upAlignment > 0.99) {
+        // If looking almost straight up/down, use a different reference vector
+        up = vec3<f32>(0.0, 0.0, 1.0);
+    }
 
+    // Calculate right vector
+    let right = normalize(cross(forward, up));
+    
+    // Recalculate actual up vector to ensure orthogonality
+    up = normalize(cross(right, forward));
 
-    // Create a rotation matrix from the forward, up, and right vectors
+    // Create rotation matrix from orthonormal basis
     let rotationMatrix = mat3x3<f32>(
         right.x, up.x, forward.x,
         right.y, up.y, forward.y,

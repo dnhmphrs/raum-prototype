@@ -23,13 +23,26 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     let birdPhase = phases[instance];
     let birdVelocity = velocities[instance];
 
-    // Calculate orientation based on velocity
-    let forward = normalize(-birdVelocity); // negative to make birds fly in correct direction
-    let globalUp = normalize(vec3<f32>(0.0, 1.0, 0.0)); // Standard up vector
-    let right = cross(forward, globalUp);  // Swapped order
-    let up = cross(right, forward);
+    // Calculate forward direction (negative velocity for correct orientation)
+    let forward = normalize(-birdVelocity);
 
-    // Create a rotation matrix
+    // Use a stable up vector calculation
+    var up = vec3<f32>(0.0, 1.0, 0.0);
+    
+    // Handle near-vertical cases
+    let upAlignment = abs(dot(forward, up));
+    if (upAlignment > 0.99) {
+        // If looking almost straight up/down, use a different reference vector
+        up = vec3<f32>(0.0, 0.0, 1.0);
+    }
+
+    // Calculate right vector
+    let right = normalize(cross(forward, up));
+    
+    // Recalculate actual up vector to ensure orthogonality
+    up = normalize(cross(right, forward));
+
+    // Create rotation matrix from orthonormal basis
     let rotationMatrix = mat3x3<f32>(
         right.x, up.x, forward.x,
         right.y, up.y, forward.y,
