@@ -59,6 +59,8 @@ export default class FlockingPipeline extends Pipeline {
             cohesion: 10.0, 
             centerGravity: new Float32Array([0.0, 0.0, 0.0, 0.0]) // Ensure vec4
         };
+
+        this.currentTargetIndex = 0; // Add this line
     }
 
     async initialize() {
@@ -107,7 +109,7 @@ export default class FlockingPipeline extends Pipeline {
         // Guiding Line Buffer (3 vec3<f32>)
         this.guidingLineBuffer = this.device.createBuffer({
             size: 2 * 4 * Float32Array.BYTES_PER_ELEMENT, // 2 vertices, each with x, y, z + padding
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
             label: 'Guiding Line Buffer'
         });
 
@@ -464,62 +466,35 @@ export default class FlockingPipeline extends Pipeline {
         // Create staging buffers and a separate encoder for position reading
         {
             const positionEncoder = this.device.createCommandEncoder();
-            const stagingPredatorPos = this.device.createBuffer({
-                size: 12,
+            const stagingGuidingLineBuffer = this.device.createBuffer({
+                size: 32, // 2 vec4s (source and target)
                 usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-                label: 'Staging Predator Position'
+                label: 'Staging Guiding Line Buffer'
             });
 
-            const stagingTargetPos = this.device.createBuffer({
-                size: 12,
-                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-                label: 'Staging Target Position'
-            });
-
-            // Copy positions using the separate encoder
+            // Copy the entire guiding line buffer (contains both positions)
             positionEncoder.copyBufferToBuffer(
-                this.predatorPositionBuffer, 0,
-                stagingPredatorPos, 0, 12
-            );
-
-            const targetIndex = new Uint32Array(1);
-            this.device.queue.writeBuffer(
-                this.targetIndexBuffer,
-                0,
-                targetIndex
-            );
-
-            positionEncoder.copyBufferToBuffer(
-                this.positionBuffer,
-                targetIndex[0] * 12,
-                stagingTargetPos,
-                0,
-                12
+                this.guidingLineBuffer, 0,
+                stagingGuidingLineBuffer, 0, 32
             );
 
             // Submit position copying commands
             this.device.queue.submit([positionEncoder.finish()]);
 
             // Read positions
-            Promise.all([
-                stagingPredatorPos.mapAsync(GPUMapMode.READ),
-                stagingTargetPos.mapAsync(GPUMapMode.READ)
-            ]).then(() => {
-                const predatorPos = new Float32Array(stagingPredatorPos.getMappedRange());
-                const targetPos = new Float32Array(stagingTargetPos.getMappedRange());
-
-                // Store positions
-                vec3.set(predatorPosition, predatorPos[0], predatorPos[1], predatorPos[2]);
-                vec3.set(targetPosition, targetPos[0], targetPos[1], targetPos[2]);
+            stagingGuidingLineBuffer.mapAsync(GPUMapMode.READ).then(() => {
+                const positions = new Float32Array(stagingGuidingLineBuffer.getMappedRange());
+                
+                // First vec4 is predator position, second vec4 is target position
+                const predatorPosition = vec3.fromValues(positions[0], positions[1], positions[2]);
+                const targetPosition = vec3.fromValues(positions[4], positions[5], positions[6]);
 
                 // Update camera
                 this.predatorCamera.updateFromPositionAndTarget(predatorPosition, targetPosition);
 
-                // Cleanup staging buffers
-                stagingPredatorPos.unmap();
-                stagingTargetPos.unmap();
-                stagingPredatorPos.destroy();
-                stagingTargetPos.destroy();
+                // Cleanup staging buffer
+                stagingGuidingLineBuffer.unmap();
+                stagingGuidingLineBuffer.destroy();
             });
         }
 
@@ -690,9 +665,10 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     updateTargetIndex(newIndex) {
-        // Ensure newIndex is a 32-bit unsigned integer
+        // Update both the buffer and our local copy
         const buffer = new Uint32Array([newIndex]);
         this.device.queue.writeBuffer(this.targetIndexBuffer, 0, buffer);
+        this.currentTargetIndex = newIndex;
     }
 
     cleanup() {
