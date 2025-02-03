@@ -51,6 +51,11 @@ class Engine {
 
 		// Update camera's aspect ratio
 		this.cameraController.updateAspect(width, height);
+
+		// Update the scene if it has an onResize method
+		if (this.scene && this.scene.onResize) {
+			this.scene.onResize(width, height);
+		}
 	}
 
 	cleanup() {

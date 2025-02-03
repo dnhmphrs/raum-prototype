@@ -21,23 +21,30 @@ class FlockingExperience extends Experience {
         this.birds = []; // Array to hold all bird geometries
         this.predator = null; // Single reference for the predator
 
-        // Initialize the Flocking pipeline
+        // Get initial dimensions from the viewport buffer
+        const viewportArray = new Float32Array(2);
+        device.queue.writeBuffer(resourceManager.getViewportBuffer(), 0, viewportArray);
+
+        // Initialize the Flocking pipeline with dimensions from ResourceManager
         this.pipeline = new FlockingPipeline(
             this.device,
             resourceManager.camera,
             resourceManager.getViewportBuffer(),
             resourceManager.getMouseBuffer(),
-            this.birdCount
+            this.birdCount,
+            this.canvas ? this.canvas.width : 800,  // Default to 800 if canvas not available
+            this.canvas ? this.canvas.height : 600,  // Default to 600 if canvas not available
+            this.canvas
         );
 
         this.addBirds();
         this.addPredator();
 
         this.guidingLine = new GuidingLineGeometry(this.device);
-        this.addObject(this.guidingLine); // Add to the scene if necessary
+        this.addObject(this.guidingLine);
 
-                // Bind the visibility change handler
-                document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        // Bind the visibility change handler
+        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
     }
 
     async initialize() {
@@ -145,7 +152,7 @@ class FlockingExperience extends Experience {
             }
         };
 
-        this.pipeline.render(commandEncoder, passDescriptor, this.birds, this.predator);
+        this.pipeline.render(commandEncoder, passDescriptor, this.birds, this.predator, textureView, depthView);
     }
 
     changeTarget() {
@@ -185,6 +192,12 @@ class FlockingExperience extends Experience {
         }
 
         document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    }
+
+    onResize(width, height) {
+        if (this.pipeline) {
+            this.pipeline.updateViewportDimensions(width, height);
+        }
     }
 }
 

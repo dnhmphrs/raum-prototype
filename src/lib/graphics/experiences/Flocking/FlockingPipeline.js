@@ -7,14 +7,21 @@ import flockingShader from './flockingShader.wgsl';
 import huntingShader from './huntingShader.wgsl';
 import backgroundShader from './backgroundShader.wgsl';
 import guidingLineShaderCode from './guidingLineShader.wgsl'; // Ensure correct path
+import PredatorCamera from '../../camera/PredatorCamera'; // Import the new PredatorCamera class
+import { vec3 } from 'gl-matrix';
 
 export default class FlockingPipeline extends Pipeline {
-    constructor(device, camera, viewportBuffer, mouseBuffer, birdCount) {
+    constructor(device, camera, viewportBuffer, mouseBuffer, birdCount, canvasWidth, canvasHeight) {
         super(device);
         this.camera = camera;
+        this.predatorCamera = new PredatorCamera(device); // Initialize the predator camera
         this.viewportBuffer = viewportBuffer;
         this.mouseBuffer = mouseBuffer;
         this.birdCount = birdCount;
+
+        // Store canvas dimensions with fallback values
+        this.canvasWidth = Math.max(1, canvasWidth || 800);
+        this.canvasHeight = Math.max(1, canvasHeight || 600);
 
         // Buffers for bird-specific data
         this.phaseBuffer = null; // For wing flapping animation
@@ -66,8 +73,8 @@ export default class FlockingPipeline extends Pipeline {
         });
 
         this.positionBuffer = this.device.createBuffer({
-            size: this.birdCount * 3 * Float32Array.BYTES_PER_ELEMENT, // Each position has x, y, z
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            size: this.birdCount * 3 * Float32Array.BYTES_PER_ELEMENT,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
             label: 'Position Buffer'
         });
 
@@ -79,14 +86,14 @@ export default class FlockingPipeline extends Pipeline {
 
         // Create predator buffers
         this.predatorPositionBuffer = this.device.createBuffer({
-            size: 3 * Float32Array.BYTES_PER_ELEMENT, // x, y, z
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            size: 3 * Float32Array.BYTES_PER_ELEMENT,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
             label: 'Predator Position Buffer'
         });
 
         this.predatorVelocityBuffer = this.device.createBuffer({
-            size: 3 * Float32Array.BYTES_PER_ELEMENT, // x, y, z
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            size: 3 * Float32Array.BYTES_PER_ELEMENT,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
             label: 'Predator Velocity Buffer'
         });
 
@@ -110,6 +117,9 @@ export default class FlockingPipeline extends Pipeline {
 
         // Initialize Render Shader Pipelines
         await this.initializeRenderPipelines(format, projectionBuffer, viewBuffer);
+
+        // Initialize predator camera projection
+        this.predatorCamera.updateProjection();
     }
 
     async initializeFlockingComputePipeline() {
@@ -443,20 +453,85 @@ export default class FlockingPipeline extends Pipeline {
         huntingPass.end();
     }
 
-    render(commandEncoder, passDescriptor, birds, predator) {
-        
-        // Execute compute passes (flocking and hunting)
+    render(commandEncoder, passDescriptor, birds, predator, textureView, depthView) {
+        // Execute compute passes
         this.runComputePasses(commandEncoder);
 
-        // Begin main render pass
-        const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
+        // Create small staging buffers for reading positions
+        const stagingPredatorPos = this.device.createBuffer({
+            size: 12,
+            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+            label: 'Staging Predator Position'
+        });
 
+        const stagingTargetPos = this.device.createBuffer({
+            size: 12,
+            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+            label: 'Staging Target Position'
+        });
+
+        // Copy current positions to staging buffers
+        commandEncoder.copyBufferToBuffer(
+            this.predatorPositionBuffer, 0,
+            stagingPredatorPos, 0, 12
+        );
+
+        // Get current target index
+        const targetIndex = new Uint32Array(1);
+        this.device.queue.writeBuffer(
+            this.targetIndexBuffer,
+            0,
+            targetIndex
+        );
+
+        // Copy target bird position
+        commandEncoder.copyBufferToBuffer(
+            this.positionBuffer,
+            targetIndex[0] * 12,
+            stagingTargetPos,
+            0,
+            12
+        );
+
+        // Submit commands to copy data
+        this.device.queue.submit([commandEncoder.finish()]);
+
+        // Read positions and update camera
+        Promise.all([
+            stagingPredatorPos.mapAsync(GPUMapMode.READ),
+            stagingTargetPos.mapAsync(GPUMapMode.READ)
+        ]).then(() => {
+            const predatorPos = new Float32Array(stagingPredatorPos.getMappedRange());
+            const targetPos = new Float32Array(stagingTargetPos.getMappedRange());
+
+            // Update camera position and target
+            this.predatorCamera.updateFromPositionAndTarget(
+                vec3.fromValues(predatorPos[0], predatorPos[1], predatorPos[2]),
+                vec3.fromValues(targetPos[0], targetPos[1], targetPos[2])
+            );
+
+            // Cleanup staging buffers
+            stagingPredatorPos.unmap();
+            stagingTargetPos.unmap();
+            stagingPredatorPos.destroy();
+            stagingTargetPos.destroy();
+        });
+
+        // Create new command encoder for rendering
+        const renderEncoder = this.device.createCommandEncoder();
+
+        // Begin main render pass
+        const passEncoder = renderEncoder.beginRenderPass(passDescriptor);
+
+        // Render main scene
+        passEncoder.setViewport(0, 0, this.canvasWidth, this.canvasHeight, 0.0, 1.0);
+        
         // -----------------------
         // 1. Render Background
         // -----------------------
         passEncoder.setPipeline(this.backgroundPipeline);
         passEncoder.setBindGroup(0, this.backgroundBindGroup);
-        passEncoder.draw(3, 1, 0, 0); // Draw 3 vertices to form the fullscreen triangle
+        passEncoder.draw(3, 1, 0, 0);
 
         // -----------------------
         // 2. Render Birds
@@ -468,7 +543,6 @@ export default class FlockingPipeline extends Pipeline {
         if (birds.length > 0) {
             const firstBird = birds[0];
             passEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
-            // passEncoder.setVertexBuffer(1, firstBird.getVertexBuffer()); // Bind birdVertex buffer
             passEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
 
             // Use instancing to draw all birds in a single call
@@ -494,10 +568,70 @@ export default class FlockingPipeline extends Pipeline {
         // -----------------------
         passEncoder.setPipeline(this.guidingLinePipeline);
         passEncoder.setBindGroup(0, this.guidingLineBindGroup);
-        // passEncoder.setVertexBuffer(0, this.guidingLineBuffer); // Removed as per previous corrections
         passEncoder.draw(2, 1, 0, 0); // Draw two vertices
 
         passEncoder.end();
+
+        // Begin PIP render pass
+        const predatorPassEncoder = renderEncoder.beginRenderPass({
+            colorAttachments: [{
+                view: textureView,
+                loadOp: 'load',
+                storeOp: 'store'
+            }],
+            depthStencilAttachment: {
+                view: depthView,
+                depthLoadOp: 'clear',
+                depthClearValue: 1.0,
+                depthStoreOp: 'store'
+            }
+        });
+
+        // Set viewport for PIP
+        const pipSize = Math.max(Math.min(this.canvasWidth, this.canvasHeight) * 0.4, 300);
+        const padding = 20;
+        const pipX = padding;
+        const pipY = Math.max(padding, this.canvasHeight - pipSize - padding);
+        predatorPassEncoder.setViewport(
+            pipX, pipY,
+            Math.max(1, pipSize),
+            Math.max(1, pipSize),
+            0.0, 1.0
+        );
+
+        // Create bind group with predator camera matrices
+        const predatorBindGroup = this.device.createBindGroup({
+            layout: this.birdPipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: { buffer: this.predatorCamera.projectionBuffer }},
+                { binding: 1, resource: { buffer: this.predatorCamera.viewBuffer }},
+                { binding: 2, resource: { buffer: this.viewportBuffer }},
+                { binding: 3, resource: { buffer: this.positionBuffer }},
+                { binding: 4, resource: { buffer: this.phaseBuffer }},
+                { binding: 5, resource: { buffer: this.mouseBuffer }},
+                { binding: 6, resource: { buffer: this.velocityBuffer }}
+            ]
+        });
+
+        // Render scene from predator's perspective
+        predatorPassEncoder.setPipeline(this.backgroundPipeline);
+        predatorPassEncoder.setBindGroup(0, this.backgroundBindGroup);
+        predatorPassEncoder.draw(3, 1, 0, 0);
+
+        predatorPassEncoder.setPipeline(this.birdPipeline);
+        predatorPassEncoder.setBindGroup(0, predatorBindGroup);
+
+        if (birds.length > 0) {
+            const firstBird = birds[0];
+            predatorPassEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
+            predatorPassEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
+            predatorPassEncoder.drawIndexed(firstBird.getIndexCount(), this.birdCount, 0, 0, 0);
+        }
+
+        predatorPassEncoder.end();
+
+        // Submit all rendering commands
+        this.device.queue.submit([renderEncoder.finish()]);
     }
 
     updateFlockingParams() {
@@ -569,6 +703,19 @@ export default class FlockingPipeline extends Pipeline {
         if (this.predatorVelocityBuffer) this.predatorVelocityBuffer.destroy();
         if (this.flockingParamsBuffer) this.flockingParamsBuffer.destroy();
 
+        // Cleanup predator camera
+        this.predatorCamera.cleanup();
+
         super.cleanup();
+    }
+
+    updateViewportDimensions(width, height) {
+        // Update stored dimensions
+        this.canvasWidth = Math.max(1, width);
+        this.canvasHeight = Math.max(1, height);
+        
+        // Update predator camera aspect ratio
+        this.predatorCamera.aspect = 1; // Keep it square for the PIP view
+        this.predatorCamera.updateProjection();
     }
 }
