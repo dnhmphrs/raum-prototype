@@ -457,71 +457,74 @@ export default class FlockingPipeline extends Pipeline {
         // Execute compute passes
         this.runComputePasses(commandEncoder);
 
-        // Create small staging buffers for reading positions
-        const stagingPredatorPos = this.device.createBuffer({
-            size: 12,
-            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-            label: 'Staging Predator Position'
-        });
+        // Track positions in JavaScript
+        let predatorPosition = vec3.create();
+        let targetPosition = vec3.create();
 
-        const stagingTargetPos = this.device.createBuffer({
-            size: 12,
-            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-            label: 'Staging Target Position'
-        });
+        // Create staging buffers and a separate encoder for position reading
+        {
+            const positionEncoder = this.device.createCommandEncoder();
+            const stagingPredatorPos = this.device.createBuffer({
+                size: 12,
+                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+                label: 'Staging Predator Position'
+            });
 
-        // Copy current positions to staging buffers
-        commandEncoder.copyBufferToBuffer(
-            this.predatorPositionBuffer, 0,
-            stagingPredatorPos, 0, 12
-        );
+            const stagingTargetPos = this.device.createBuffer({
+                size: 12,
+                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+                label: 'Staging Target Position'
+            });
 
-        // Get current target index
-        const targetIndex = new Uint32Array(1);
-        this.device.queue.writeBuffer(
-            this.targetIndexBuffer,
-            0,
-            targetIndex
-        );
-
-        // Copy target bird position
-        commandEncoder.copyBufferToBuffer(
-            this.positionBuffer,
-            targetIndex[0] * 12,
-            stagingTargetPos,
-            0,
-            12
-        );
-
-        // Submit commands to copy data
-        this.device.queue.submit([commandEncoder.finish()]);
-
-        // Read positions and update camera
-        Promise.all([
-            stagingPredatorPos.mapAsync(GPUMapMode.READ),
-            stagingTargetPos.mapAsync(GPUMapMode.READ)
-        ]).then(() => {
-            const predatorPos = new Float32Array(stagingPredatorPos.getMappedRange());
-            const targetPos = new Float32Array(stagingTargetPos.getMappedRange());
-
-            // Update camera position and target
-            this.predatorCamera.updateFromPositionAndTarget(
-                vec3.fromValues(predatorPos[0], predatorPos[1], predatorPos[2]),
-                vec3.fromValues(targetPos[0], targetPos[1], targetPos[2])
+            // Copy positions using the separate encoder
+            positionEncoder.copyBufferToBuffer(
+                this.predatorPositionBuffer, 0,
+                stagingPredatorPos, 0, 12
             );
 
-            // Cleanup staging buffers
-            stagingPredatorPos.unmap();
-            stagingTargetPos.unmap();
-            stagingPredatorPos.destroy();
-            stagingTargetPos.destroy();
-        });
+            const targetIndex = new Uint32Array(1);
+            this.device.queue.writeBuffer(
+                this.targetIndexBuffer,
+                0,
+                targetIndex
+            );
 
-        // Create new command encoder for rendering
-        const renderEncoder = this.device.createCommandEncoder();
+            positionEncoder.copyBufferToBuffer(
+                this.positionBuffer,
+                targetIndex[0] * 12,
+                stagingTargetPos,
+                0,
+                12
+            );
+
+            // Submit position copying commands
+            this.device.queue.submit([positionEncoder.finish()]);
+
+            // Read positions
+            Promise.all([
+                stagingPredatorPos.mapAsync(GPUMapMode.READ),
+                stagingTargetPos.mapAsync(GPUMapMode.READ)
+            ]).then(() => {
+                const predatorPos = new Float32Array(stagingPredatorPos.getMappedRange());
+                const targetPos = new Float32Array(stagingTargetPos.getMappedRange());
+
+                // Store positions
+                vec3.set(predatorPosition, predatorPos[0], predatorPos[1], predatorPos[2]);
+                vec3.set(targetPosition, targetPos[0], targetPos[1], targetPos[2]);
+
+                // Update camera
+                this.predatorCamera.updateFromPositionAndTarget(predatorPosition, targetPosition);
+
+                // Cleanup staging buffers
+                stagingPredatorPos.unmap();
+                stagingTargetPos.unmap();
+                stagingPredatorPos.destroy();
+                stagingTargetPos.destroy();
+            });
+        }
 
         // Begin main render pass
-        const passEncoder = renderEncoder.beginRenderPass(passDescriptor);
+        const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
 
         // Render main scene
         passEncoder.setViewport(0, 0, this.canvasWidth, this.canvasHeight, 0.0, 1.0);
@@ -573,7 +576,7 @@ export default class FlockingPipeline extends Pipeline {
         passEncoder.end();
 
         // Begin PIP render pass
-        const predatorPassEncoder = renderEncoder.beginRenderPass({
+        const predatorPassEncoder = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: textureView,
                 loadOp: 'load',
@@ -629,9 +632,6 @@ export default class FlockingPipeline extends Pipeline {
         }
 
         predatorPassEncoder.end();
-
-        // Submit all rendering commands
-        this.device.queue.submit([renderEncoder.finish()]);
     }
 
     updateFlockingParams() {
