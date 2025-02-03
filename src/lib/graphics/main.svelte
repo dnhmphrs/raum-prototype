@@ -63,7 +63,8 @@
   </div>
 {/if}
 
-<!-- Predator POV Text -->
+<!-- Add this right before the Predator POV Text -->
+<div class="predator-pov-border"></div>
 <div class="predator-pov">
   Predator POV
 </div>
@@ -137,13 +138,24 @@
     font-size: 14px;
   }
 
-    /* Styles for Predator POV */
-    .predator-pov {
+  /* Add this to your styles */
+  .predator-pov-border {
     position: absolute;
-    bottom: 20px; /* Adjust as needed */
-    left: 20px; /* Adjust as needed */
-    color: white; /* Change color as needed */
-    font-size: 12px; /* Adjust font size as needed */
-    z-index: 10; /* Ensure it's above other elements */
+    bottom: 10px;  /* matches padding */
+    left: 10px;    /* matches padding */
+    width: min(40vmin, 411.5px);   /* 40% of viewport min dimension */
+    height: min(40vmin, 411.5px);  /* same as width */
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    z-index: 9;
+    pointer-events: none;
+  }
+
+  .predator-pov {
+    position: absolute;
+    bottom: 315px; /* Moved above the border - adjust as needed */
+    left: 20px;
+    color: white;
+    font-size: 12px;
+    z-index: 10;
   }
 </style>
