@@ -66,7 +66,7 @@
 <!-- Add this right before the Predator POV Text -->
 <div class="predator-pov-border"></div>
 <div class="predator-pov">
-  Predator POV
+  Predator POV - target changes each 10s
 </div>
 
 
