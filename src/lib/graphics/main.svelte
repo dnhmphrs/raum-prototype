@@ -63,6 +63,12 @@
   </div>
 {/if}
 
+<!-- Predator POV Text -->
+<div class="predator-pov">
+  Predator POV
+</div>
+
+
 <style>
   .geometry {
     position: absolute;
@@ -129,5 +135,15 @@
     border-radius: 5px;
     cursor: pointer;
     font-size: 14px;
+  }
+
+    /* Styles for Predator POV */
+    .predator-pov {
+    position: absolute;
+    bottom: 20px; /* Adjust as needed */
+    left: 20px; /* Adjust as needed */
+    color: white; /* Change color as needed */
+    font-size: 12px; /* Adjust font size as needed */
+    z-index: 10; /* Ensure it's above other elements */
   }
 </style>
