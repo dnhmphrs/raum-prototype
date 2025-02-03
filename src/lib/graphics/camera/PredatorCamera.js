@@ -54,7 +54,7 @@ export default class PredatorCamera {
         );
 
         // Use a wider FOV for the predator camera
-        this.updateProjection(Math.PI / 2); // 90 degrees FOV
+        this.updateProjection(Math.PI / 4); // 90 degrees FOV
 
         // // Debug output
         // console.log('Predator Camera:', {
