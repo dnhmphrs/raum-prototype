@@ -72,10 +72,10 @@
 {/if}
 
 <!-- Add this right before the Predator POV Text -->
-<div class="predator-pov-border"></div>
+<!-- <div class="predator-pov-border"></div>
 <div class="predator-pov">
   Predator POV - periodic target changes
-</div>
+</div> -->
 
 <style>
   .geometry {

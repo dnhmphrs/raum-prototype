@@ -564,63 +564,65 @@ export default class FlockingPipeline extends Pipeline {
 
         passEncoder.end();
 
+        
+
         // Begin PIP render pass
-        const predatorPassEncoder = commandEncoder.beginRenderPass({
-            colorAttachments: [{
-                view: textureView,
-                loadOp: 'load',
-                storeOp: 'store'
-            }],
-            depthStencilAttachment: {
-                view: depthView,
-                depthLoadOp: 'clear',
-                depthClearValue: 1.0,
-                depthStoreOp: 'store'
-            }
-        });
+        // const predatorPassEncoder = commandEncoder.beginRenderPass({
+        //     colorAttachments: [{
+        //         view: textureView,
+        //         loadOp: 'load',
+        //         storeOp: 'store'
+        //     }],
+        //     depthStencilAttachment: {
+        //         view: depthView,
+        //         depthLoadOp: 'clear',
+        //         depthClearValue: 1.0,
+        //         depthStoreOp: 'store'
+        //     }
+        // });
 
         // Set viewport for PIP
-        const pipSize = Math.max(Math.min(this.canvasWidth, this.canvasHeight) * 0.4, 300);
-        const padding = 20;
-        const pipX = padding;
-        const pipY = Math.max(padding, this.canvasHeight - pipSize - padding);
-        predatorPassEncoder.setViewport(
-            pipX, pipY,
-            Math.max(1, pipSize),
-            Math.max(1, pipSize),
-            0.0, 1.0
-        );
+        // const pipSize = Math.max(Math.min(this.canvasWidth, this.canvasHeight) * 0.4, 300);
+        // const padding = 20;
+        // const pipX = padding;
+        // const pipY = Math.max(padding, this.canvasHeight - pipSize - padding);
+        // predatorPassEncoder.setViewport(
+        //     pipX, pipY,
+        //     Math.max(1, pipSize),
+        //     Math.max(1, pipSize),
+        //     0.0, 1.0
+        // );
 
-        // Create bind group with predator camera matrices
-        const predatorBindGroup = this.device.createBindGroup({
-            layout: this.birdPipeline.getBindGroupLayout(0),
-            entries: [
-                { binding: 0, resource: { buffer: this.predatorCamera.projectionBuffer }},
-                { binding: 1, resource: { buffer: this.predatorCamera.viewBuffer }},
-                { binding: 2, resource: { buffer: this.viewportBuffer }},
-                { binding: 3, resource: { buffer: this.positionBuffer }},
-                { binding: 4, resource: { buffer: this.phaseBuffer }},
-                { binding: 5, resource: { buffer: this.mouseBuffer }},
-                { binding: 6, resource: { buffer: this.velocityBuffer }}
-            ]
-        });
+        // // Create bind group with predator camera matrices
+        // const predatorBindGroup = this.device.createBindGroup({
+        //     layout: this.birdPipeline.getBindGroupLayout(0),
+        //     entries: [
+        //         { binding: 0, resource: { buffer: this.predatorCamera.projectionBuffer }},
+        //         { binding: 1, resource: { buffer: this.predatorCamera.viewBuffer }},
+        //         { binding: 2, resource: { buffer: this.viewportBuffer }},
+        //         { binding: 3, resource: { buffer: this.positionBuffer }},
+        //         { binding: 4, resource: { buffer: this.phaseBuffer }},
+        //         { binding: 5, resource: { buffer: this.mouseBuffer }},
+        //         { binding: 6, resource: { buffer: this.velocityBuffer }}
+        //     ]
+        // });
 
-        // Render scene from predator's perspective
-        predatorPassEncoder.setPipeline(this.backgroundPipeline);
-        predatorPassEncoder.setBindGroup(0, this.backgroundBindGroup);
-        predatorPassEncoder.draw(3, 1, 0, 0);
+        // // Render scene from predator's perspective
+        // predatorPassEncoder.setPipeline(this.backgroundPipeline);
+        // predatorPassEncoder.setBindGroup(0, this.backgroundBindGroup);
+        // predatorPassEncoder.draw(3, 1, 0, 0);
 
-        predatorPassEncoder.setPipeline(this.birdPipeline);
-        predatorPassEncoder.setBindGroup(0, predatorBindGroup);
+        // predatorPassEncoder.setPipeline(this.birdPipeline);
+        // predatorPassEncoder.setBindGroup(0, predatorBindGroup);
 
-        if (birds.length > 0) {
-            const firstBird = birds[0];
-            predatorPassEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
-            predatorPassEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
-            predatorPassEncoder.drawIndexed(firstBird.getIndexCount(), this.birdCount, 0, 0, 0);
-        }
+        // if (birds.length > 0) {
+        //     const firstBird = birds[0];
+        //     predatorPassEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
+        //     predatorPassEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
+        //     predatorPassEncoder.drawIndexed(firstBird.getIndexCount(), this.birdCount, 0, 0, 0);
+        // }
 
-        predatorPassEncoder.end();
+        // predatorPassEncoder.end();
     }
 
     updateFlockingParams() {
