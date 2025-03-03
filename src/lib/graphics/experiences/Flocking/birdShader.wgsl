@@ -66,7 +66,7 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // Transform to clip space
     out.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
 
-    out.color = vec3<f32>(0.314, 0.282, 0.239);
+    out.color = vec3<f32>(1.000, 0.741, 0.482);
 
     // // Assign colors based on vertex position
     // if (vertexPosition.z > 15.0 || vertexPosition.z < -15.0) {
@@ -95,6 +95,10 @@ fn fragment_main(@location(0) color: vec3<f32>, @location(1) vNormal: vec3<f32>)
     // Simple lighting
     let lightDir = normalize(vec3<f32>(1.0, 1.0, 1.0));
     let lightIntensity = max(dot(vNormal, lightDir), 0.0);
-    let finalColor = color * lightIntensity;
+    
+    // Use highlight color (1.000, 0.741, 0.482) for lighting highlights
+    let highlightColor = vec3<f32>(1.000, 0.925, 0.482);
+    let finalColor = mix(color, highlightColor, lightIntensity);
+    
     return vec4<f32>(finalColor, 1.0);
 }

@@ -282,7 +282,21 @@ export default class FlockingPipeline extends Pipeline {
             fragment: {
                 module: this.device.createShaderModule({ code: birdShader }),
                 entryPoint: 'fragment_main',
-                targets: [{ format }]
+                targets: [{ 
+                    format,
+                    blend: {
+                        color: {
+                            srcFactor: 'src-alpha',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add'
+                        },
+                        alpha: {
+                            srcFactor: 'one',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add'
+                        }
+                    }
+                }]
             },
             depthStencil: {
                 format: 'depth24plus',
@@ -455,7 +469,7 @@ export default class FlockingPipeline extends Pipeline {
         huntingPass.end();
     }
 
-    render(commandEncoder, passDescriptor, birds, predator, textureView, depthView) {
+    render(commandEncoder, passDescriptor, birds, predator, textureView, depthView, showPredatorView = false) {
         // Execute compute passes
         this.runComputePasses(commandEncoder);
 
