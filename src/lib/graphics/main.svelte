@@ -171,6 +171,9 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    /* background-color: #6173b320;
+    border-radius: 24px;   */
+    /* backdrop-filter: blur(1px);   */
     z-index: 5; /* Between background (z-index: -1) and UI elements (z-index: 10) */
     pointer-events: none; /* Allow clicks to pass through */
   }
