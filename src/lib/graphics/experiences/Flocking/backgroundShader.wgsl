@@ -8,6 +8,8 @@ struct VertexOutput {
 // Add time uniform for temporal effects
 @group(0) @binding(0) var<uniform> time: f32;
 @group(0) @binding(1) var<storage, read> predatorVelocity: vec3<f32>; // Add predator velocity
+// Remove the binding that's causing the error for now
+// @group(0) @binding(2) var<uniform> performanceMode: u32; // Add performance mode flag
 
 // Ultra-chaotic hash using bit manipulation
 fn wang_hash(seed: u32) -> u32 {
@@ -95,8 +97,8 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let t = uv.y;
     var baseColor = mix(bottomColor, topColor, t);
     
-    // Add truly random noise
-    baseColor += randomNoise(uv, time);
+    // Simplified noise - always add but make it less intensive
+    baseColor += randomNoise(uv, time) * 0.5; // Reduced intensity
     
     return vec4<f32>(baseColor, 1.0);
 }

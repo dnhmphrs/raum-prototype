@@ -133,6 +133,16 @@ class FlockingExperience extends Experience {
         // If avgFrameTime > targetFrameTime, scale down (< 1.0)
         // If avgFrameTime < targetFrameTime, scale up (> 1.0), but cap at 1.0 to avoid too fast simulation
         this.performanceScaleFactor = Math.min(1.0, this.targetFrameTime / Math.max(1.0, avgFrameTime));
+
+        // If performance is consistently poor, switch to low performance mode
+        if (avgFrameTime > 50.0 && !this.pipeline.lowPerformanceMode) { // 50ms = ~20fps
+            console.log("Switching to low performance mode");
+            this.pipeline.updatePerformanceMode(true);
+        } else if (avgFrameTime < 30.0 && this.pipeline.lowPerformanceMode) { // 30ms = ~33fps
+            // If performance improves, switch back to high quality
+            console.log("Switching to high performance mode");
+            this.pipeline.updatePerformanceMode(false);
+        }
     }
 
     render(commandEncoder, textureView) {
