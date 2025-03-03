@@ -29,58 +29,58 @@ fn glitch_effect(uv: vec2<f32>, t: f32) -> vec3<f32> {
     let perpDir = vec2<f32>(-predDir.y, predDir.x);
     var warpedUV = uv;
     
-    // Create dreamy spiral warps
+    // Tighter, more chaotic spirals
     let spiral = vec2<f32>(
-        sin(length(uv - 0.5) * 10.0 + t * 0.2),
-        cos(length(uv - 0.5) * 8.0 + t * 0.15)
+        sin(length((uv - 0.5) * 15.0) * 15.0 + t * 0.3) * cos(length(uv * 12.0)),
+        cos(length((uv - 0.5) * 12.0) * 12.0 + t * 0.25) * sin(length(uv * 15.0))
     );
     
-    // Flowing wave patterns
-    warpedUV += predDir * (speed * 0.0008) * sin(dot(uv + spiral, perpDir) * 3.0 + t * 0.2);
-    warpedUV += perpDir * (speed * 0.0004) * cos(dot(uv + spiral, predDir) * 3.5 + t * 0.15);
+    // More localized wave patterns
+    warpedUV += predDir * (speed * 0.001) * sin(dot(uv + spiral * 2.0, perpDir) * 5.0 + t * 0.3);
+    warpedUV += perpDir * (speed * 0.0006) * cos(dot(uv + spiral * 1.5, predDir) * 4.5 + t * 0.25);
     
-    // Add smooth swirling motion
+    // Chaotic swirling
     let swirl = vec2<f32>(
-        sin(dot(uv, predDir + perpDir) * 4.0 + t * 0.1),
-        cos(dot(uv, predDir - perpDir) * 3.0 + t * 0.12)
+        sin(dot(uv * 1.5, predDir + perpDir) * 6.0 + cos(length(uv - 0.5) * 8.0) * t * 0.2),
+        cos(dot(uv * 1.2, predDir - perpDir) * 5.0 + sin(length(uv - 0.5) * 10.0) * t * 0.15)
     );
     
-    // Create fluid distortion field
+    // More intense local distortions
     let distort = vec2<f32>(
-        sin(swirl.x * 3.0 + t * 0.13) * cos(swirl.y * 2.0),
-        cos(swirl.x * 2.0 - t * 0.11) * sin(swirl.y * 3.0)
-    ) * 0.003 * speed;
+        sin(swirl.x * 4.0 + spiral.y * 3.0 + t * 0.2) * cos(swirl.y * 3.0),
+        cos(swirl.x * 3.0 + spiral.x * 4.0 - t * 0.15) * sin(swirl.y * 4.0)
+    ) * 0.004 * speed;
     
     warpedUV += distort;
     
-    // Smooth flowing patterns
+    // Tighter flow patterns
     let flow = vec3<f32>(
-        sin(dot(warpedUV + spiral, predDir) * 6.0 + t * 0.15),
-        sin(dot(warpedUV + swirl, perpDir) * 5.0 + t * 0.12),
-        sin(dot(warpedUV + distort, predDir + perpDir) * 4.0 + t * 0.13)
+        sin(dot(warpedUV + spiral * 1.5, predDir) * 8.0 + t * 0.2),
+        sin(dot(warpedUV + swirl * 1.2, perpDir) * 7.0 + t * 0.15),
+        sin(dot(warpedUV + distort * 2.0, predDir + perpDir) * 6.0 + t * 0.18)
     ) * 0.5 + 0.5;
     
-    // Smooth color transitions - handle each component separately
+    // Sharper transitions
     let glitch = vec3<f32>(
-        smoothstep(0.45, 0.55, flow.x),
-        smoothstep(0.45, 0.55, flow.y),
-        smoothstep(0.45, 0.55, flow.z)
-    ) * min(0.12, speed * 0.004);
+        smoothstep(0.48, 0.52, flow.x),
+        smoothstep(0.48, 0.52, flow.y),
+        smoothstep(0.48, 0.52, flow.z)
+    ) * min(0.15, speed * 0.005);
     
-    // Fluid color separation
-    let shift = speed * 0.0002;
+    // More intense local color separation
+    let shift = speed * 0.0003;
     let rgb_split = vec3<f32>(
-        sin(dot(warpedUV + shift * predDir, vec2<f32>(flow.x, flow.y)) * 8.0),
-        sin(dot(warpedUV, vec2<f32>(flow.y, flow.z)) * 7.0),
-        sin(dot(warpedUV - shift * predDir, vec2<f32>(flow.z, flow.x)) * 6.0)
-    ) * 0.02;
+        sin(dot(warpedUV + shift * predDir + spiral * 0.5, vec2<f32>(flow.x, flow.y)) * 10.0),
+        sin(dot(warpedUV + swirl * 0.3, vec2<f32>(flow.y, flow.z)) * 9.0),
+        sin(dot(warpedUV - shift * predDir - spiral * 0.4, vec2<f32>(flow.z, flow.x)) * 8.0)
+    ) * 0.025;
     
-    // Dreamy warm accents
-    let warmth = smoothstep(0.4, 0.6, 
-        sin(length(warpedUV - 0.5) * 8.0 + t * 0.1) * 
-        cos(dot(normalize(uv - 0.5), predDir) * 4.0)
+    // More chaotic warm accents
+    let warmth = smoothstep(0.45, 0.55, 
+        sin(length(warpedUV - 0.5) * 12.0 + spiral.x * 4.0 + t * 0.15) * 
+        cos(dot(normalize(uv - 0.5), predDir + swirl * 0.3) * 6.0)
     );
-    let burst = warmth * vec3<f32>(1.0, 0.5, 0.2) * 0.15 * min(1.0, speed * 0.05);
+    let burst = warmth * vec3<f32>(1.0, 0.5, 0.2) * 0.18 * min(1.0, speed * 0.06);
     
     return glitch + rgb_split + burst;
 }
