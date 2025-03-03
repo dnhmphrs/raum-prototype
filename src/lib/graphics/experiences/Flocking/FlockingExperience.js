@@ -10,7 +10,7 @@ class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
-        this.birdCount = 8192; // Adjusted for performance
+        this.birdCount = 4096; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
         
         // Performance tracking variables
