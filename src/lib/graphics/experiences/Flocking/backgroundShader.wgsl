@@ -26,63 +26,63 @@ fn hash_to_float(h: u32) -> f32 {
 fn glitch_effect(uv: vec2<f32>, t: f32) -> vec3<f32> {
     let speed = length(predatorVelocity.xy);
     let predDir = normalize(predatorVelocity.xy + vec2<f32>(0.001));
-    
-    // Create a rotated coordinate space based on predator direction
     let perpDir = vec2<f32>(-predDir.y, predDir.x);
     var warpedUV = uv;
     
-    // Distort along and perpendicular to movement
-    warpedUV += predDir * (speed * 0.003) * sin(dot(uv, perpDir) * 8.0 + t * 2.0);
-    warpedUV += perpDir * (speed * 0.002) * cos(dot(uv, predDir) * 10.0 + t * 1.7);
-    
-    // Add some diagonal noise
-    let diag = sin(dot(uv, predDir + perpDir) * 15.0 + t) * 0.01 * speed;
-    warpedUV += (predDir + perpDir) * diag;
-    
-    // Block-based glitch with rotating blocks
-    let angle = atan2(predDir.y, predDir.x);
-    let rotatedUV = vec2<f32>(
-        warpedUV.x * cos(angle) - warpedUV.y * sin(angle),
-        warpedUV.x * sin(angle) + warpedUV.y * cos(angle)
+    // Create dreamy spiral warps
+    let spiral = vec2<f32>(
+        sin(length(uv - 0.5) * 10.0 + t * 0.2),
+        cos(length(uv - 0.5) * 8.0 + t * 0.15)
     );
     
-    let blockSize = mix(128.0, 512.0, sin(t * 0.5) * 0.5 + 0.5);
-    let blockPos = floor(rotatedUV * blockSize);
+    // Flowing wave patterns
+    warpedUV += predDir * (speed * 0.0008) * sin(dot(uv + spiral, perpDir) * 3.0 + t * 0.2);
+    warpedUV += perpDir * (speed * 0.0004) * cos(dot(uv + spiral, predDir) * 3.5 + t * 0.15);
     
-    // Rest of the hash calculations...
-    let x = u32(blockPos.x);
-    let y = u32(blockPos.y);
-    let time_val = u32(t * 1.0);
+    // Add smooth swirling motion
+    let swirl = vec2<f32>(
+        sin(dot(uv, predDir + perpDir) * 4.0 + t * 0.1),
+        cos(dot(uv, predDir - perpDir) * 3.0 + t * 0.12)
+    );
     
-    let seed = x + (y * 256u) + time_val;
-    let h1 = hash(seed);
-    let h2 = hash(h1);
-    let h3 = hash(h2);
+    // Create fluid distortion field
+    let distort = vec2<f32>(
+        sin(swirl.x * 3.0 + t * 0.13) * cos(swirl.y * 2.0),
+        cos(swirl.x * 2.0 - t * 0.11) * sin(swirl.y * 3.0)
+    ) * 0.003 * speed;
     
-    let r = hash_to_float(h1);
-    let g = hash_to_float(h2);
-    let b = hash_to_float(h3);
+    warpedUV += distort;
     
-    // Create directional glitch patterns
+    // Smooth flowing patterns
+    let flow = vec3<f32>(
+        sin(dot(warpedUV + spiral, predDir) * 6.0 + t * 0.15),
+        sin(dot(warpedUV + swirl, perpDir) * 5.0 + t * 0.12),
+        sin(dot(warpedUV + distort, predDir + perpDir) * 4.0 + t * 0.13)
+    ) * 0.5 + 0.5;
+    
+    // Smooth color transitions - handle each component separately
     let glitch = vec3<f32>(
-        step(0.5 + sin(dot(uv, predDir) * 4.0 + t) * 0.2, r),
-        step(0.5 + cos(dot(uv, perpDir) * 3.0 + t * 1.7) * 0.2, g),
-        step(0.5 + sin(dot(uv, predDir + perpDir) * 5.0 + t * 2.3) * 0.2, b)
-    ) * min(0.2, speed * 0.01);
+        smoothstep(0.45, 0.55, flow.x),
+        smoothstep(0.45, 0.55, flow.y),
+        smoothstep(0.45, 0.55, flow.z)
+    ) * min(0.12, speed * 0.004);
     
-    // Directional color separation
-    let shift = speed * 0.0005;
+    // Fluid color separation
+    let shift = speed * 0.0002;
     let rgb_split = vec3<f32>(
-        step(0.6, hash_to_float(hash(u32(dot(warpedUV, predDir) * 1000.0)))),
-        step(0.6, hash_to_float(hash(u32(dot(warpedUV, predDir + perpDir) * 1001.0 + shift)))),
-        step(0.6, hash_to_float(hash(u32(dot(warpedUV, perpDir) * 1002.0 - shift))))
-    ) * 0.05;
+        sin(dot(warpedUV + shift * predDir, vec2<f32>(flow.x, flow.y)) * 8.0),
+        sin(dot(warpedUV, vec2<f32>(flow.y, flow.z)) * 7.0),
+        sin(dot(warpedUV - shift * predDir, vec2<f32>(flow.z, flow.x)) * 6.0)
+    ) * 0.02;
     
-    // Warm bursts along movement direction
-    let burst = step(0.98, r) * vec3<f32>(1.0, 0.5, 0.2) * 0.3 * 
-                smoothstep(0.0, 0.2, abs(dot(normalize(uv - 0.5), predDir)));
+    // Dreamy warm accents
+    let warmth = smoothstep(0.4, 0.6, 
+        sin(length(warpedUV - 0.5) * 8.0 + t * 0.1) * 
+        cos(dot(normalize(uv - 0.5), predDir) * 4.0)
+    );
+    let burst = warmth * vec3<f32>(1.0, 0.5, 0.2) * 0.15 * min(1.0, speed * 0.05);
     
-    return glitch + burst + rgb_split;
+    return glitch + rgb_split + burst;
 }
 
 // Scanline effect
@@ -164,21 +164,23 @@ fn vertex_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
 fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let uv = (fragPos + 1.0) * 0.5;
     
-    // Base colors with more contrast
+    // Smoother gradient base
     let bottomColor = vec3<f32>(0.07, 0.07, 0.07);
     let topColor = vec3<f32>(0.25, 0.25, 0.25);
     
-    // Warped gradient
-    let t = uv.y + sin(uv.x * 6.28 + time * 0.5) * 0.1;
+    // Flowing gradient
+    let t = uv.y + sin(uv.x * 2.5 + time * 0.08) * 0.04 +
+           cos(length(uv - 0.5) * 4.0 + time * 0.05) * 0.02;
     var color = mix(bottomColor, topColor, t);
     
-    // Add intense glitch effects
     color += glitch_effect(uv, time);
     
-    // Add occasional full-screen color inversion
+    // Smoother inversions
     let speed = length(predatorVelocity.xy);
-    if (speed > 20.0 && fract(time * 0.1) < 0.05) {
-        color = vec3<f32>(1.0) - color;
+    if (speed > 28.0) {
+        let inv = smoothstep(0.0, 0.1, fract(time * 0.03)) * 
+                 smoothstep(0.1, 0.0, fract(time * 0.03));
+        color = mix(color, vec3<f32>(1.0) - color, inv);
     }
     
     return vec4<f32>(color, 1.0);
