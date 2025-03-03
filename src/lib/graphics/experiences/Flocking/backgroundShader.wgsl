@@ -24,7 +24,7 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let t = (fragPos.y + 1.0) / 2.0;
     
     // Define gradient colors
-    let bottomColor = vec3<f32>(0.831, 0.827, 0.808); // Light Blue
+    let bottomColor = vec3<f32>(0.137, 0.137, 0.137); // Light Blue
     let topColor = vec3<f32>(0.831, 0.827, 0.808);    // Stone Grey
     
     // Interpolate between bottomColor and topColor based on t
