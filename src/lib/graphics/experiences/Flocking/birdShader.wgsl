@@ -92,13 +92,5 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
 
 @fragment
 fn fragment_main(@location(0) color: vec3<f32>, @location(1) vNormal: vec3<f32>) -> @location(0) vec4<f32> {
-    // Simple lighting
-    // let lightDir = normalize(vec3<f32>(1.0, 1.0, 1.0));
-    // let lightIntensity = max(dot(vNormal, lightDir), 0.0);
-    
-    // // Use highlight color (1.000, 0.741, 0.482) for lighting highlights
-    // let highlightColor = vec3<f32> (1.000, 0.925, 0.482);
-    // let finalColor = mix(color, highlightColor, lightIntensity);
-    
-    return vec4<f32>(color, 1.0);
+    return vec4<f32>(color, 1.0); // Back to fully opaque
 }

@@ -52,7 +52,7 @@ fn glitch_effect(uv: vec2<f32>, t: f32) -> vec3<f32> {
     // Rest of the hash calculations...
     let x = u32(blockPos.x);
     let y = u32(blockPos.y);
-    let time_val = u32(t * 90.0);
+    let time_val = u32(t * 1.0);
     
     let seed = x + (y * 256u) + time_val;
     let h1 = hash(seed);
@@ -177,7 +177,7 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     
     // Add occasional full-screen color inversion
     let speed = length(predatorVelocity.xy);
-    if (speed > 20.0 && fract(time * 0.5) < 0.05) {
+    if (speed > 20.0 && fract(time * 0.1) < 0.05) {
         color = vec3<f32>(1.0) - color;
     }
     

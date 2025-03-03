@@ -337,40 +337,33 @@ export default class FlockingPipeline extends Pipeline {
         // -----------------------
         // 1. Create the Bird Render Pipeline
         // -----------------------
-        this.birdPipeline = this.device.createRenderPipeline({
-            label: 'Bird Render Pipeline',
-            layout: this.device.createPipelineLayout({ bindGroupLayouts: [birdBindGroupLayout] }),
+        this.birdPipeline = await this.device.createRenderPipelineAsync({
+            layout: this.device.createPipelineLayout({
+                bindGroupLayouts: [birdBindGroupLayout]
+            }),
             vertex: {
                 module: this.device.createShaderModule({ code: birdShader }),
                 entryPoint: 'vertex_main',
                 buffers: [
                     {
-                        arrayStride: 12, // 3 floats for position
+                        arrayStride: 12,
                         attributes: [
-                            { shaderLocation: 0, offset: 0, format: 'float32x3' }, // vertexPosition
+                            { shaderLocation: 0, offset: 0, format: 'float32x3' }
                         ]
                     }
                 ]
             },
-            
             fragment: {
                 module: this.device.createShaderModule({ code: birdShader }),
                 entryPoint: 'fragment_main',
-                targets: [{ 
+                targets: [{
                     format,
-                    blend: {
-                        color: {
-                            srcFactor: 'src-alpha',
-                            dstFactor: 'one-minus-src-alpha',
-                            operation: 'add'
-                        },
-                        alpha: {
-                            srcFactor: 'one',
-                            dstFactor: 'one-minus-src-alpha',
-                            operation: 'add'
-                        }
-                    }
+                    // Remove blend state configuration
                 }]
+            },
+            primitive: {
+                topology: 'triangle-list',
+                cullMode: 'back'
             },
             depthStencil: {
                 format: 'depth24plus',
