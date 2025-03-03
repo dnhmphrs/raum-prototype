@@ -12,10 +12,18 @@ class FlockingExperience extends Experience {
 
         this.birdCount = 8192; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
+        
+        // Performance tracking variables
+        this.frameCount = 0;
+        this.frameTimes = [];
+        this.maxFrameHistory = 60; // Track last 60 frames for averaging
+        this.performanceScaleFactor = 1.0; // Initial scale factor
+        this.targetFrameTime = 16.67; // Target ~60fps (in ms)
 
         // Timer variables
         this.targetChangeInterval = 10000; // 10 seconds in milliseconds
         this.lastTargetChangeTime = this.lastTime;
+        this.accumulatedTargetTime = 0; // Accumulated time for target changes
 
         // Separate storage for birds and predator
         this.birds = []; // Array to hold all bird geometries
@@ -106,32 +114,57 @@ class FlockingExperience extends Experience {
         this.addObject(predator);
     }
 
+    // Update performance metrics
+    updatePerformanceMetrics(frameTime) {
+        this.frameCount++;
+        
+        // Add current frame time to history
+        this.frameTimes.push(frameTime);
+        
+        // Keep only the most recent frames
+        if (this.frameTimes.length > this.maxFrameHistory) {
+            this.frameTimes.shift();
+        }
+        
+        // Calculate average frame time
+        const avgFrameTime = this.frameTimes.reduce((sum, time) => sum + time, 0) / this.frameTimes.length;
+        
+        // Update performance scale factor
+        // If avgFrameTime > targetFrameTime, scale down (< 1.0)
+        // If avgFrameTime < targetFrameTime, scale up (> 1.0), but cap at 1.0 to avoid too fast simulation
+        this.performanceScaleFactor = Math.min(1.0, this.targetFrameTime / Math.max(1.0, avgFrameTime));
+    }
+
     render(commandEncoder, textureView) {
         // Calculate deltaTime
         const now = performance.now();
-        let deltaTime = (now - this.lastTime) / 1000; // in seconds
+        const rawDeltaTime = (now - this.lastTime) / 1000; // in seconds
+        this.lastTime = now;
+        
+        // Update performance metrics
+        this.updatePerformanceMetrics(rawDeltaTime * 1000); // Convert to ms for metrics
+        
+        // Apply performance scaling to deltaTime
+        let deltaTime = rawDeltaTime * this.performanceScaleFactor;
+        
+        // Cap maximum deltaTime to prevent large jumps after pauses
+        const MAX_DELTA = 0.1; // 100ms maximum
+        deltaTime = Math.min(deltaTime, MAX_DELTA);
 
         if (document.visibilityState !== 'visible') {
             // If not visible, set deltaTime to zero to pause updates
             deltaTime = 0;
         }
 
-        this.lastTime = now;
-
         // Update deltaTime in the compute shader
         this.pipeline.updateDeltaTime(deltaTime);
 
-        // Update wing phases
-        // this.pipeline.updatePhases(now);
-
-        // Handle target change every 10 seconds
-        if (now - this.lastTargetChangeTime >= this.targetChangeInterval) {
+        // Handle target change using accumulated time approach
+        this.accumulatedTargetTime += rawDeltaTime * 1000; // Use raw time for real-world timing
+        if (this.accumulatedTargetTime >= this.targetChangeInterval) {
             this.changeTarget();
-            this.lastTargetChangeTime = now;
+            this.accumulatedTargetTime = 0;
         }
-
-        // Optionally, adjust flocking parameters dynamically here
-        // Example: this.pipeline.setFlockingParameters(separation, alignment, cohesion, centerGravity);
 
         // Render the pipeline (includes compute pass and render pass)
         const depthView = this.resourceManager.getDepthTextureView();
