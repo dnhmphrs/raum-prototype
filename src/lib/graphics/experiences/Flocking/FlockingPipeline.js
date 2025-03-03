@@ -228,75 +228,19 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     async initializeRenderPipelines(format, projectionBuffer, viewBuffer) {
-        // Add more detailed debug logging
-        console.log('Checking buffers before bind group creation:', {
-            projectionBuffer: {
-                value: projectionBuffer,
-                usage: projectionBuffer?.usage,
-                size: projectionBuffer?.size
-            },
-            viewBuffer: {
-                value: viewBuffer,
-                usage: viewBuffer?.usage,
-                size: viewBuffer?.size
-            },
-            viewportBuffer: {
-                value: this.viewportBuffer,
-                usage: this.viewportBuffer?.usage,
-                size: this.viewportBuffer?.size
-            },
-            positionBuffer: {
-                value: this.positionBuffer,
-                usage: this.positionBuffer?.usage,
-                size: this.positionBuffer?.size
-            },
-            phaseBuffer: {
-                value: this.phaseBuffer,
-                usage: this.phaseBuffer?.usage,
-                size: this.phaseBuffer?.size
-            },
-            mouseBuffer: {
-                value: this.mouseBuffer,
-                usage: this.mouseBuffer?.usage,
-                size: this.mouseBuffer?.size
-            },
-            velocityBuffer: {
-                value: this.velocityBuffer,
-                usage: this.velocityBuffer?.usage,
-                size: this.velocityBuffer?.size
-            }
+        // Create Bind Group Layout for Birds
+        const birdBindGroupLayout = this.device.createBindGroupLayout({
+            label: 'Birds Bind Group Layout',
+            entries: [
+                { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // Projection Matrix
+                { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // View Matrix
+                { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // Viewport Size
+                { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }, // Position Buffer
+                { binding: 4, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }, // Phase Buffer
+                { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // Mouse Buffer
+                { binding: 6, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }, // Velocity Buffer
+            ]
         });
-
-        // Create bind group entries one by one
-        const entries = [];
-        try {
-            entries.push({ binding: 0, resource: { buffer: projectionBuffer }});
-            console.log('Added projectionBuffer');
-            entries.push({ binding: 1, resource: { buffer: viewBuffer }});
-            console.log('Added viewBuffer');
-            entries.push({ binding: 2, resource: { buffer: this.viewportBuffer }});
-            console.log('Added viewportBuffer');
-            entries.push({ binding: 3, resource: { buffer: this.positionBuffer }});
-            console.log('Added positionBuffer');
-            entries.push({ binding: 4, resource: { buffer: this.phaseBuffer }});
-            console.log('Added phaseBuffer');
-            entries.push({ binding: 5, resource: { buffer: this.mouseBuffer }});
-            console.log('Added mouseBuffer');
-            entries.push({ binding: 6, resource: { buffer: this.velocityBuffer }});
-            console.log('Added velocityBuffer');
-        } catch (e) {
-            console.error('Error while building entries:', e);
-        }
-
-        // Create the bind group
-        try {
-            this.birdBindGroup = this.device.createBindGroup({
-                layout: birdBindGroupLayout,
-                entries
-            });
-        } catch (e) {
-            console.error('Error creating bind group:', e);
-        }
 
         // Create Bind Group Layout for Predator
         const predatorBindGroupLayout = this.device.createBindGroupLayout({
@@ -387,6 +331,20 @@ export default class FlockingPipeline extends Pipeline {
                 depthWriteEnabled: true,
                 depthCompare: 'less'
             }
+        });
+
+        // Create Bind Group for Birds
+        this.birdBindGroup = this.device.createBindGroup({
+            layout: birdBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: projectionBuffer } },
+                { binding: 1, resource: { buffer: viewBuffer } },
+                { binding: 2, resource: { buffer: this.viewportBuffer } },
+                { binding: 3, resource: { buffer: this.positionBuffer } },
+                { binding: 4, resource: { buffer: this.phaseBuffer } },
+                { binding: 5, resource: { buffer: this.mouseBuffer } },
+                { binding: 6, resource: { buffer: this.velocityBuffer } },
+            ]
         });
 
         // Create Bind Group for Predator
