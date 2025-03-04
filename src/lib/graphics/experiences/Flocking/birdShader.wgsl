@@ -68,11 +68,11 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     );
 
     // Blend colors based on speed
-    out.color = mix(
-        baseColor + variation,
-        vec3<f32>(0.95, 0.97, 1.0),
-        speedFactor
-    );
+    // out.color = mix(
+    //     baseColor + variation,
+    //     vec3<f32>(0.95, 0.97, 1.0),
+    //     speedFactor
+    // );
 
     // // Set normal for potential lighting
     // out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));
@@ -83,5 +83,5 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
 @fragment
 fn fragment_main(@location(0) color: vec3<f32>, @location(1) vNormal: vec3<f32>) -> @location(0) vec4<f32> {
     // Make birds slightly translucent
-    return vec4<f32>(color, 0.85);
+    return vec4<f32>(color, 1.0);
 }
