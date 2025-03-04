@@ -687,7 +687,7 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     updateTimeBuffer() {
-        const currentTime = performance.now() / 1000 - this.startTime;
+        const currentTime = performance.now() / 100 - this.startTime;
         this.device.queue.writeBuffer(this.timeBuffer, 0, new Float32Array([currentTime]));
     }
 

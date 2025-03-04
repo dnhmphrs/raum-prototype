@@ -49,7 +49,7 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>) -> VertexOutput {
     out.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
 
     // Assign a distinct red color for the predator
-    out.color = vec3<f32>(0.137, 0.137, 0.137);
+    out.color = vec3<f32>(0.878, 0.914, 0.980);
 
     // Calculate normal for potential lighting (optional)
     out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));
