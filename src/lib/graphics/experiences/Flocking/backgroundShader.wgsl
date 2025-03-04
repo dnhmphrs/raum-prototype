@@ -8,7 +8,7 @@ struct VertexOutput {
 // Add time uniform for temporal effects
 @group(0) @binding(0) var<uniform> time: f32;
 @group(0) @binding(1) var<storage, read> predatorVelocity: vec3<f32>; // Add predator velocity
-@group(0) @binding(2) var<uniform> performanceMode: u32; // Performance mode flag
+@group(0) @binding(2) var<uniform> performanceMode: u32; // Performance mode flatime = 0.1 * time;
 
 // Simplified hash - less expensive
 fn hash(n: u32) -> u32 {

@@ -36,7 +36,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     let distance = length(desiredVelocity);
 
     // Define desired speed
-    let DESIRED_SPEED: f32 = 12.0; // Reduced from 10.0
+    let DESIRED_SPEED: f32 = 8.0; // Reduced from 10.0
 
     // Normalize and scale to desired speed if distance is significant
     if (distance > 1.0) { // Prevent division by zero or negligible movements

@@ -80,8 +80,8 @@ class FlockingExperience extends Experience {
             initialVelocities.push([velX, velY, velZ]);
 
             // Random wing phases
-            const wingPhase = 0;
-            initialPhases.push(wingPhase);
+            // const wingPhase = 0;
+            // initialPhases.push(wingPhase);
         }
 
         // Initialize position and velocity buffers in the pipeline
@@ -132,7 +132,7 @@ class FlockingExperience extends Experience {
         // Update performance scale factor
         // If avgFrameTime > targetFrameTime, scale down (< 1.0)
         // If avgFrameTime < targetFrameTime, scale up (> 1.0), but cap at 1.0 to avoid too fast simulation
-        this.performanceScaleFactor = Math.min(1.0, this.targetFrameTime / Math.max(1.0, avgFrameTime));
+        this.performanceScaleFactor = Math.min(0.5, this.targetFrameTime / Math.max(1.0, avgFrameTime));
 
         // If performance is consistently poor, switch to low performance mode
         if (avgFrameTime > 50.0 && !this.pipeline.lowPerformanceMode) { // 50ms = ~20fps
