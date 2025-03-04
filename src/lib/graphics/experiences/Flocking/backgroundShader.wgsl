@@ -139,7 +139,7 @@ fn digitalNoise(uv: vec2<f32>, t: f32) -> vec3<f32> {
     
     // Only show noise when predator is moving
     let speed = length(predatorVelocity.xy);
-    let intensity = smoothstep(5.0, 20.0, speed) * 0.01;
+    let intensity = smoothstep(5.0, 20.0, speed) * 0.001;
     
     return vec3<f32>(step(0.7, n) * intensity);
 }
@@ -199,7 +199,7 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     
     // Smoother inversions
     let speed = length(predatorVelocity.xy);
-    if (speed > 28.0) {
+    if (speed > 14.0) {
         let inv = smoothstep(0.0, 0.1, fract(time * 0.03)) * 
                  smoothstep(0.1, 0.0, fract(time * 0.03));
         color = mix(color, vec3<f32>(1.0) - color, inv);

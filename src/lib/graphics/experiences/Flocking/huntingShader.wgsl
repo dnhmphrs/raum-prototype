@@ -46,7 +46,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     }
 
     // Define steering factor for smooth acceleration/deceleration
-    let STEERING_FACTOR: f32 = 0.015; // Reduced from 0.025 for smoother movement
+    let STEERING_FACTOR: f32 = 0.005; // Reduced from 0.025 for smoother movement
 
     // Smoothly adjust predator's velocity towards desired velocity
     predatorVelocity = mix(predatorVelocity, desiredVelocity, STEERING_FACTOR);
