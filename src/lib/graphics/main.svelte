@@ -10,6 +10,7 @@
   let engine;
   let currentExperience = 'Bird'; // Default experience
   let showButtons = false; // Variable to control button visibility
+  let showImage = true; // Add this variable to control image visibility
 
   const experiences = {
     Bird: BirdExperience,
@@ -39,9 +40,16 @@
 
 <canvas bind:this={canvas} class="geometry"></canvas>
 
-<div class="music">
+<!-- Image overlay -->
+{#if showImage}
+  <div class="image-overlay">
+    <img src="/notcrowded2.png" alt="Not Crowded" />
+  </div>
+{/if}
+
+<!-- <div class="music">
   <iframe title="music" style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/album=1967289637/size=small/bgcol=333333/linkcol=ffffff/track=2440001588/transparent=true/" seamless><a href="https://masayoshifujita.bandcamp.com/album/bird-ambience">Bird Ambience by Masayoshi Fujita</a></iframe>
-</div>
+</div> -->
 
 <!-- Toggle Visibility Button -->
 <button class="toggle-visibility-button" on:click={toggleButtons}>
@@ -64,11 +72,10 @@
 {/if}
 
 <!-- Add this right before the Predator POV Text -->
-<div class="predator-pov-border"></div>
+<!-- <div class="predator-pov-border"></div>
 <div class="predator-pov">
   Predator POV - periodic target changes
-</div>
-
+</div> -->
 
 <style>
   .geometry {
@@ -157,5 +164,23 @@
     color: white;
     font-size: 12px;
     z-index: 10;
+  }
+
+  .image-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* background-color: #232323ff; */
+    border-radius: 24px; 
+    /* backdrop-filter: blur(1px);   */
+    z-index: 5; /* Between background (z-index: -1) and UI elements (z-index: 10) */
+    pointer-events: none; /* Allow clicks to pass through */
+  }
+  
+  .image-overlay img {
+    max-height: 80vh; /* Full viewport height */
+    width: auto;
+    opacity: 0.9;
   }
 </style>

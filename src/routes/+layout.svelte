@@ -45,13 +45,13 @@
 </script>
 
 <svelte:head>
-	<title>Der logische Aufbau der Web</title>
+	<title>Not Crowded - Flocking Graphic</title>
 	<meta name="description" content="" />
 	<meta name="keywords" content="" />
 	<meta name="author" content="AUFBAU" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-	<!-- <link rel="preload" href="/aufbau.svg" as="image" type="image/svg+xml" crossorigin="anonymous" /> -->
+	<link rel="preload" href="/notcrowded2.png" as="image" type="image/svg+xml" crossorigin="anonymous" />
 
 	<!-- <link
 		rel="preload"

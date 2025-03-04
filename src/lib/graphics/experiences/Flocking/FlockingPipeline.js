@@ -61,13 +61,23 @@ export default class FlockingPipeline extends Pipeline {
         };
 
         this.currentTargetIndex = 0; // Add this line
+
+        this.startTime = performance.now() / 1000;
+        this.timeBuffer = null;
+
+        // Add a performance mode flag to your pipeline
+        this.lowPerformanceMode = true;
+
+        // Create a separate buffer for the performance mode
+        this.performanceModeBuffer = this.device.createBuffer({
+            size: 4, // Single u32
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            label: 'Performance Mode Buffer'
+        });
     }
 
     async initialize() {
-        const format = navigator.gpu.getPreferredCanvasFormat();
-        const { projectionBuffer, viewBuffer } = this.camera.getBuffers();
-
-        // Create buffers for bird phases, positions, and velocities
+        // Create all buffers first
         this.phaseBuffer = this.device.createBuffer({
             size: this.birdCount * Float32Array.BYTES_PER_ELEMENT,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -113,11 +123,20 @@ export default class FlockingPipeline extends Pipeline {
             label: 'Guiding Line Buffer'
         });
 
-        // Initialize Compute Shaders
+        // Create time buffer for background shader
+        this.timeBuffer = this.device.createBuffer({
+            size: 4, // Single f32
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            label: 'Time Buffer'
+        });
+
+        // Initialize compute pipelines
         await this.initializeFlockingComputePipeline();
         await this.initializeHuntingComputePipeline();
 
-        // Initialize Render Shader Pipelines
+        // Initialize render pipelines after all buffers are created
+        const format = navigator.gpu.getPreferredCanvasFormat();
+        const { projectionBuffer, viewBuffer } = this.camera.getBuffers();
         await this.initializeRenderPipelines(format, projectionBuffer, viewBuffer);
 
         // Initialize predator camera projection
@@ -228,6 +247,67 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     async initializeRenderPipelines(format, projectionBuffer, viewBuffer) {
+        // Create background bind group layout first
+        const backgroundBindGroupLayout = this.device.createBindGroupLayout({
+            label: 'Background Bind Group Layout',
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: { type: 'uniform' }
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: { type: 'read-only-storage' }
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: { type: 'uniform' }
+                }
+            ]
+        });
+
+        // Create background pipeline
+        this.backgroundPipeline = await this.device.createRenderPipelineAsync({
+            label: 'Background Pipeline',
+            layout: this.device.createPipelineLayout({
+                bindGroupLayouts: [backgroundBindGroupLayout]
+            }),
+            vertex: {
+                module: this.device.createShaderModule({ code: backgroundShader }),
+                entryPoint: 'vertex_main',
+                buffers: [] // No vertex buffers needed
+            },
+            fragment: {
+                module: this.device.createShaderModule({ code: backgroundShader }),
+                entryPoint: 'fragment_main',
+                targets: [{ format }]
+            },
+            primitive: {
+                topology: 'triangle-list',
+                stripIndexFormat: undefined,
+                frontFace: 'ccw',
+                cullMode: 'none'
+            },
+            depthStencil: {
+                format: 'depth24plus',
+                depthWriteEnabled: false, // Background doesn't write to depth
+                depthCompare: 'always'     // Always pass depth test to render first
+            }
+        });
+
+        // Create background bind group
+        this.backgroundBindGroup = this.device.createBindGroup({
+            layout: backgroundBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.timeBuffer } },
+                { binding: 1, resource: { buffer: this.predatorVelocityBuffer } },
+                { binding: 2, resource: { buffer: this.performanceModeBuffer } }
+            ]
+        });
+
         // Create Bind Group Layout for Birds
         const birdBindGroupLayout = this.device.createBindGroupLayout({
             label: 'Birds Bind Group Layout',
@@ -254,35 +334,36 @@ export default class FlockingPipeline extends Pipeline {
             ]
         });
 
-        // Create Bind Group Layout for Background
-        const backgroundBindGroupLayout = this.device.createBindGroupLayout({
-            label: 'Background Bind Group Layout',
-            entries: [] // No bindings needed as the gradient is fixed
-        });
-
         // -----------------------
         // 1. Create the Bird Render Pipeline
         // -----------------------
-        this.birdPipeline = this.device.createRenderPipeline({
-            label: 'Bird Render Pipeline',
-            layout: this.device.createPipelineLayout({ bindGroupLayouts: [birdBindGroupLayout] }),
+        this.birdPipeline = await this.device.createRenderPipelineAsync({
+            layout: this.device.createPipelineLayout({
+                bindGroupLayouts: [birdBindGroupLayout]
+            }),
             vertex: {
                 module: this.device.createShaderModule({ code: birdShader }),
                 entryPoint: 'vertex_main',
                 buffers: [
                     {
-                        arrayStride: 12, // 3 floats for position
+                        arrayStride: 12,
                         attributes: [
-                            { shaderLocation: 0, offset: 0, format: 'float32x3' }, // vertexPosition
+                            { shaderLocation: 0, offset: 0, format: 'float32x3' }
                         ]
                     }
                 ]
             },
-            
             fragment: {
                 module: this.device.createShaderModule({ code: birdShader }),
                 entryPoint: 'fragment_main',
-                targets: [{ format }]
+                targets: [{
+                    format,
+                    // Remove blend state configuration
+                }]
+            },
+            primitive: {
+                topology: 'triangle-list',
+                cullMode: 'back'
             },
             depthStencil: {
                 format: 'depth24plus',
@@ -400,41 +481,6 @@ export default class FlockingPipeline extends Pipeline {
                 { binding: 2, resource: { buffer: this.guidingLineBuffer } },
             ]
         });
-
-        // -----------------------
-        // 4. Create the Background Render Pipeline
-        // -----------------------
-        this.backgroundPipeline = this.device.createRenderPipeline({
-            label: 'Background Render Pipeline',
-            layout: this.device.createPipelineLayout({ bindGroupLayouts: [backgroundBindGroupLayout] }),
-            vertex: {
-                module: this.device.createShaderModule({ code: backgroundShader }),
-                entryPoint: 'vertex_main',
-                buffers: [] // No vertex buffers needed
-            },
-            fragment: {
-                module: this.device.createShaderModule({ code: backgroundShader }),
-                entryPoint: 'fragment_main',
-                targets: [{ format }]
-            },
-            primitive: {
-                topology: 'triangle-list',
-                stripIndexFormat: undefined,
-                frontFace: 'ccw',
-                cullMode: 'none'
-            },
-            depthStencil: {
-                format: 'depth24plus',
-                depthWriteEnabled: false, // Background doesn't write to depth
-                depthCompare: 'always'     // Always pass depth test to render first
-            }
-        });
-
-        this.backgroundBindGroup = this.device.createBindGroup({
-            layout: backgroundBindGroupLayout,
-            entries: [] // No bindings
-        });
-        
     }
 
     runComputePasses(commandEncoder) {
@@ -455,7 +501,10 @@ export default class FlockingPipeline extends Pipeline {
         huntingPass.end();
     }
 
-    render(commandEncoder, passDescriptor, birds, predator, textureView, depthView) {
+    render(commandEncoder, passDescriptor, birds, predator, textureView, depthView, showPredatorView = false) {
+        // Update time for background shader
+        this.updateTimeBuffer();
+
         // Execute compute passes
         this.runComputePasses(commandEncoder);
 
@@ -549,64 +598,6 @@ export default class FlockingPipeline extends Pipeline {
         passEncoder.draw(2, 1, 0, 0); // Draw two vertices
 
         passEncoder.end();
-
-        // Begin PIP render pass
-        const predatorPassEncoder = commandEncoder.beginRenderPass({
-            colorAttachments: [{
-                view: textureView,
-                loadOp: 'load',
-                storeOp: 'store'
-            }],
-            depthStencilAttachment: {
-                view: depthView,
-                depthLoadOp: 'clear',
-                depthClearValue: 1.0,
-                depthStoreOp: 'store'
-            }
-        });
-
-        // Set viewport for PIP
-        const pipSize = Math.max(Math.min(this.canvasWidth, this.canvasHeight) * 0.4, 300);
-        const padding = 20;
-        const pipX = padding;
-        const pipY = Math.max(padding, this.canvasHeight - pipSize - padding);
-        predatorPassEncoder.setViewport(
-            pipX, pipY,
-            Math.max(1, pipSize),
-            Math.max(1, pipSize),
-            0.0, 1.0
-        );
-
-        // Create bind group with predator camera matrices
-        const predatorBindGroup = this.device.createBindGroup({
-            layout: this.birdPipeline.getBindGroupLayout(0),
-            entries: [
-                { binding: 0, resource: { buffer: this.predatorCamera.projectionBuffer }},
-                { binding: 1, resource: { buffer: this.predatorCamera.viewBuffer }},
-                { binding: 2, resource: { buffer: this.viewportBuffer }},
-                { binding: 3, resource: { buffer: this.positionBuffer }},
-                { binding: 4, resource: { buffer: this.phaseBuffer }},
-                { binding: 5, resource: { buffer: this.mouseBuffer }},
-                { binding: 6, resource: { buffer: this.velocityBuffer }}
-            ]
-        });
-
-        // Render scene from predator's perspective
-        predatorPassEncoder.setPipeline(this.backgroundPipeline);
-        predatorPassEncoder.setBindGroup(0, this.backgroundBindGroup);
-        predatorPassEncoder.draw(3, 1, 0, 0);
-
-        predatorPassEncoder.setPipeline(this.birdPipeline);
-        predatorPassEncoder.setBindGroup(0, predatorBindGroup);
-
-        if (birds.length > 0) {
-            const firstBird = birds[0];
-            predatorPassEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
-            predatorPassEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
-            predatorPassEncoder.drawIndexed(firstBird.getIndexCount(), this.birdCount, 0, 0, 0);
-        }
-
-        predatorPassEncoder.end();
     }
 
     updateFlockingParams() {
@@ -693,5 +684,35 @@ export default class FlockingPipeline extends Pipeline {
         // Update predator camera aspect ratio
         this.predatorCamera.aspect = 1; // Keep it square for the PIP view
         this.predatorCamera.updateProjection();
+    }
+
+    updateTimeBuffer() {
+        // Get current time in seconds
+        const currentTime = performance.now() / 100;
+        
+        // Create multiple time loops with co-prime durations (all prime numbers)
+        const primaryLoopDuration = 157.0;    // Prime number
+        const secondaryLoopDuration = 101.0;  // Different prime number
+        const tertiaryLoopDuration = 73.0;    // Third prime number
+        
+        // Calculate looped times
+        const primaryTime = currentTime % primaryLoopDuration;
+        const secondaryTime = currentTime % secondaryLoopDuration;
+        const tertiaryTime = currentTime % tertiaryLoopDuration;
+        
+        // Combine the three time values with different influences
+        const combinedTime = primaryTime + 
+                             (Math.sin(secondaryTime / secondaryLoopDuration * Math.PI * 2) * 10.0) +
+                             (Math.cos(tertiaryTime / tertiaryLoopDuration * Math.PI * 4) * 5.0);
+        
+        // Write the combined time to the time buffer
+        this.device.queue.writeBuffer(this.timeBuffer, 0, new Float32Array([combinedTime]));
+    }
+
+    // Method to toggle performance mode
+    updatePerformanceMode(lowPerformanceMode) {
+        this.lowPerformanceMode = lowPerformanceMode;
+        const data = new Uint32Array([lowPerformanceMode ? 1 : 0]);
+        this.device.queue.writeBuffer(this.performanceModeBuffer, 0, data);
     }
 }
