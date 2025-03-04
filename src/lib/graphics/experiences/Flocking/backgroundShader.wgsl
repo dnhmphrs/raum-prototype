@@ -31,31 +31,31 @@ fn glitch_effect(uv: vec2<f32>, t: f32) -> vec3<f32> {
     
     // Ethereal spiral patterns
     let spiral = vec2<f32>(
-        sin(length((uv - 0.5) * 12.0) * 8.0 + t * 0.15) * cos(length(uv * 10.0)) +
-        sin(length((uv - 0.5) * 8.0) * 6.0 - t * 0.12) * 0.5,
+        sin(length((uv - 0.5) * 12.0) * 8.0 + t * 0.05) * cos(length(uv * 10.0)) +
+        sin(length((uv - 0.5) * 8.0) * 6.0 - t * 0.04) * 0.5,
         
-        cos(length((uv - 0.5) * 10.0) * 7.0 + t * 0.13) * sin(length(uv * 12.0)) +
-        cos(length((uv - 0.5) * 6.0) * 5.0 - t * 0.11) * 0.5
+        cos(length((uv - 0.5) * 10.0) * 7.0 + t * 0.04) * sin(length(uv * 12.0)) +
+        cos(length((uv - 0.5) * 6.0) * 5.0 - t * 0.03) * 0.5
     );
     
     // Dreamy wave interference
     warpedUV += predDir * (speed * 0.001) * sin(
         dot(uv + spiral * 1.5, perpDir) * 4.0 + 
-        sin(length(uv - 0.5) * 6.0 + t * 0.2) * 2.0
+        sin(length(uv - 0.5) * 6.0 + t * 0.06) * 2.0
     );
     
     warpedUV += perpDir * (speed * 0.0006) * cos(
         dot(uv + spiral * 1.2, predDir) * 3.5 + 
-        cos(length(uv - 0.5) * 5.0 + t * 0.15) * 2.0
+        cos(length(uv - 0.5) * 5.0 + t * 0.05) * 2.0
     );
     
     // Organic swirling patterns
     let swirl = vec2<f32>(
-        sin(dot(uv * 1.5, predDir + perpDir) * 7.0 + cos(length(uv - 0.5) * 6.0) * t * 0.05) +
-        sin(length(uv - 0.5) * 8.0 - t * 0.1) * 0.3,
+        sin(dot(uv * 1.5, predDir + perpDir) * 7.0 + cos(length(uv - 0.5) * 6.0) * t * 0.02) +
+        sin(length(uv - 0.5) * 8.0 - t * 0.03) * 0.3,
         
-        cos(dot(uv * 1.2, predDir - perpDir) * 5.0 + sin(length(uv - 0.5) * 7.0) * t * 0.02) +
-        cos(length(uv - 0.5) * 9.0 + t * 0.08) * 0.3
+        cos(dot(uv * 1.2, predDir - perpDir) * 5.0 + sin(length(uv - 0.5) * 7.0) * t * 0.01) +
+        cos(length(uv - 0.5) * 9.0 + t * 0.02) * 0.3
     );
     
     // Fluid distortions
@@ -191,8 +191,8 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let topColor = vec3<f32>(0.380, 0.451, 0.702);
     
     // Flowing gradient
-    let t = uv.y + sin(uv.x * 2.5 + time * 0.008) * 0.0004 +
-           cos(length(uv - 0.5) * 4.0 + time * 0.005) * 0.0002;
+    let t = uv.y + sin(uv.x * 2.5 + time * 0.002) * 0.0004 +
+           cos(length(uv - 0.5) * 4.0 + time * 0.001) * 0.0002;
     var color = mix(bottomColor, topColor, t);
     
     color += glitch_effect(uv, time);
@@ -200,8 +200,8 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     // Smoother inversions
     let speed = length(predatorVelocity.xy);
     if (speed > 14.0) {
-        let inv = smoothstep(0.0, 0.1, fract(time * 0.03)) * 
-                 smoothstep(0.1, 0.0, fract(time * 0.03));
+        let inv = smoothstep(0.0, 0.1, fract(time * 0.01)) * 
+                 smoothstep(0.1, 0.0, fract(time * 0.01));
         color = mix(color, vec3<f32>(1.0) - color, inv);
     }
     
