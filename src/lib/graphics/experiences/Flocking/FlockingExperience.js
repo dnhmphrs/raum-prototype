@@ -137,7 +137,7 @@ class FlockingExperience extends Experience {
         // If performance is consistently poor, switch to low performance mode
         if (avgFrameTime > 50.0 && !this.pipeline.lowPerformanceMode) { // 50ms = ~20fps
             console.log("Switching to low performance mode");
-            this.pipeline.updatePerformanceMode(true);
+            this.tePerformanceMode(true);
         } else if (avgFrameTime < 30.0 && this.pipeline.lowPerformanceMode) { // 30ms = ~33fps
             // If performance improves, switch back to high quality
             console.log("Switching to high performance mode");
