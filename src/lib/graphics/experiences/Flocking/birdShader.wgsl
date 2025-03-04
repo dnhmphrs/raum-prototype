@@ -75,7 +75,7 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // );
 
     // // Set normal for potential lighting
-    // out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));
+    out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));
 
     return out;
 }

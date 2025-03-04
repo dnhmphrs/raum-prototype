@@ -63,7 +63,7 @@ class FlockingExperience extends Experience {
         const initialPositions = [];
         const initialVelocities = [];
         const initialPhases = [];
-        const bounds = 2500;
+        const bounds = 5000;
         const boundsHalf = bounds / 2;
 
         for (let i = 0; i < this.birdCount; i++) {
