@@ -45,7 +45,7 @@
 </script>
 
 <svelte:head>
-	<title>Der logische Aufbau der Web</title>
+	<title>Not Crowded - Flocking Graphic</title>
 	<meta name="description" content="" />
 	<meta name="keywords" content="" />
 	<meta name="author" content="AUFBAU" />
