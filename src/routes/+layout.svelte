@@ -45,7 +45,7 @@
 </script>
 
 <svelte:head>
-	<title>Not Crowded - Flocking Graphic</title>
+	<title>Not Crowded</title>
 	<meta name="description" content="" />
 	<meta name="keywords" content="" />
 	<meta name="author" content="AUFBAU" />
