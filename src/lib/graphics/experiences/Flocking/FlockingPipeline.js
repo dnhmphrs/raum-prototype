@@ -66,7 +66,7 @@ export default class FlockingPipeline extends Pipeline {
         this.timeBuffer = null;
 
         // Add a performance mode flag to your pipeline
-        this.lowPerformanceMode = false;
+        this.lowPerformanceMode = true;
 
         // Create a separate buffer for the performance mode
         this.performanceModeBuffer = this.device.createBuffer({
@@ -687,8 +687,26 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     updateTimeBuffer() {
-        const currentTime = performance.now() / 100 - this.startTime;
-        this.device.queue.writeBuffer(this.timeBuffer, 0, new Float32Array([currentTime]));
+        // Get current time in seconds
+        const currentTime = performance.now() / 100;
+        
+        // Create multiple time loops with co-prime durations (all prime numbers)
+        const primaryLoopDuration = 157.0;    // Prime number
+        const secondaryLoopDuration = 101.0;  // Different prime number
+        const tertiaryLoopDuration = 73.0;    // Third prime number
+        
+        // Calculate looped times
+        const primaryTime = currentTime % primaryLoopDuration;
+        const secondaryTime = currentTime % secondaryLoopDuration;
+        const tertiaryTime = currentTime % tertiaryLoopDuration;
+        
+        // Combine the three time values with different influences
+        const combinedTime = primaryTime + 
+                             (Math.sin(secondaryTime / secondaryLoopDuration * Math.PI * 2) * 10.0) +
+                             (Math.cos(tertiaryTime / tertiaryLoopDuration * Math.PI * 4) * 5.0);
+        
+        // Write the combined time to the time buffer
+        this.device.queue.writeBuffer(this.timeBuffer, 0, new Float32Array([combinedTime]));
     }
 
     // Method to toggle performance mode

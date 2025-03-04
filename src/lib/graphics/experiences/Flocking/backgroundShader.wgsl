@@ -29,58 +29,80 @@ fn glitch_effect(uv: vec2<f32>, t: f32) -> vec3<f32> {
     let perpDir = vec2<f32>(-predDir.y, predDir.x);
     var warpedUV = uv;
     
-    // Tighter, more chaotic spirals
+    // Ethereal spiral patterns
     let spiral = vec2<f32>(
-        sin(length((uv - 0.5) * 15.0) * 15.0 + t * 0.3) * cos(length(uv * 12.0)),
-        cos(length((uv - 0.5) * 12.0) * 12.0 + t * 0.25) * sin(length(uv * 15.0))
+        sin(length((uv - 0.5) * 12.0) * 8.0 + t * 0.15) * cos(length(uv * 10.0)) +
+        sin(length((uv - 0.5) * 8.0) * 6.0 - t * 0.12) * 0.5,
+        
+        cos(length((uv - 0.5) * 10.0) * 7.0 + t * 0.13) * sin(length(uv * 12.0)) +
+        cos(length((uv - 0.5) * 6.0) * 5.0 - t * 0.11) * 0.5
     );
     
-    // More localized wave patterns
-    warpedUV += predDir * (speed * 0.001) * sin(dot(uv + spiral * 2.0, perpDir) * 5.0 + t * 0.3);
-    warpedUV += perpDir * (speed * 0.0006) * cos(dot(uv + spiral * 1.5, predDir) * 4.5 + t * 0.25);
+    // Dreamy wave interference
+    warpedUV += predDir * (speed * 0.001) * sin(
+        dot(uv + spiral * 1.5, perpDir) * 4.0 + 
+        sin(length(uv - 0.5) * 6.0 + t * 0.2) * 2.0
+    );
     
-    // Chaotic swirling
+    warpedUV += perpDir * (speed * 0.0006) * cos(
+        dot(uv + spiral * 1.2, predDir) * 3.5 + 
+        cos(length(uv - 0.5) * 5.0 + t * 0.15) * 2.0
+    );
+    
+    // Organic swirling patterns
     let swirl = vec2<f32>(
-        sin(dot(uv * 1.5, predDir + perpDir) * 6.0 + cos(length(uv - 0.5) * 8.0) * t * 0.2),
-        cos(dot(uv * 1.2, predDir - perpDir) * 5.0 + sin(length(uv - 0.5) * 10.0) * t * 0.15)
+        sin(dot(uv * 1.5, predDir + perpDir) * 4.0 + cos(length(uv - 0.5) * 6.0) * t * 0.15) +
+        sin(length(uv - 0.5) * 8.0 - t * 0.1) * 0.3,
+        
+        cos(dot(uv * 1.2, predDir - perpDir) * 3.0 + sin(length(uv - 0.5) * 7.0) * t * 0.12) +
+        cos(length(uv - 0.5) * 9.0 + t * 0.08) * 0.3
     );
     
-    // More intense local distortions
+    // Fluid distortions
     let distort = vec2<f32>(
-        sin(swirl.x * 4.0 + spiral.y * 3.0 + t * 0.2) * cos(swirl.y * 3.0),
-        cos(swirl.x * 3.0 + spiral.x * 4.0 - t * 0.15) * sin(swirl.y * 4.0)
-    ) * 0.004 * speed;
+        sin(swirl.x * 3.0 + spiral.y * 2.0 + t * 0.14) * cos(swirl.y * 2.0),
+        cos(swirl.x * 2.0 + spiral.x * 3.0 - t * 0.12) * sin(swirl.y * 3.0)
+    ) * 0.003 * speed;
     
     warpedUV += distort;
     
-    // Tighter flow patterns
+    // Ethereal flow patterns
     let flow = vec3<f32>(
-        sin(dot(warpedUV + spiral * 1.5, predDir) * 8.0 + t * 0.2),
-        sin(dot(warpedUV + swirl * 1.2, perpDir) * 7.0 + t * 0.15),
-        sin(dot(warpedUV + distort * 2.0, predDir + perpDir) * 6.0 + t * 0.18)
+        sin(dot(warpedUV + spiral * 1.2, predDir) * 6.0 + t * 0.15) +
+        sin(length(warpedUV - 0.5) * 5.0 - t * 0.1) * 0.3,
+        
+        sin(dot(warpedUV + swirl * 0.8, perpDir) * 5.0 + t * 0.12) +
+        sin(length(warpedUV - 0.5) * 6.0 + t * 0.08) * 0.3,
+        
+        sin(dot(warpedUV + distort * 1.5, predDir + perpDir) * 4.0 + t * 0.13) +
+        sin(length(warpedUV - 0.5) * 7.0 - t * 0.09) * 0.3
     ) * 0.5 + 0.5;
     
-    // Sharper transitions
+    // Dreamlike transitions
     let glitch = vec3<f32>(
         smoothstep(0.48, 0.52, flow.x),
         smoothstep(0.48, 0.52, flow.y),
         smoothstep(0.48, 0.52, flow.z)
-    ) * min(0.15, speed * 0.005);
+    ) * min(0.06, speed * 0.002);
     
-    // More intense local color separation
-    let shift = speed * 0.0003;
+    // Ethereal color separation
+    let shift = speed * 0.0001;
     let rgb_split = vec3<f32>(
-        sin(dot(warpedUV + shift * predDir + spiral * 0.5, vec2<f32>(flow.x, flow.y)) * 10.0),
-        sin(dot(warpedUV + swirl * 0.3, vec2<f32>(flow.y, flow.z)) * 9.0),
-        sin(dot(warpedUV - shift * predDir - spiral * 0.4, vec2<f32>(flow.z, flow.x)) * 8.0)
-    ) * 0.025;
+        sin(dot(warpedUV + shift * predDir + spiral * 0.4, vec2<f32>(flow.x, flow.y)) * 7.0 +
+            sin(length(warpedUV - 0.5) * 4.0) * 2.0),
+        sin(dot(warpedUV + swirl * 0.3, vec2<f32>(flow.y, flow.z)) * 6.0 +
+            sin(length(warpedUV - 0.5) * 5.0) * 2.0),
+        sin(dot(warpedUV - shift * predDir - spiral * 0.3, vec2<f32>(flow.z, flow.x)) * 5.0 +
+            sin(length(warpedUV - 0.5) * 6.0) * 2.0)
+    ) * 0.01;
     
-    // More chaotic warm accents
+    // Dreamy warm accents
     let warmth = smoothstep(0.45, 0.55, 
-        sin(length(warpedUV - 0.5) * 12.0 + spiral.x * 4.0 + t * 0.15) * 
-        cos(dot(normalize(uv - 0.5), predDir + swirl * 0.3) * 6.0)
+        sin(length(warpedUV - 0.5) * 8.0 + spiral.x * 3.0 + t * 0.1) * 
+        cos(dot(normalize(uv - 0.5), predDir + swirl * 0.2) * 4.0) +
+        sin(length(warpedUV - 0.5) * 6.0 - t * 0.08) * 0.3
     );
-    let burst = warmth * vec3<f32>(1.0, 0.5, 0.2) * 0.18 * min(1.0, speed * 0.06);
+    let burst = warmth * vec3<f32>(1.0, 0.5, 0.2) * 0.08 * min(1.0, speed * 0.03);
     
     return glitch + rgb_split + burst;
 }
@@ -165,8 +187,8 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let uv = (fragPos + 1.0) * 0.5;
     
     // Smoother gradient base
-    let bottomColor = vec3<f32>(0.07, 0.07, 0.07);
-    let topColor = vec3<f32>(0.25, 0.25, 0.25);
+    let bottomColor = vec3<f32>(0.878, 0.914, 0.980);
+    let topColor = vec3<f32>(0.380, 0.451, 0.702);
     
     // Flowing gradient
     let t = uv.y + sin(uv.x * 2.5 + time * 0.08) * 0.04 +
