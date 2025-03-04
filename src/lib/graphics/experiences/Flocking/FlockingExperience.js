@@ -18,7 +18,7 @@ class FlockingExperience extends Experience {
         this.frameTimes = [];
         this.maxFrameHistory = 60; // Track last 60 frames for averaging
         this.performanceScaleFactor = 1.0; // Initial scale factor
-        this.targetFrameTime = 32.0; // Target ~60fps (in ms)
+        this.targetFrameTime = 4.0; // Target ~60fps (in ms)
 
         // Timer variables
         this.targetChangeInterval = 10000; // 10 seconds in milliseconds

@@ -51,10 +51,10 @@ fn glitch_effect(uv: vec2<f32>, t: f32) -> vec3<f32> {
     
     // Organic swirling patterns
     let swirl = vec2<f32>(
-        sin(dot(uv * 1.5, predDir + perpDir) * 13.0 + cos(length(uv - 0.5) * 6.0) * t * 0.05) +
+        sin(dot(uv * 1.5, predDir + perpDir) * 7.0 + cos(length(uv - 0.5) * 6.0) * t * 0.05) +
         sin(length(uv - 0.5) * 8.0 - t * 0.1) * 0.3,
         
-        cos(dot(uv * 1.2, predDir - perpDir) * 17.0 + sin(length(uv - 0.5) * 7.0) * t * 0.02) +
+        cos(dot(uv * 1.2, predDir - perpDir) * 5.0 + sin(length(uv - 0.5) * 7.0) * t * 0.02) +
         cos(length(uv - 0.5) * 9.0 + t * 0.08) * 0.3
     );
     
@@ -125,12 +125,12 @@ fn scanlines(uv: vec2<f32>, t: f32) -> vec3<f32> {
 // Digital noise
 fn digitalNoise(uv: vec2<f32>, t: f32) -> vec3<f32> {
     // Reduce resolution for performance
-    let pixelSize = 16.0;
+    let pixelSize = 4.0;
     let quantizedUV = floor(uv * pixelSize) / pixelSize;
     
     // Create hash seeds
-    let x = u32(quantizedUV.x * 1024.0);
-    let y = u32(quantizedUV.y * 1024.0);
+    let x = u32(quantizedUV.x * 248.0);
+    let y = u32(quantizedUV.y * 248.0);
     let time_seed = u32(t * 3.0);
     
     // Generate noise
@@ -139,7 +139,7 @@ fn digitalNoise(uv: vec2<f32>, t: f32) -> vec3<f32> {
     
     // Only show noise when predator is moving
     let speed = length(predatorVelocity.xy);
-    let intensity = smoothstep(5.0, 20.0, speed) * 0.001;
+    let intensity = smoothstep(3.0, 6.0, speed) * 0.001;
     
     return vec3<f32>(step(0.7, n) * intensity);
 }
@@ -191,8 +191,8 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let topColor = vec3<f32>(0.380, 0.451, 0.702);
     
     // Flowing gradient
-    let t = uv.y + sin(uv.x * 2.5 + time * 0.008) * 0.004 +
-           cos(length(uv - 0.5) * 4.0 + time * 0.005) * 0.002;
+    let t = uv.y + sin(uv.x * 2.5 + time * 0.008) * 0.0004 +
+           cos(length(uv - 0.5) * 4.0 + time * 0.005) * 0.0002;
     var color = mix(bottomColor, topColor, t);
     
     color += glitch_effect(uv, time);
