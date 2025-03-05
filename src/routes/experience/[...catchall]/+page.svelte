@@ -3,16 +3,6 @@
   import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
   import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
-</script>
-
-<div class="error-container">
-  <h2>Experience Not Found</h2>
-  <p>The experience "{$page.params.catchall}" doesn't exist or is not available.</p>
-  <a href="/">Return to Home</a>
-</div>
-
-
-<script>
   export let data;
   
   let canvas;
@@ -69,6 +59,12 @@
 <svelte:head>
   <title>{data.experience} Experience</title>
 </svelte:head>
+
+<div class="error-container">
+  <h2>Experience Not Found</h2>
+  <p>The experience "{$page.params.catchall}" doesn't exist or is not available.</p>
+  <a href="/">Return to Home</a>
+</div>
 
 {#if !data.experience}
   <div class="error-container">
