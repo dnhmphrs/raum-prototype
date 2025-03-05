@@ -95,7 +95,7 @@
     top: 20px;
     left: 20px;
     padding: 8px 16px;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.7);
     color: white;
     text-decoration: none;
     border-radius: 4px;
@@ -105,6 +105,6 @@
   }
   
   .back-button:hover {
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.9);
   }
 </style> 

@@ -45,14 +45,6 @@
 			return;
 		}
 		
-		// Initialize the engine with the canvas
-		engine = new Engine(canvas);
-		
-		// Start the Cube experience with camera config
-		await engine.start(CubeExperience, getCameraConfig('Cube'));
-		
-		mounted = true;
-
 		// Only load graphics component when needed
 		if (shouldLoadGraphics) {
 			const module = await import('$lib/graphics/main.svelte');
