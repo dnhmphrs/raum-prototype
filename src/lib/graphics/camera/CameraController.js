@@ -2,13 +2,13 @@
 import { vec3 } from 'gl-matrix';
 
 export default class CameraController {
-	constructor(camera, target = vec3.fromValues(0, 0, 0)) {
+	constructor(camera, target = vec3.fromValues(0, 0, 0), config = {}) {
 		this.camera = camera;
 		this.target = target;
 		this.theta = Math.PI / 2;
 		this.phi = Math.PI / 4;
 		this.currentZoom = 1.0;
-		this.baseDistance = 4000.0; // Base distance from target
+		this.baseDistance = config.baseDistance || 4000.0; // Base distance from target, configurable
 		this.distance = this.baseDistance; // Initial distance set by zoom
 
 		this.isDragging = false;
@@ -76,3 +76,27 @@ export default class CameraController {
 		this.camera.updateAspect(width, height);
 	}
 }
+
+// Camera configurations for each experience
+const cameraConfigs = {
+	Bird: {
+		position: { x: 0, y: 0, z: 30 },
+		fov: 40 * (Math.PI / 180),
+		baseDistance: 50
+	},
+	Cube: {
+		position: { x: 0, y: 0, z: 5 },
+		fov: 60 * (Math.PI / 180),
+		baseDistance: 10
+	},
+	NeuralNet: {
+		position: { x: 0, y: 0, z: 15 },
+		fov: 45 * (Math.PI / 180),
+		baseDistance: 30
+	},
+	Poincare: {
+		position: { x: 0, y: 0, z: 10 },
+		fov: 50 * (Math.PI / 180),
+		baseDistance: 20
+	}
+};

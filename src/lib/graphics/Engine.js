@@ -3,6 +3,7 @@ import Camera from './camera/Camera';
 import CameraController from './camera/CameraController';
 import InteractionManager from './core/InteractionManager';
 import ResourceManager from './core/ResourceManager';
+import { vec3 } from 'gl-matrix';
 
 class Engine {
 	constructor(canvas) {
@@ -18,15 +19,15 @@ class Engine {
 		this.animationFrameId = null;
 	}
 
-	async start(SceneClass) {
+	async start(SceneClass, cameraConfig = {}) {
 		// Reinitialize WebGPU context
 		const { device, context } = await initializeWebGPU(this.canvas);
 		this.device = device;
 		this.context = context;
 
-		// Initialize Camera and Controller
-		this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight);
-		this.cameraController = new CameraController(this.camera);
+		// Initialize Camera and Controller with config
+		this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight, cameraConfig);
+		this.cameraController = new CameraController(this.camera, vec3.fromValues(0, 0, 0), cameraConfig);
 
 		// Initialize Shared Resource Manager
 		this.resourceManager = new ResourceManager(this.device, this.camera);

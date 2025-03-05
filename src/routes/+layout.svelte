@@ -8,9 +8,13 @@
 	import { onMount } from 'svelte';
 	import { screenType, isIframe, screenSize } from '$lib/store/store';
 	import { getDeviceType, getScreenSize } from '$lib/functions/utils';
+	import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
 
 	export let data;
 	let Geometry;
+	let canvas;
+	let engine;
+	let mounted = false;
 
 	$: if (browser && data?.analyticsId) {
 		webVitals({
@@ -36,6 +40,19 @@
 	$: shouldLoadGraphics = currentPath === '/experience/flocking';
 
 	onMount(async () => {
+		if (!navigator.gpu) {
+			alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
+			return;
+		}
+		
+		// Initialize the engine with the canvas
+		engine = new Engine(canvas);
+		
+		// Start the Cube experience with camera config
+		await engine.start(CubeExperience, getCameraConfig('Cube'));
+		
+		mounted = true;
+
 		// Only load graphics component when needed
 		if (shouldLoadGraphics) {
 			const module = await import('$lib/graphics/main.svelte');
@@ -52,7 +69,7 @@
 </script>
 
 <svelte:head>
-	<title>Not Crowded</title>
+	<title>AUFBAU // WEBGPU</title>
 	<meta name="description" content="" />
 	<meta name="keywords" content="" />
 	<meta name="author" content="AUFBAU" />

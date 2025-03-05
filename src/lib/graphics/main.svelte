@@ -5,18 +5,19 @@
   import CubeExperience from './experiences/Cube/CubeExperience.js';
   import NeuralNetExperience from './experiences/NeuralNet/NeuralNetExperience.js';
   import PoincareExperience from './experiences/Poincare/PoincareExperience.js';
+  import { getCameraConfig } from './config/cameraConfigs.js';
 
   let canvas;
   let engine;
   let currentExperience = 'Bird'; // Default experience
-  let showButtons = false; // Variable to control button visibility
-  let showImage = true; // Add this variable to control image visibility
+  let showButtons = false;
+  let showImage = true;
 
   const experiences = {
-    Bird: BirdExperience,
-    Cube: CubeExperience,
-    NeuralNet: NeuralNetExperience,
-    Poincare: PoincareExperience,
+    Bird: { class: BirdExperience, configKey: 'Flocking' },
+    Cube: { class: CubeExperience, configKey: 'Cube' },
+    NeuralNet: { class: NeuralNetExperience, configKey: 'NeuralNet' },
+    Poincare: { class: PoincareExperience, configKey: 'Poincare' },
   };
 
   const startExperience = async (experienceName) => {
@@ -24,9 +25,10 @@
     if (engine) {
       engine.cleanup();
     }
-    const Experience = experiences[experienceName];
+    const experience = experiences[experienceName];
+    const config = getCameraConfig(experience.configKey);
     engine = new Engine(canvas);
-    await engine.start(Experience);
+    await engine.start(experience.class, config);
   };
 
   onMount(() => {
@@ -128,7 +130,6 @@
     font-weight: bold;
   }
 
-  /* Styles for the Toggle Visibility Button */
   .toggle-visibility-button {
     min-width: 150px;
     min-height: 35px;
@@ -145,7 +146,6 @@
     font-size: 14px;
   }
 
-  /* Add this to your styles */
   .predator-pov-border {
     position: absolute;
     bottom: 10px;  /* matches padding */
@@ -171,15 +171,13 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    /* background-color: #232323ff; */
-    border-radius: 24px; 
-    /* backdrop-filter: blur(1px);   */
-    z-index: 5; /* Between background (z-index: -1) and UI elements (z-index: 10) */
-    pointer-events: none; /* Allow clicks to pass through */
+    border-radius: 24px;
+    z-index: 5;
+    pointer-events: none;
   }
   
   .image-overlay img {
-    max-height: 80vh; /* Full viewport height */
+    max-height: 80vh;
     width: auto;
     opacity: 0.9;
   }

@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
   import PoincareExperience from '$lib/graphics/experiences/Poincare/PoincareExperience.js';
+  import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   let canvas;
   let engine;
@@ -17,8 +18,8 @@
       // Initialize the engine with the canvas
       engine = new Engine(canvas);
       
-      // Start the Poincare experience
-      await engine.start(PoincareExperience);
+      // Start the Poincare experience with camera config
+      await engine.start(PoincareExperience, getCameraConfig('Poincare'));
       
       mounted = true;
       

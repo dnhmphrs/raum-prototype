@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
   import FlockingExperience from '$lib/graphics/experiences/Flocking/FlockingExperience.js';
+  import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   let canvas;
   let engine;
@@ -17,8 +18,8 @@
     // Initialize the engine with the canvas
     engine = new Engine(canvas);
     
-    // Start the Flocking experience
-    await engine.start(FlockingExperience);
+    // Start the Flocking experience with camera config
+    await engine.start(FlockingExperience, getCameraConfig('Flocking'));
     
     mounted = true;
     

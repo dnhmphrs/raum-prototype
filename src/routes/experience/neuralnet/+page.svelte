@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
   import NeuralNetExperience from '$lib/graphics/experiences/NeuralNet/NeuralNetExperience.js';
+  import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   let canvas;
   let engine;
@@ -16,8 +17,8 @@
     // Initialize the engine with the canvas
     engine = new Engine(canvas);
     
-    // Start the Neural Network experience
-    await engine.start(NeuralNetExperience);
+    // Start the Neural Network experience with camera config
+    await engine.start(NeuralNetExperience, getCameraConfig('NeuralNet'));
     
     mounted = true;
     

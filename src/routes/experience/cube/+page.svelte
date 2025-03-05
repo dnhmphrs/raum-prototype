@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
   import CubeExperience from '$lib/graphics/experiences/Cube/CubeExperience.js';
+  import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   let canvas;
   let engine;
@@ -16,8 +17,8 @@
     // Initialize the engine with the canvas
     engine = new Engine(canvas);
     
-    // Start the Cube experience
-    await engine.start(CubeExperience);
+    // Start the Cube experience with camera config
+    await engine.start(CubeExperience, getCameraConfig('Cube'));
     
     mounted = true;
     
