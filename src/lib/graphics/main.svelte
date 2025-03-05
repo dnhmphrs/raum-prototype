@@ -69,12 +69,6 @@
   </div>
 {/if}
 
-<!-- Add this right before the Predator POV Text -->
-<!-- <div class="predator-pov-border"></div>
-<div class="predator-pov">
-  Predator POV - periodic target changes
-</div> -->
-
 <style>
   .geometry {
     position: fixed;
@@ -90,7 +84,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 10;
+    border-radius: 24px;
+    z-index: 5;
     pointer-events: none;
   }
   
@@ -101,16 +96,19 @@
   }
   
   .toggle-visibility-button {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 8px 16px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
+    min-width: 150px;
+    min-height: 35px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    padding: 10px 20px;
+    background-color: transparent;
+    color: #d0d0d0;
     border: none;
-    border-radius: 4px;
+    border-radius: 5px;
     cursor: pointer;
-    z-index: 100;
+    font-size: 14px;
   }
   
   /* Remove unused music selector */
@@ -141,25 +139,5 @@
   .toggle-button.active {
     border-color: #d0d0d0;
     font-weight: bold;
-  }
-
-  .predator-pov-border {
-    position: absolute;
-    bottom: 10px;  /* matches padding */
-    left: 10px;    /* matches padding */
-    width: min(40vmin, 411.5px);   /* 40% of viewport min dimension */
-    height: min(40vmin, 411.5px);  /* same as width */
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    z-index: 9;
-    pointer-events: none;
-  }
-
-  .predator-pov {
-    position: absolute;
-    bottom: 315px; /* Moved above the border - adjust as needed */
-    left: 20px;
-    color: white;
-    font-size: 12px;
-    z-index: 10;
   }
 </style>
