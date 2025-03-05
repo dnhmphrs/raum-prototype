@@ -49,13 +49,9 @@
   </div>
 {/if}
 
-<!-- <div class="music">
-  <iframe title="music" style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/album=1967289637/size=small/bgcol=333333/linkcol=ffffff/track=2440001588/transparent=true/" seamless><a href="https://masayoshifujita.bandcamp.com/album/bird-ambience">Bird Ambience by Masayoshi Fujita</a></iframe>
-</div> -->
-
 <!-- Toggle Visibility Button -->
 <button class="toggle-visibility-button" on:click={toggleButtons}>
-  {#if showButtons}Hide Buttons{:else}{/if}
+  {#if showButtons}Hide Buttons{:else}Show Buttons{/if}
 </button>
 
 <!-- Experience Buttons -->
@@ -81,25 +77,43 @@
 
 <style>
   .geometry {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    display: block;
-    padding: 0;
-    margin: 0;
-    border: none;
     z-index: -1;
   }
-
-  /* Remove the unused .music selector or uncomment the music div above */
-  /* .music {
+  
+  .image-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    pointer-events: none;
+  }
+  
+  .image-overlay img {
+    max-height: 80vh;
+    max-width: 90vw;
+    opacity: 0.8;
+  }
+  
+  .toggle-visibility-button {
     position: fixed;
-    bottom: 10px;
-    left: 10px;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
     z-index: 100;
-  } */
+  }
+  
+  /* Remove unused music selector */
 
   .button-container {
     position: absolute;
@@ -129,22 +143,6 @@
     font-weight: bold;
   }
 
-  .toggle-visibility-button {
-    min-width: 150px;
-    min-height: 35px;
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 10;
-    padding: 10px 20px;
-    background-color: transparent;
-    color: #d0d0d0;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-
   .predator-pov-border {
     position: absolute;
     bottom: 10px;  /* matches padding */
@@ -163,21 +161,5 @@
     color: white;
     font-size: 12px;
     z-index: 10;
-  }
-
-  .image-overlay {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 24px;
-    z-index: 5;
-    pointer-events: none;
-  }
-  
-  .image-overlay img {
-    max-height: 80vh;
-    width: auto;
-    opacity: 0.9;
   }
 </style>

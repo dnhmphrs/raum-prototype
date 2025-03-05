@@ -8,6 +8,7 @@
   let engine;
   let mounted = false;
   let imageLoaded = false;
+  let showImage = false; // Control whether to show the image
   
   onMount(async () => {
     if (!navigator.gpu) {
@@ -38,6 +39,7 @@
     img.src = "https://raum-prototype-git-not-crowded-aufbau.vercel.app/notcrowded2.png";
     img.onload = () => {
       imageLoaded = true;
+      showImage = true; // Show image after loading
       console.log("Image loaded successfully");
     };
     img.onerror = (e) => {
@@ -63,6 +65,10 @@
   <title>Flocking Simulation</title>
 </svelte:head>
 
+<!-- <div class="music">
+  <iframe title="music" style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/album=1967289637/size=small/bgcol=333333/linkcol=ffffff/track=2440001588/transparent=true/" seamless><a href="https://masayoshifujita.bandcamp.com/album/bird-ambience">Bird Ambience by Masayoshi Fujita</a></iframe>
+</div> -->
+
 <div class="experience-container">
   <canvas bind:this={canvas}></canvas>
   
@@ -72,7 +78,7 @@
     </div>
   {/if}
   
-  {#if imageLoaded}
+  {#if showImage && imageLoaded}
     <div class="image-overlay">
       <img src="https://raum-prototype-git-not-crowded-aufbau.vercel.app/notcrowded2.png" alt="Not Crowded" />
     </div>
