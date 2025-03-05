@@ -93,14 +93,13 @@
     z-index: -1;
   }
 
-  .music {
-    position: absolute;
-    padding: 0;
-    margin: 0;
-    border: none;
-    z-index: 10;
-    overflow: hidden;
-  }
+  /* Remove the unused .music selector or uncomment the music div above */
+  /* .music {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    z-index: 100;
+  } */
 
   .button-container {
     position: absolute;

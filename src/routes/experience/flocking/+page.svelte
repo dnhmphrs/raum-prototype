@@ -72,9 +72,11 @@
     </div>
   {/if}
   
-  <!-- <div class="image-overlay">
-    <img src="https://raum-prototype-git-not-crowded-aufbau.vercel.app/notcrowded2.png" alt="Not Crowded" crossorigin="anonymous" />
-  </div> -->
+  {#if imageLoaded}
+    <div class="image-overlay">
+      <img src="https://raum-prototype-git-not-crowded-aufbau.vercel.app/notcrowded2.png" alt="Not Crowded" />
+    </div>
+  {/if}
   
   <a href="/" class="back-button">Back to Home</a>
 </div>
