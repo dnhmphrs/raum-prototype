@@ -1,6 +1,6 @@
 <script>
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
   import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
 </script>
@@ -11,31 +11,6 @@
   <a href="/">Return to Home</a>
 </div>
 
-<style>
-  .error-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    text-align: center;
-    padding: 2rem;
-  }
-  
-  a {
-    margin-top: 2rem;
-    padding: 0.75rem 1.5rem;
-    background-color: #4a5568;
-    color: white;
-    text-decoration: none;
-    border-radius: 0.25rem;
-    transition: background-color 0.2s;
-  }
-  
-  a:hover {
-    background-color: #2d3748;
-  }
-</style>
 
 <script>
   export let data;
@@ -95,19 +70,51 @@
   <title>{data.experience} Experience</title>
 </svelte:head>
 
-<div class="experience-container">
-  <canvas bind:this={canvas}></canvas>
-  
-  {#if !mounted}
-    <div class="loading">
-      <p>Loading {data.experience} Experience...</p>
-    </div>
-  {/if}
-  
-  <a href="/" class="back-button">Back to Home</a>
-</div>
+{#if !data.experience}
+  <div class="error-container">
+    <h2>Experience Not Found</h2>
+    <p>The experience "{$page.params.catchall}" doesn't exist or is not available.</p>
+    <a href="/">Return to Home</a>
+  </div>
+{:else}
+  <div class="experience-container">
+    <canvas bind:this={canvas}></canvas>
+    
+    {#if !mounted}
+      <div class="loading">
+        <p>Loading {data.experience} Experience...</p>
+      </div>
+    {/if}
+    
+    <a href="/" class="back-button">Back to Home</a>
+  </div>
+{/if}
 
 <style>
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    text-align: center;
+    padding: 2rem;
+  }
+  
+  .error-container a {
+    margin-top: 2rem;
+    padding: 0.75rem 1.5rem;
+    background-color: #4a5568;
+    color: white;
+    text-decoration: none;
+    border-radius: 0.25rem;
+    transition: background-color 0.2s;
+  }
+  
+  .error-container a:hover {
+    background-color: #2d3748;
+  }
+
   .experience-container {
     width: 100%;
     height: 100vh;
