@@ -4,7 +4,7 @@
   import BirdExperience from './experiences/Flocking/FlockingExperience.js';
   import CubeExperience from './experiences/Cube/CubeExperience.js';
   import NeuralNetExperience from './experiences/NeuralNet/NeuralNetExperience.js';
-  import PoincaréExperience from './experiences/Poincaré/PoincaréExperience.js';
+  import PoincareExperience from './experiences/Poincare/PoincareExperience.js';
 
   let canvas;
   let engine;
@@ -16,7 +16,7 @@
     Bird: BirdExperience,
     Cube: CubeExperience,
     NeuralNet: NeuralNetExperience,
-    Poincaré: PoincaréExperience,
+    Poincare: PoincareExperience,
   };
 
   const startExperience = async (experienceName) => {

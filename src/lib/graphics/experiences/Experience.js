@@ -13,6 +13,14 @@ class Experience {
 	addPipeline(pipeline) {
 		this.pipelines.push(pipeline);
 	}
+
+	cleanup() {
+		// Clean up any resources specific to this experience
+		this.objects = [];
+		
+		// Any additional cleanup specific to the experience
+		// ...
+	}
 }
 
 export default Experience;

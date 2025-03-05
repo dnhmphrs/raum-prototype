@@ -14,6 +14,8 @@ class Engine {
 		this.camera = null;
 		this.cameraController = null;
 		this.interactionManager = null;
+		this.currentExperience = null;
+		this.animationFrameId = null;
 	}
 
 	async start(SceneClass) {
@@ -59,22 +61,21 @@ class Engine {
 	}
 
 	cleanup() {
-		// Cancel the rendering loop
-		if (this.frameId) {
-			cancelAnimationFrame(this.frameId);
-			this.frameId = null;
+		if (this.currentExperience) {
+			this.currentExperience.cleanup();
+			this.currentExperience = null;
 		}
-
-		// Cleanup scene
-		if (this.scene && this.scene.cleanup) {
-			this.scene.cleanup();
-		}
-
-		// Cleanup resource manager
-		if (this.resourceManager && this.resourceManager.cleanup) {
+		
+		if (this.resourceManager) {
 			this.resourceManager.cleanup();
 		}
-
+		
+		// Stop animation frame if it's running
+		if (this.animationFrameId) {
+			cancelAnimationFrame(this.animationFrameId);
+			this.animationFrameId = null;
+		}
+		
 		// Cleanup interaction manager
 		if (this.interactionManager && this.interactionManager.destroy) {
 			this.interactionManager.destroy();
@@ -104,7 +105,7 @@ class Engine {
 		this.device.queue.submit([commandEncoder.finish()]);
 
 		// Schedule next frame
-		this.frameId = requestAnimationFrame(() => this.render());
+		this.animationFrameId = requestAnimationFrame(() => this.render());
 	}
 }
 

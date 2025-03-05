@@ -29,11 +29,18 @@
 		isIframe.set(window.location !== window.parent.location);
 	}
 
+	// Get the current path
+	$: currentPath = $page.url.pathname;
+	
+	// Only load the main graphics on the flocking experience
+	$: shouldLoadGraphics = currentPath === '/experience/flocking';
+
 	onMount(async () => {
-		// webgl
-		// const module = await import('$lib/graphics-webgl/webgl.svelte');
-		const module = await import('$lib/graphics/main.svelte');
-		Geometry = module.default;
+		// Only load graphics component when needed
+		if (shouldLoadGraphics) {
+			const module = await import('$lib/graphics/main.svelte');
+			Geometry = module.default;
+		}
 
 		handleScreen();
 		window.addEventListener('resize', () => handleScreen());
@@ -51,7 +58,7 @@
 	<meta name="author" content="AUFBAU" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-	<link rel="preload" href="/notcrowded2.png" as="image" type="image/png" crossorigin="anonymous" />
+	<link rel="preload" href="https://raum-prototype-git-not-crowded-aufbau.vercel.app/notcrowded2.png" as="image" type="image/png" crossorigin="anonymous" />
 
 	<!-- <link
 		rel="preload"
@@ -80,49 +87,20 @@
 	<link rel="preload" href="/notcrowded2.png" as="image" type="image/png" fetchpriority="high" />
 </svelte:head>
 
-{#if Geometry}
-	<svelte:component this={Geometry} />
-{:else}
-	<div class="loading">loading.</div>
-{/if}
-
 <div class="app">
 	<main>
 		<slot />
 	</main>
+	
+	{#if shouldLoadGraphics}
+		<svelte:component this={Geometry} />
+	{/if}
 </div>
 
 <style>
 	.app {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		height: 100dvh;
-		max-height: 100vh;
-		width: 100%;
-		overflow: hidden;
-	}
-
-	.loading {
-		position: absolute;
-		font-style: italic;
-		font-family: serif;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		padding: 10px;
-		font-size: 12px;
-	}
-
-	main {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
 		width: 100%;
 		height: 100%;
+		position: relative;
 	}
 </style>
