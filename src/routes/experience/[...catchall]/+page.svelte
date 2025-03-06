@@ -100,7 +100,7 @@
   .error-container a {
     margin-top: 2rem;
     padding: 0.75rem 1.5rem;
-    background-color: #4a5568;
+    background-color: #ffffff;
     color: white;
     text-decoration: none;
     border-radius: 0.25rem;
