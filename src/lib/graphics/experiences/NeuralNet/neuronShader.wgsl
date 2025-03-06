@@ -31,7 +31,7 @@ fn vertex_main_neuron(
 @fragment
 fn fragment_main_neuron(@location(0) activity: f32) -> @location(0) vec4<f32> {
     let inactiveColor = vec4<f32>(0.8, 0.2, 0.2, 0.1); // Default color
-    let activeColor = vec4<f32>(1.0, 0.5, 0.0, 0.8); // Flashing color
+    let activeColor = vec4<f32>(1.0, 0.5, 0.0, 1.0); // Flashing color
     let baseColor = mix(inactiveColor, activeColor, activity);
     return baseColor;
 }
@@ -50,7 +50,7 @@ fn vertex_main_dendrite(
 // Fragment shader for dendrites
 @fragment
 fn fragment_main_dendrite() -> @location(0) vec4<f32> {
-    let baseColor = vec4<f32>(0.8, 0.2, 0.2, 0.1075); // Color for dendrites
+    let baseColor = vec4<f32>(0.8, 0.2, 0.2, 0.36); // Color for dendrites
     return baseColor;
 }
 

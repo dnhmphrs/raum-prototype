@@ -35,7 +35,7 @@ class NeuralNetExperience extends Experience {
 
 		// Generate random connections (~10 per neuron)
 		this.connections = Array.from({ length: this.neuronCount }, (_, i) =>
-			Array.from({ length: 5 }, () => ({
+			Array.from({ length: 2 }, () => ({
 				source: i,
 				target: Math.floor(Math.random() * this.neuronCount)
 			}))
