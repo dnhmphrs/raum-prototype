@@ -16,6 +16,26 @@
 	font-weight: 500;
 }
 
+@font-face {
+	font-family: nb-television-3d;
+	src: url(/fonts/NB-Television-Pro-Mono-3D.woff) format('woff2');
+	font-weight: 400;
+}
+
+@font-face {
+	font-family: nb-television;
+	src: url(/fonts/NB-Television-Pro-Mono.woff) format('woff2');
+	font-weight: 400;
+}
+
+@font-face {
+	font-family: martina-plantijn;
+	src: url(/fonts/test-martina-plantijn-black.woff2) format('woff2');
+	font-weight: 400;
+}
+
+
+
 /* @font-face {
 	font-family: untitled-serif;
 	src: url(/fonts/test-untitled-serif-regular.woff2) format('woff2');

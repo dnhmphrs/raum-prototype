@@ -2,8 +2,9 @@
 @import '$lib/styles/fonts.css';
 
 :root {
-	--font-header: dahlia, serif;
+	--font-header: nb-television, serif;
 	--font-body: nb-architekt, serif;
+	--font-funny: nb-television-3d, serif;
 	--column-width: 42rem;
 	--margin: 20px;
 
