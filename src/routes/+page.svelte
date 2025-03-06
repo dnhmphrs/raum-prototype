@@ -132,7 +132,7 @@
   </main>
   
   <footer>
-    <div class="footer-text">© 2023 WEBGPU EXPERIMENTS // SYSTEM V1.0</div>
+    <div class="footer-text">2025 AUFBAU WEBGPU EXPERIMENTS // SYSTEM V1.0</div>
   </footer>
 </div>
 
