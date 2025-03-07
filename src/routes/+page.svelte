@@ -20,35 +20,35 @@
       id: 'flocking',
       name: 'FLOCKING',
       description: 'Bird flocking behavior simulation using WebGPU',
-      thumbnail: '/thumbnails/flocking.jpg',
+      thumbnail: '/placeholder.png',
       color: '#00ff00'
     },
     {
       id: 'cube',
       name: 'CUBE',
       description: 'Interactive 3D cube visualization',
-      thumbnail: '/thumbnails/cube.jpg',
+      thumbnail: '/placeholder.png',
       color: '#ff0000'
     },
     {
       id: 'neuralnet',
       name: 'NEURAL NET',
       description: 'Visual neural network simulation',
-      thumbnail: '/thumbnails/neural-net.jpg',
+      thumbnail: '/placeholder.png',
       color: '#0000ff'
     },
     {
       id: 'poincare',
       name: 'POINCARE',
       description: 'Hyperbolic geometry visualization',
-      thumbnail: '/thumbnails/poincare.jpg',
+      thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
     {
       id: 'lorentz',
       name: 'LORENTZ',
       description: 'Lorentz attractor visualization',
-      thumbnail: '/thumbnails/lorentz.jpg',
+      thumbnail: '/placeholder.png',
       color: '#00ffff'
     }
   ];

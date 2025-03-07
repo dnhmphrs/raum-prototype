@@ -96,17 +96,49 @@ class Engine {
 	}
 
 	render() {
-		const commandEncoder = this.device.createCommandEncoder();
-		const textureView = this.context.getCurrentTexture().createView();
+		try {
+			const commandEncoder = this.device.createCommandEncoder();
+			const textureView = this.context.getCurrentTexture().createView();
+			
+			// Log texture dimensions
+			const texture = this.context.getCurrentTexture();
+			console.log(`Rendering to texture: ${texture.width}x${texture.height}`);
+			
+			// Render scene
+			this.scene.render(commandEncoder, textureView);
+			
+			// Submit commands to GPU queue
+			this.device.queue.submit([commandEncoder.finish()]);
+			
+			// Schedule next frame
+			this.animationFrameId = requestAnimationFrame(() => this.render());
+		} catch (error) {
+			console.error("Error in render loop:", error);
+		}
+	}
 
-		// Render scene
-		this.scene.render(commandEncoder, textureView);
-
-		// Submit commands to GPU queue
-		this.device.queue.submit([commandEncoder.finish()]);
-
-		// Schedule next frame
-		this.animationFrameId = requestAnimationFrame(() => this.render());
+	handleResize() {
+		console.log("Engine handleResize called");
+		
+		// Update canvas size
+		if (this.canvas) {
+			const width = window.innerWidth;
+			const height = window.innerHeight;
+			
+			this.canvas.width = width;
+			this.canvas.height = height;
+			console.log(`Canvas resized to ${width}x${height}`);
+			
+			// Update viewport if needed
+			if (this.resourceManager && this.resourceManager.updateViewportSize) {
+				this.resourceManager.updateViewportSize(width, height);
+			}
+		}
+		
+		// Call resize on scene if it exists
+		if (this.scene && typeof this.scene.handleResize === 'function') {
+			this.scene.handleResize();
+		}
 	}
 }
 

@@ -7,7 +7,6 @@ export default class LorentzPipeline extends Pipeline {
         super(device);
         this.numPoints = numPoints;
         this.viewportBuffer = viewportBuffer;
-        this.time = 0;
         
         // Create parameters buffer
         this.paramsBuffer = device.createBuffer({
@@ -18,10 +17,14 @@ export default class LorentzPipeline extends Pipeline {
         
         // Create vertices buffer
         this.verticesBuffer = device.createBuffer({
-            size: numPoints * 16, // vec3 position + padding (16 bytes per vertex)
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
+            size: numPoints * 16, // vec4 position (16 bytes per vertex)
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             label: 'Lorentz Vertices Buffer'
         });
+        
+        // Initialize vertex buffer with zeros
+        const initialData = new Float32Array(numPoints * 4); // 4 floats per vertex (xyz + padding)
+        device.queue.writeBuffer(this.verticesBuffer, 0, initialData);
         
         // Default parameters
         this.params = {
@@ -34,80 +37,110 @@ export default class LorentzPipeline extends Pipeline {
             padding1: 0,
             padding2: 0
         };
+        
+        console.log("LorentzPipeline constructor completed");
     }
 
     async initialize() {
-        // Create compute shader
-        const computeModule = this.device.createShaderModule({
-            label: 'Lorentz compute shader',
-            code: lorentzComputeShader
-        });
-        
-        // Create compute pipeline
-        this.computePipeline = this.device.createComputePipeline({
-            layout: 'auto',
-            compute: {
-                module: computeModule,
-                entryPoint: 'main'
-            }
-        });
-        
-        // Create compute bind group
-        this.computeBindGroup = this.device.createBindGroup({
-            layout: this.computePipeline.getBindGroupLayout(0),
-            entries: [
-                {
-                    binding: 0,
-                    resource: { buffer: this.paramsBuffer }
-                },
-                {
-                    binding: 1,
-                    resource: { buffer: this.verticesBuffer }
+        try {
+            console.log("Creating compute shader module...");
+            // Create compute shader
+            const computeModule = this.device.createShaderModule({
+                label: 'Lorentz compute shader',
+                code: lorentzComputeShader
+            });
+            
+            // Create compute pipeline
+            this.computePipeline = this.device.createComputePipeline({
+                layout: 'auto',
+                compute: {
+                    module: computeModule,
+                    entryPoint: 'main'
                 }
-            ]
-        });
-        
-        // Create render shader
-        const renderModule = this.device.createShaderModule({
-            label: 'Lorentz render shader',
-            code: lorentzShader
-        });
-        
-        // Create render pipeline
-        this.renderPipeline = this.device.createRenderPipeline({
-            layout: 'auto',
-            vertex: {
-                module: renderModule,
-                entryPoint: 'vertexMain',
-                buffers: [{
-                    arrayStride: 16, // vec3 + padding
-                    attributes: [{
-                        shaderLocation: 0,
-                        offset: 0,
-                        format: 'float32x3'
+            });
+            
+            // Create compute bind group
+            this.computeBindGroup = this.device.createBindGroup({
+                layout: this.computePipeline.getBindGroupLayout(0),
+                entries: [
+                    {
+                        binding: 0,
+                        resource: { buffer: this.paramsBuffer }
+                    },
+                    {
+                        binding: 1,
+                        resource: { buffer: this.verticesBuffer }
+                    }
+                ]
+            });
+            
+            // Create render shader
+            const renderModule = this.device.createShaderModule({
+                label: 'Lorentz render shader',
+                code: lorentzShader
+            });
+            
+            // Create explicit bind group layout for render pipeline
+            const bindGroupLayout = this.device.createBindGroupLayout({
+                label: 'Lorentz Render Bind Group Layout',
+                entries: [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' }
+                    }
+                ]
+            });
+            
+            // Create render pipeline with explicit layout
+            this.renderPipeline = this.device.createRenderPipeline({
+                label: 'Lorentz Render Pipeline',
+                layout: this.device.createPipelineLayout({
+                    bindGroupLayouts: [bindGroupLayout]
+                }),
+                vertex: {
+                    module: renderModule,
+                    entryPoint: 'vertexMain',
+                    buffers: [{
+                        arrayStride: 16, // Each vertex is 16 bytes (vec3 + padding)
+                        attributes: [{
+                            shaderLocation: 0,
+                            offset: 0,
+                            format: 'float32x3' // Use x,y,z from the Vertex struct
+                        }]
                     }]
+                },
+                fragment: {
+                    module: renderModule,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat()
+                    }]
+                },
+                primitive: {
+                    topology: 'line-strip'
+                }
+            });
+            
+            // Create render bind group with explicit layout
+            this.renderBindGroup = this.device.createBindGroup({
+                label: 'Lorentz Render Bind Group',
+                layout: bindGroupLayout,
+                entries: [{
+                    binding: 0,
+                    resource: { buffer: this.viewportBuffer }
                 }]
-            },
-            fragment: {
-                module: renderModule,
-                entryPoint: 'fragmentMain',
-                targets: [{
-                    format: navigator.gpu.getPreferredCanvasFormat()
-                }]
-            },
-            primitive: {
-                topology: 'line-strip'
-            }
-        });
-        
-        // Create render bind group
-        this.renderBindGroup = this.device.createBindGroup({
-            layout: this.renderPipeline.getBindGroupLayout(0),
-            entries: [{
-                binding: 0,
-                resource: { buffer: this.viewportBuffer }
-            }]
-        });
+            });
+            
+            // Initial parameter update
+            this.updateParams({});
+            
+            console.log("LorentzPipeline initialization complete");
+            return true;
+        } catch (error) {
+            console.error("Error initializing LorentzPipeline:", error);
+            throw error;
+        }
     }
     
     updateParams(params) {
@@ -138,27 +171,49 @@ export default class LorentzPipeline extends Pipeline {
     }
 
     render(commandEncoder, passDescriptor, params = {}) {
-        // Update parameters
-        this.updateParams(params);
-        
-        // Compute pass
-        const computePass = commandEncoder.beginComputePass();
-        computePass.setPipeline(this.computePipeline);
-        computePass.setBindGroup(0, this.computeBindGroup);
-        computePass.dispatchWorkgroups(Math.ceil(this.numPoints / 64));
-        computePass.end();
-        
-        // Render pass
-        const renderPass = commandEncoder.beginRenderPass(passDescriptor);
-        renderPass.setPipeline(this.renderPipeline);
-        renderPass.setBindGroup(0, this.renderBindGroup);
-        renderPass.setVertexBuffer(0, this.verticesBuffer);
-        renderPass.draw(this.numPoints);
-        renderPass.end();
+        try {
+            console.log("Rendering Lorentz with params:", params);
+            
+            // Check if we have a valid passDescriptor
+            if (!passDescriptor || !passDescriptor.colorAttachments || 
+                !passDescriptor.colorAttachments[0] || 
+                !passDescriptor.colorAttachments[0].view) {
+                console.error("Invalid passDescriptor:", passDescriptor);
+                return;
+            }
+            
+            // Log the texture view
+            console.log("Texture view:", passDescriptor.colorAttachments[0].view);
+            
+            // Update parameters
+            this.updateParams(params);
+            
+            // Compute pass
+            const computePass = commandEncoder.beginComputePass();
+            computePass.setPipeline(this.computePipeline);
+            computePass.setBindGroup(0, this.computeBindGroup);
+            computePass.dispatchWorkgroups(Math.ceil(this.numPoints / 64));
+            computePass.end();
+            
+            // Render pass - with extra validation
+            const renderPass = commandEncoder.beginRenderPass(passDescriptor);
+            renderPass.setPipeline(this.renderPipeline);
+            renderPass.setBindGroup(0, this.renderBindGroup);
+            renderPass.setVertexBuffer(0, this.verticesBuffer);
+            renderPass.draw(this.numPoints);
+            renderPass.end();
+            
+            console.log("Render completed successfully");
+        } catch (error) {
+            console.error("Error in LorentzPipeline render:", error);
+        }
     }
     
     cleanup() {
-        if (this.paramsBuffer) this.paramsBuffer.destroy();
-        if (this.verticesBuffer) this.verticesBuffer.destroy();
+        // Since GPU resources don't have explicit destroy methods, we can nullify references
+        this.computePipeline = null;
+        this.renderPipeline = null;
+        this.computeBindGroup = null;
+        this.renderBindGroup = null;
     }
 } 

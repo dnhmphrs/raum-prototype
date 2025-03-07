@@ -7,6 +7,16 @@ class LorentzExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
+        // Ensure canvas has a valid size
+        if (resourceManager && resourceManager.canvas) {
+            if (resourceManager.canvas.width === 0 || resourceManager.canvas.height === 0) {
+                console.log("Canvas has zero size, setting default size");
+                resourceManager.canvas.width = window.innerWidth;
+                resourceManager.canvas.height = window.innerHeight;
+            }
+            console.log(`Canvas size: ${resourceManager.canvas.width}x${resourceManager.canvas.height}`);
+        }
+
         // Create camera and controller
         const width = resourceManager?.canvas?.width || 800;
         const height = resourceManager?.canvas?.height || 600;
