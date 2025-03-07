@@ -10,6 +10,9 @@
   let imageLoaded = false;
   let showImage = false; // Control whether to show the image
   
+  // Replace the external image URL with a local one
+  const imageUrl = '/notcrowded2.png'; // Use a local path instead of the external URL
+  
   onMount(async () => {
     if (!navigator.gpu) {
       alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
@@ -33,10 +36,10 @@
     
     window.addEventListener('resize', handleResize);
     
-    // Preload the image
+    // Update image loading
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = "https://raum-prototype-git-not-crowded-aufbau.vercel.app/notcrowded2.png";
+    img.src = imageUrl; // Use the local path
     img.onload = () => {
       imageLoaded = true;
       showImage = true; // Show image after loading
@@ -80,7 +83,7 @@
   
   {#if showImage && imageLoaded}
     <div class="image-overlay">
-      <img src="https://raum-prototype-git-not-crowded-aufbau.vercel.app/notcrowded2.png" alt="Not Crowded" />
+      <img src={imageUrl} alt="Not Crowded" />
     </div>
   {/if}
   

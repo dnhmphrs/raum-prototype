@@ -19,6 +19,11 @@ export const cameraConfigs = {
     position: { x: 0, y: 0, z: 10 },
     fov: 50 * (Math.PI / 180),
     baseDistance: 1000.0    // Medium-close for disk view
+  },
+  Lorentz: {
+    position: { x: 0, y: 0, z: 100 },
+    fov: 45 * (Math.PI / 180),
+    baseDistance: 100.0  // Distance for Lorentz attractor
   }
 };
 

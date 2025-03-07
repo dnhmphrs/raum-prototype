@@ -11,6 +11,9 @@
 
 <script>
   import { onMount } from 'svelte';
+  import Engine from '$lib/graphics/Engine.js';
+  import LorentzExperience from '$lib/graphics/experiences/Lorentz/LorentzExperience.js';
+  import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   const experiences = [
     {
@@ -40,13 +43,23 @@
       description: 'Hyperbolic geometry visualization',
       thumbnail: '/thumbnails/poincare.jpg',
       color: '#ffff00'
+    },
+    {
+      id: 'lorentz',
+      name: 'LORENTZ',
+      description: 'Lorentz attractor visualization',
+      thumbnail: '/thumbnails/lorentz.jpg',
+      color: '#00ffff'
     }
   ];
   
   let selectedExp = null;
   let mounted = false;
+  let canvas;
+  let engine;
+  let backgroundLoaded = false;
   
-  onMount(() => {
+  onMount(async () => {
     mounted = true;
     
     // Terminal typing effect
@@ -64,6 +77,56 @@
       };
       typeWriter();
     }
+    
+    // Initialize Lorentz background if WebGPU is supported
+    if (navigator.gpu) {
+      try {
+        // Initialize the engine with the canvas
+        engine = new Engine(canvas);
+        
+        // Create a special config for the background
+        const backgroundConfig = {
+          position: { x: 0, y: 0, z: 100 },
+          fov: 45 * (Math.PI / 180),
+          baseDistance: 100.0
+        };
+        
+        // Start the Lorentz experience with custom config
+        await engine.start(LorentzExperience, backgroundConfig);
+        
+        // Customize the Lorentz parameters for background
+        if (engine.currentExperience) {
+          engine.currentExperience.sigma = 10;
+          engine.currentExperience.rho = 28;
+          engine.currentExperience.beta = 8/3;
+          engine.currentExperience.dt = 0.0005; // Very slow for subtle movement
+        }
+        
+        backgroundLoaded = true;
+        
+        // Handle window resize
+        const handleResize = () => {
+          if (engine) {
+            if (typeof engine.handleResize === 'function') {
+              engine.handleResize();
+            } else if (engine.resourceManager && typeof engine.resourceManager.handleResize === 'function') {
+              engine.resourceManager.handleResize();
+            }
+          }
+        };
+        
+        window.addEventListener('resize', handleResize);
+        
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          if (engine) {
+            engine.cleanup();
+          }
+        };
+      } catch (error) {
+        console.error("Error initializing background:", error);
+      }
+    }
   });
 </script>
 
@@ -71,6 +134,10 @@
   <title>WebGPU Experiences</title>
   <meta name="description" content="A collection of interactive WebGPU experiences" />
 </svelte:head>
+
+<div class="background-canvas">
+  <canvas bind:this={canvas}></canvas>
+</div>
 
 <div class="container {mounted ? 'loaded' : ''}">
   <header>
@@ -377,6 +444,22 @@
     .preview-panel {
       min-height: 200px;
     }
+  }
+  
+  /* Add styles for the background canvas */
+  .background-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    opacity: 0.3; /* Subtle background */
+  }
+  
+  .background-canvas canvas {
+    width: 100%;
+    height: 100%;
   }
 </style>
 
