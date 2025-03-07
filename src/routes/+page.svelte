@@ -38,9 +38,9 @@
       color: '#0000ff'
     },
     {
-      id: 'poincare',
-      name: 'POINCARE',
-      description: 'Hyperbolic geometry visualization',
+      id: 'riemann',
+      name: 'RIEMANN',
+      description: '2D manifolds in 3D space',
       thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
