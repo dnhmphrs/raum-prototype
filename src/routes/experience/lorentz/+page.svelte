@@ -40,7 +40,7 @@
 <div class="experience-container">
     <canvas bind:this={canvas}></canvas>
     
-    <a href="/" class="back-button">← Back</a>
+    <a href="/" class="back-button">Back to Home</a>
     
     <div class="info-panel">
         <h2>LORENTZ ATTRACTOR</h2>
