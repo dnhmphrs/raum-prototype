@@ -29,10 +29,10 @@ export default class LorentzPipeline extends Pipeline {
         // Default parameters
         this.params = {
             sigma: 10.0,
-            rho: 28.0,
-            beta: 8/3,
-            dt: 0.001,
-            time: 0.0,
+            rho: 14.0,
+            beta: 2,
+            dt: 10.1,
+            time: 1000.0,
             numPoints: numPoints,
             padding1: 0,
             padding2: 0

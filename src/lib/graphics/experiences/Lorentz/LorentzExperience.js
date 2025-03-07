@@ -15,8 +15,8 @@ class LorentzExperience extends Experience {
         this.beta = 8/3;
         this.dt = 0.0006; // Smaller time step for smoother curves
         
-        // Number of points to render
-        this.numPoints = 10000;
+        // Reduce number of points to prevent memory issues
+        this.numPoints = 5000; // Reduced from 10000
         
         // Points array to store the attractor trajectory
         this.points = new Float32Array(this.numPoints * 3);
@@ -35,6 +35,10 @@ class LorentzExperience extends Experience {
         this.rotationX = 0;
         this.rotationY = 0;
         this.rotationZ = 0;
+        
+        // Update throttling to prevent excessive CPU/GPU usage
+        this.updateCounter = 0;
+        this.updateFrequency = 30; // Only update points every 30 frames
     }
     
     generateInitialPoints() {
@@ -68,10 +72,11 @@ class LorentzExperience extends Experience {
     
     updatePoints() {
         // Update the points with a small perturbation (similar to Three.js)
-        const a = 0.9 + Math.random() * 0.2;
-        const b = 3.4 + Math.random() * 0.2;
-        const f = 9.9 + Math.random() * 0.2;
-        const g = 1 + Math.random() * 0.05;
+        // Use fixed values instead of random to reduce computation
+        const a = 0.95;
+        const b = 3.5;
+        const f = 10.0;
+        const g = 1.02;
         const t = 0.0001;
         
         for (let i = 0; i < this.numPoints; i++) {
@@ -137,11 +142,13 @@ class LorentzExperience extends Experience {
                     let scale = 0.015;
                     output.position = vec4<f32>(pos.x * scale, pos.y * scale, pos.z * scale, 1.0);
                     
-                    // Color based on position (more vibrant)
+                    // Color based on position with z-depth influence
+                    // This helps create a pseudo-3D effect without depth testing
+                    let depth = (pos.z + 30.0) / 60.0; // Normalize z to 0-1 range
                     output.color = vec3<f32>(
-                        0.5 + 0.5 * sin(position.x * 0.1 + uniforms.time),
-                        0.5 + 0.5 * cos(position.y * 0.1 + uniforms.time),
-                        0.7 + 0.3 * sin(position.z * 0.1 + uniforms.time)
+                        0.5 + 0.5 * sin(position.x * 0.05 + uniforms.time * 0.1),
+                        0.5 + 0.5 * cos(position.y * 0.05 + uniforms.time * 0.1),
+                        depth // Use z-depth directly for blue channel
                     );
                     
                     return output;
@@ -149,7 +156,10 @@ class LorentzExperience extends Experience {
                 
                 @fragment
                 fn fragmentMain(@location(0) color: vec3<f32>) -> @location(0) vec4<f32> {
-                    return vec4<f32>(color, 1.0);
+                    // Add slight transparency based on z-depth (blue channel)
+                    // This helps with the 3D effect without depth testing
+                    let alpha = 0.7 + 0.3 * color.b;
+                    return vec4<f32>(color, alpha);
                 }
             `
         });
@@ -161,7 +171,7 @@ class LorentzExperience extends Experience {
             label: 'Lorentz Uniforms Buffer'
         });
         
-        // Create the pipeline
+        // Create the pipeline WITHOUT depth testing
         this.renderPipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -180,13 +190,25 @@ class LorentzExperience extends Experience {
                 module: shaderModule,
                 entryPoint: 'fragmentMain',
                 targets: [{
-                    format: navigator.gpu.getPreferredCanvasFormat()
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: {
+                        color: {
+                            srcFactor: 'src-alpha',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add'
+                        },
+                        alpha: {
+                            srcFactor: 'one',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add'
+                        }
+                    }
                 }]
             },
             primitive: {
                 topology: 'line-strip',
-                // Add line width if supported
-                stripIndexFormat: 'uint32'
+                stripIndexFormat: 'uint32',
+                cullMode: 'none' // Don't cull any faces
             }
         });
         
@@ -208,11 +230,16 @@ class LorentzExperience extends Experience {
     }
     
     render(commandEncoder, textureView) {
-        // Update time and rotation
-        this.time += 0.01;
-        this.rotationX += 0.002;
-        this.rotationY += 0.002;
-        this.rotationZ += 0.002;
+        // Skip rendering if no valid texture view
+        if (!textureView) {
+            return;
+        }
+        
+        // Update time and rotation (slower rotation to reduce computation)
+        this.time += 0.1;
+        this.rotationX += 0.001;
+        this.rotationY += 0.001;
+        this.rotationZ += 0.001;
         
         // Update uniform buffer
         this.device.queue.writeBuffer(
@@ -226,12 +253,15 @@ class LorentzExperience extends Experience {
             ])
         );
         
-        // Update points occasionally (not every frame to avoid performance issues)
-        if (Math.random() < 0.05) {
+        // Update points occasionally (throttled to reduce CPU/GPU usage)
+        this.updateCounter++;
+        if (this.updateCounter >= this.updateFrequency) {
+            this.updateCounter = 0;
             this.updatePoints();
         }
         
-        // Create a render pass
+        // Create a render pass WITHOUT depth testing for now
+        // This simplifies the rendering and avoids dimension mismatch errors
         const renderPassDescriptor = {
             colorAttachments: [{
                 view: textureView,
@@ -250,39 +280,15 @@ class LorentzExperience extends Experience {
         passEncoder.end();
     }
     
-    // Method to reset with new parameters
-    resetWithParameters(sigma, rho, beta, dt, initialPoint = [0.01, 0.01, 0.01]) {
-        this.sigma = sigma;
-        this.rho = rho;
-        this.beta = beta;
-        this.dt = dt;
-        
-        // Regenerate points with new parameters
-        let x = initialPoint[0], y = initialPoint[1], z = initialPoint[2];
-        
-        for (let i = 0; i < this.numPoints; i++) {
-            // Lorentz equations
-            x = x - this.dt * this.sigma * x + this.dt * y * y - this.dt * z * z + this.dt * this.sigma * this.rho;
-            y = y - this.dt * y + this.dt * x * y - this.dt * this.beta * x * z + this.dt;
-            z = z - this.dt * z + this.dt * this.beta * x * y + this.dt * x * z;
-            
-            // Store the point
-            this.points[i * 3] = x * 2;
-            this.points[i * 3 + 1] = y * 2;
-            this.points[i * 3 + 2] = z * 2;
-        }
-        
-        // Update the buffer
-        this.device.queue.writeBuffer(this.vertexBuffer, 0, this.points);
-    }
-    
     cleanup() {
-        if (this.vertexBuffer) {
-            this.vertexBuffer.destroy();
-        }
-        if (this.uniformBuffer) {
-            this.uniformBuffer.destroy();
-        }
+        console.log("Cleaning up Lorentz Experience");
+        
+        // Explicitly null out references to help garbage collection
+        this.points = null;
+        this.vertexBuffer = null;
+        this.uniformBuffer = null;
+        this.renderPipeline = null;
+        this.bindGroup = null;
     }
     
     getCamera() {

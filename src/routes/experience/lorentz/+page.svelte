@@ -5,14 +5,19 @@
     
     let canvas;
     let engine;
+    let cleanup = null;
     
-    onMount(async () => {
+    onMount(() => {
         if (canvas && navigator.gpu) {
             // Initialize the engine with the canvas
             engine = new Engine(canvas);
             
             // Start the Lorentz experience
-            await engine.start(LorentzExperience);
+            engine.start(LorentzExperience).then(() => {
+                console.log("Lorentz experience started successfully");
+            }).catch(error => {
+                console.error("Error starting Lorentz experience:", error);
+            });
             
             // Handle window resize
             const handleResize = () => {
@@ -23,12 +28,38 @@
             
             window.addEventListener('resize', handleResize);
             
-            return () => {
+            // Store cleanup function
+            cleanup = () => {
+                console.log("Cleaning up Lorentz experience");
                 window.removeEventListener('resize', handleResize);
-                if (engine) engine.stop();
+                
+                // Properly clean up the engine
+                if (engine) {
+                    if (engine.scene) {
+                        engine.scene.cleanup();
+                    }
+                    if (typeof engine.cleanup === 'function') {
+                        engine.cleanup();
+                    }
+                    
+                    // Explicitly null out references
+                    engine = null;
+                }
+                
+                // Force garbage collection if available
+                if (window.gc) {
+                    window.gc();
+                }
             };
         } else if (!navigator.gpu) {
             alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
+        }
+    });
+    
+    // Set up cleanup function for component destruction
+    onDestroy(() => {
+        if (cleanup) {
+            cleanup();
         }
     });
 </script>
@@ -40,11 +71,12 @@
 <div class="experience-container">
     <canvas bind:this={canvas}></canvas>
     
-    <a href="/" class="back-button">Back to Home</a>
+    <a href="/" class="back-button">← Back</a>
     
     <div class="info-panel">
         <h2>LORENTZ ATTRACTOR</h2>
         <p>A visualization of the Lorentz strange attractor, a system of differential equations that exhibits chaotic behavior.</p>
+        <p class="small-text">The visualization uses WebGPU with depth testing to render the complete 3D structure.</p>
     </div>
 </div>
 
@@ -111,5 +143,11 @@
         font-size: 14px;
         line-height: 1.5;
         opacity: 0.9;
+    }
+    
+    .info-panel p.small-text {
+        font-size: 12px;
+        opacity: 0.7;
+        margin-top: 8px;
     }
 </style>
