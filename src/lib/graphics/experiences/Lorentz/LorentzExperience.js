@@ -9,99 +9,84 @@ class LorentzExperience extends Experience {
         this.device = device;
         this.resourceManager = resourceManager;
         
-        // Lorentz parameters - exposed for UI control
+        // Lorentz parameters
         this.params = {
             sigma: 10.0,
             rho: 28.0,
             beta: 8/3,
             dt: 0.0006,
-            lineWidth: 1.0,
             rotationSpeed: 0.002
         };
         
-        // Number of points - increased for smoother curves
-        this.numPoints = 100000; // Match the Three.js version's point count
+        // Number of points
+        this.numPoints = 100000;
         
-        // Points array to store the attractor trajectory
+        // Points array
         this.points = new Float32Array(this.numPoints * 3);
         
         // Camera parameters
         this.camera = {
-            position: { x: 0, y: 0, z: 20 }, // Move camera further back
+            position: { x: 0, y: 0, z: 20 },
             rotation: { x: 0, y: Math.PI / 2, z: 0 },
             isDragging: false,
             lastMousePosition: { x: 0, y: 0 }
         };
         
+        // Animation time
+        this.time = 0;
+        
         // Generate initial points
         this.generateInitialPoints();
         
-        // Create vertex buffer for the attractor
+        // Create vertex buffer
         this.createVertexBuffer();
         
-        // Create a simple render pipeline
+        // Create render pipeline
         this.createRenderPipeline();
-        
-        // Animation parameters
-        this.time = 0;
         
         // Set up mouse controls
         this.setupMouseControls();
     }
     
     setupMouseControls() {
-        // Get the canvas from the resource manager
         const canvas = this.resourceManager.canvas;
-        if (!canvas) {
-            console.warn("Canvas not available for mouse controls");
-            return;
-        }
+        if (!canvas) return;
         
-        // Mouse down event
         canvas.addEventListener('mousedown', (event) => {
             this.camera.isDragging = true;
             this.camera.lastMousePosition = { x: event.clientX, y: event.clientY };
         });
         
-        // Mouse move event
         canvas.addEventListener('mousemove', (event) => {
             if (this.camera.isDragging) {
                 const deltaX = event.clientX - this.camera.lastMousePosition.x;
                 const deltaY = event.clientY - this.camera.lastMousePosition.y;
                 
-                // Update camera rotation based on mouse movement
                 this.camera.rotation.y += deltaX * 0.01;
                 this.camera.rotation.x += deltaY * 0.01;
                 
-                // Limit vertical rotation to avoid flipping
                 this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
                 
                 this.camera.lastMousePosition = { x: event.clientX, y: event.clientY };
             }
         });
         
-        // Mouse up event
         canvas.addEventListener('mouseup', () => {
             this.camera.isDragging = false;
         });
         
-        // Mouse leave event
         canvas.addEventListener('mouseleave', () => {
             this.camera.isDragging = false;
         });
         
-        // Mouse wheel event for zoom
         canvas.addEventListener('wheel', (event) => {
             event.preventDefault();
-            // Adjust camera zoom
             this.camera.position.z += event.deltaY * 0.05;
-            // Limit zoom range
             this.camera.position.z = Math.max(5, Math.min(50, this.camera.position.z));
         });
     }
     
     generateInitialPoints() {
-        // Generate the initial Lorentz attractor points using the same approach as Three.js
         let x = 0.01, y = 0.01, z = 0.01;
         let a = 4.9;
         let b = 5.4;
@@ -114,7 +99,6 @@ class LorentzExperience extends Experience {
             y = y - t * y + t * x * y - t * b * x * z + t * g;
             z = z - t * z + t * b * x * y + t * x * z;
             
-            // Store the point with the same scaling as Three.js
             this.points[i * 3] = x * 2;
             this.points[i * 3 + 1] = y * 2;
             this.points[i * 3 + 2] = z * 2;
@@ -122,20 +106,16 @@ class LorentzExperience extends Experience {
     }
     
     createVertexBuffer() {
-        // Create a buffer for the attractor points
         this.vertexBuffer = this.device.createBuffer({
-            size: this.numPoints * 12, // 3 floats per vertex, 4 bytes per float
+            size: this.numPoints * 12,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             label: 'Lorentz Attractor Buffer'
         });
         
-        // Update the buffer with initial points
         this.device.queue.writeBuffer(this.vertexBuffer, 0, this.points);
     }
     
     updatePoints() {
-        // Update the points using the same approach as Three.js
-        // Using random variations for a, b, f, g to create the spiral effect
         let a = 0.9 + Math.random() * 7;
         let b = 3.4 + Math.random() * 8;
         let f = 9.9 + Math.random() * 9;
@@ -152,78 +132,52 @@ class LorentzExperience extends Experience {
             this.points[i * 3 + 2] = z - t * z + t * b * x * y + t * x * z;
         }
         
-        // Update the buffer
         this.device.queue.writeBuffer(this.vertexBuffer, 0, this.points);
     }
     
     createRenderPipeline() {
-        // Create a simplified shader module for the Lorentz attractor
+        // Simple shader for the Lorentz attractor
         const shaderModule = this.device.createShaderModule({
-            label: "Lorentz Attractor Shader",
+            label: "Lorentz Shader",
             code: `
                 struct VertexOutput {
                     @builtin(position) position: vec4<f32>,
                     @location(0) color: vec3<f32>
                 };
                 
-                struct Camera {
-                    rotation: vec3<f32>,
-                    padding1: f32,
-                    position: vec3<f32>,
+                struct Uniforms {
+                    viewMatrix: mat4x4<f32>,
                     time: f32,
-                    pointSize: f32,
-                    padding2: vec3<f32>,
                 }
                 
-                @group(0) @binding(0) var<uniform> camera: Camera;
+                @group(0) @binding(0) var<uniform> uniforms: Uniforms;
                 
                 @vertex
                 fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
                     var output: VertexOutput;
                     
-                    // Apply camera rotation
-                    let rx = camera.rotation.x;
-                    let ry = camera.rotation.y;
-                    let rz = camera.rotation.z;
+                    // Apply view matrix
+                    let pos = uniforms.viewMatrix * vec4<f32>(position, 1.0);
                     
-                    // Rotate around X axis
-                    var pos = position;
-                    let y1 = pos.y * cos(rx) - pos.z * sin(rx);
-                    let z1 = pos.y * sin(rx) + pos.z * cos(rx);
-                    pos.y = y1;
-                    pos.z = z1;
+                    // Improved perspective calculation to avoid clipping
+                    // Use a smaller scale factor and better z-handling
+                    let scale = 0.003; // Reduced scale to avoid clipping
+                    let z_offset = 0.5; // Offset to move points away from near plane
                     
-                    // Rotate around Y axis
-                    let x2 = pos.x * cos(ry) + pos.z * sin(ry);
-                    let z2 = -pos.x * sin(ry) + pos.z * cos(ry);
-                    pos.x = x2;
-                    pos.z = z2;
+                    // Calculate perspective with improved formula
+                    let z_dist = max(0.1, abs(pos.z));
+                    let perspective = 1.0 / z_dist;
                     
-                    // Rotate around Z axis
-                    let x3 = pos.x * cos(rz) - pos.y * sin(rz);
-                    let y3 = pos.x * sin(rz) + pos.y * cos(rz);
-                    pos.x = x3;
-                    pos.y = y3;
-                    
-                    // Apply camera position
-                    pos.z -= camera.position.z;
-                    
-                    // Scale and position - reduced scale to avoid clipping
-                    let scale = 0.005;
-                    
-                    // Apply perspective projection
-                    let perspective = 1.0 / max(1.0, -pos.z * 0.05);
-                    
+                    // Map to normalized device coordinates with better z-handling
                     output.position = vec4<f32>(
-                        pos.x * scale * perspective, 
-                        pos.y * scale * perspective, 
-                        pos.z * 0.001, // Very small z value to avoid z-fighting
+                        pos.x * scale * perspective,
+                        pos.y * scale * perspective,
+                        (pos.z * 0.0001) + z_offset, // Better z-value to avoid clipping
                         1.0
                     );
                     
-                    // Use a simple white color with slight blue tint like Three.js
-                    // Add depth-based coloring for better 3D perception
-                    let depth = clamp((pos.z + 50.0) / 100.0, 0.0, 1.0);
+                    // Color based on position with improved depth range
+                    let depth = clamp((pos.z + 100.0) / 200.0, 0.0, 1.0); // Wider range
                     output.color = vec3<f32>(
                         0.7 + depth * 0.3,
                         0.7 + depth * 0.3,
@@ -235,27 +189,26 @@ class LorentzExperience extends Experience {
                 
                 @fragment
                 fn fragmentMain(@location(0) color: vec3<f32>) -> @location(0) vec4<f32> {
-                    // Add transparency and additive blending like Three.js
                     return vec4<f32>(color, 0.5);
                 }
             `
         });
         
-        // Create uniform buffer for camera - increased size to match shader requirements
+        // Create uniform buffer for view matrix and time
         this.uniformBuffer = this.device.createBuffer({
-            size: 64, // 16 floats (4 bytes each) to match the 64-byte requirement
+            size: 80, // mat4x4 (64 bytes) + time (4 bytes) + padding (12 bytes)
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            label: 'Lorentz Camera Buffer'
+            label: 'Lorentz Uniforms'
         });
         
-        // Create the pipeline with simplified settings
+        // Create pipeline
         this.renderPipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
                 module: shaderModule,
                 entryPoint: 'vertexMain',
                 buffers: [{
-                    arrayStride: 12, // 3 floats, 4 bytes each
+                    arrayStride: 12,
                     attributes: [{
                         shaderLocation: 0,
                         offset: 0,
@@ -271,7 +224,7 @@ class LorentzExperience extends Experience {
                     blend: {
                         color: {
                             srcFactor: 'src-alpha',
-                            dstFactor: 'one',  // Additive blending like Three.js
+                            dstFactor: 'one',
                             operation: 'add'
                         },
                         alpha: {
@@ -283,7 +236,7 @@ class LorentzExperience extends Experience {
                 }]
             },
             primitive: {
-                topology: 'point-list',  // Use points like Three.js
+                topology: 'point-list',
                 cullMode: 'none'
             }
         });
@@ -305,26 +258,56 @@ class LorentzExperience extends Experience {
         return true;
     }
     
-    // Method to update parameters from UI
     updateParameters(params) {
-        // Update parameters
         if (params.sigma !== undefined) this.params.sigma = params.sigma;
         if (params.rho !== undefined) this.params.rho = params.rho;
         if (params.beta !== undefined) this.params.beta = params.beta;
         if (params.dt !== undefined) this.params.dt = params.dt;
-        if (params.lineWidth !== undefined) this.params.lineWidth = params.lineWidth;
         if (params.rotationSpeed !== undefined) this.params.rotationSpeed = params.rotationSpeed;
         
-        // Regenerate points with new parameters
         this.generateInitialPoints();
         this.device.queue.writeBuffer(this.vertexBuffer, 0, this.points);
     }
     
+    createViewMatrix() {
+        // Create a simple view matrix from camera rotation and position
+        const cx = Math.cos(this.camera.rotation.x);
+        const sx = Math.sin(this.camera.rotation.x);
+        const cy = Math.cos(this.camera.rotation.y);
+        const sy = Math.sin(this.camera.rotation.y);
+        const cz = Math.cos(this.camera.rotation.z);
+        const sz = Math.sin(this.camera.rotation.z);
+        
+        // Create rotation matrix
+        const m = new Float32Array(16);
+        
+        // Combined rotation matrix (X, Y, Z order)
+        m[0] = cy * cz;
+        m[1] = cy * sz;
+        m[2] = -sy;
+        m[3] = 0;
+        
+        m[4] = sx * sy * cz - cx * sz;
+        m[5] = sx * sy * sz + cx * cz;
+        m[6] = sx * cy;
+        m[7] = 0;
+        
+        m[8] = cx * sy * cz + sx * sz;
+        m[9] = cx * sy * sz - sx * cz;
+        m[10] = cx * cy;
+        m[11] = 0;
+        
+        // Translation - move further back to avoid clipping
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = -this.camera.position.z - 5.0; // Add extra distance to avoid clipping
+        m[15] = 1;
+        
+        return m;
+    }
+    
     render(commandEncoder, textureView) {
-        // Skip rendering if no valid texture view
-        if (!textureView) {
-            return;
-        }
+        if (!textureView) return;
         
         // Update time
         this.time += 0.01;
@@ -335,22 +318,20 @@ class LorentzExperience extends Experience {
             this.camera.rotation.x += this.params.rotationSpeed * 0.5;
         }
         
-        // Update uniform buffer with camera data - include padding to match 64 bytes
-        this.device.queue.writeBuffer(
-            this.uniformBuffer,
-            0,
-            new Float32Array([
-                this.camera.rotation.x, this.camera.rotation.y, this.camera.rotation.z, 0, // rotation + padding1
-                this.camera.position.x, this.camera.position.y, this.camera.position.z, this.time, // position + time
-                this.params.lineWidth, 0, 0, 0, // pointSize + padding2
-                0, 0, 0, 0  // Additional padding to reach 64 bytes
-            ])
-        );
+        // Create view matrix
+        const viewMatrix = this.createViewMatrix();
         
-        // Update points on every frame like Three.js
+        // Update uniform buffer
+        const uniformData = new Float32Array(20); // 16 for matrix + 1 for time + 3 padding
+        uniformData.set(viewMatrix, 0);
+        uniformData[16] = this.time;
+        
+        this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
+        
+        // Update points
         this.updatePoints();
         
-        // Create a render pass
+        // Create render pass
         const renderPassDescriptor = {
             colorAttachments: [{
                 view: textureView,
@@ -360,7 +341,7 @@ class LorentzExperience extends Experience {
             }]
         };
         
-        // Begin the render pass
+        // Render
         const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
         passEncoder.setPipeline(this.renderPipeline);
         passEncoder.setBindGroup(0, this.bindGroup);
@@ -375,14 +356,13 @@ class LorentzExperience extends Experience {
         // Remove event listeners
         const canvas = this.resourceManager.canvas;
         if (canvas) {
-            // Clone and replace the canvas to remove all event listeners
             const newCanvas = canvas.cloneNode(true);
             if (canvas.parentNode) {
                 canvas.parentNode.replaceChild(newCanvas, canvas);
             }
         }
         
-        // Explicitly null out references to help garbage collection
+        // Clear references
         this.points = null;
         this.vertexBuffer = null;
         this.uniformBuffer = null;
