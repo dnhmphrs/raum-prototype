@@ -14,7 +14,7 @@ class LorentzExperience extends Experience {
             sigma: 10.0,
             rho: 28.0,
             beta: 8.0/3.0,
-            dt: 0.004,
+            dt: 0.0005,  // Even smaller time step
             rotationSpeed: 0.002
         };
         
@@ -34,6 +34,9 @@ class LorentzExperience extends Experience {
         
         // Animation time
         this.time = 0;
+        
+        // Update counter to reduce frequency of point updates
+        this.updateCounter = 0;
         
         // Generate initial points
         this.generateInitialPoints();
@@ -122,25 +125,45 @@ class LorentzExperience extends Experience {
     }
     
     updatePoints() {
-        // Use classic Lorenz parameters with tiny variations for natural movement
-        const sigma = this.params.sigma * (1 + Math.random() * 0.01);
-        const rho = this.params.rho * (1 + Math.random() * 0.01);
-        const beta = this.params.beta * (1 + Math.random() * 0.01);
+        // Only update every 5 frames to reduce instability
+        this.updateCounter++;
+        if (this.updateCounter % 5 !== 0) return;
+
+        const sigma = this.params.sigma;
+        const rho = this.params.rho;
+        const beta = this.params.beta;
         const dt = this.params.dt;
+        
+        // Keep track of bounds to detect instability
+        let maxVal = 0;
         
         for (let i = 0; i < this.numPoints; i++) {
             const x = this.points[i * 3];
             const y = this.points[i * 3 + 1];
             const z = this.points[i * 3 + 2];
             
-            // Classic Lorenz equations
+            // Classic Lorenz equations without any noise
             const dx = sigma * (y - x);
             const dy = x * (rho - z) - y;
             const dz = x * y - beta * z;
             
-            this.points[i * 3] = x + dx * dt;
-            this.points[i * 3 + 1] = y + dy * dt;
-            this.points[i * 3 + 2] = z + dz * dt;
+            // Update with tighter bounds checking
+            const newX = x + dx * dt;
+            const newY = y + dy * dt;
+            const newZ = z + dz * dt;
+            
+            // Check for instability
+            maxVal = Math.max(maxVal, Math.abs(newX), Math.abs(newY), Math.abs(newZ));
+            
+            // More conservative clamping
+            this.points[i * 3] = Math.max(-20, Math.min(20, newX));
+            this.points[i * 3 + 1] = Math.max(-20, Math.min(20, newY));
+            this.points[i * 3 + 2] = Math.max(-20, Math.min(20, newZ));
+        }
+        
+        // If we detect instability, regenerate the points
+        if (maxVal > 20) {
+            this.generateInitialPoints();
         }
         
         this.device.queue.writeBuffer(this.vertexBuffer, 0, this.points);
@@ -171,7 +194,7 @@ class LorentzExperience extends Experience {
                     let pos = uniforms.viewMatrix * vec4<f32>(position, 1.0);
                     
                     // Better perspective calculation with adjusted scale
-                    let scale = 0.08; // Larger scale to see the butterfly better
+                    let scale = 0.1; // Slightly larger scale
                     let z_dist = max(0.1, abs(pos.z));
                     let perspective = 1.0 / z_dist;
                     
@@ -179,13 +202,13 @@ class LorentzExperience extends Experience {
                     output.position = vec4<f32>(
                         pos.x * scale,
                         pos.y * scale,
-                        pos.z * 0.01 + 0.5, // Better depth scaling
+                        pos.z * 0.01 + 0.5,
                         1.0
                     );
                     
                     // Color based on position with more vibrant colors
                     let t = fract(atan2(position.y, position.x) / 6.28318 + 0.5);
-                    let height = (position.z + 30.0) / 60.0;
+                    let height = (position.z + 20.0) / 40.0; // Adjusted for new bounds
                     
                     // Create a warmer color scheme
                     output.color = vec3<f32>(
