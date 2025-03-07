@@ -14,7 +14,7 @@ class LorentzExperience extends Experience {
             sigma: 10.0,
             rho: 28.0,
             beta: 8.0/3.0,
-            dt: 0.0005,  // Even smaller time step
+            dt: 0.0005,
             rotationSpeed: 0.002
         };
         
@@ -23,14 +23,6 @@ class LorentzExperience extends Experience {
         
         // Points array
         this.points = new Float32Array(this.numPoints * 3);
-        
-        // Camera parameters
-        this.camera = {
-            position: { x: 0, y: 0, z: 20 },
-            rotation: { x: 0, y: Math.PI / 2, z: 0 },
-            isDragging: false,
-            lastMousePosition: { x: 0, y: 0 }
-        };
         
         // Animation time
         this.time = 0;
@@ -43,12 +35,31 @@ class LorentzExperience extends Experience {
         
         // Create vertex buffer
         this.createVertexBuffer();
+    }
+    
+    async initialize() {
+        console.log("Initializing Lorentz Experience");
         
-        // Create render pipeline
+        // Check if we have a resource manager
+        if (!this.resourceManager) {
+            console.error('Resource manager not available');
+            return false;
+        }
+
+        // Position camera to see the attractor
+        if (this.resourceManager.camera) {
+            this.resourceManager.camera.position = [0, 0, 100];
+            this.resourceManager.camera.updateView();
+            this.resourceManager.camera.updateProjection(Math.PI / 4, 0.1, 1000);
+        }
+
+        // Create render pipeline first (doesn't need canvas)
         this.createRenderPipeline();
         
-        // Set up mouse controls
+        // Set up mouse controls - using the resource manager's canvas
         this.setupMouseControls();
+        
+        return true;
     }
     
     setupMouseControls() {
@@ -56,36 +67,34 @@ class LorentzExperience extends Experience {
         if (!canvas) return;
         
         canvas.addEventListener('mousedown', (event) => {
-            this.camera.isDragging = true;
-            this.camera.lastMousePosition = { x: event.clientX, y: event.clientY };
+            if (this.resourceManager.cameraController) {
+                this.resourceManager.cameraController.startDrag(event.clientX, event.clientY);
+            }
         });
         
         canvas.addEventListener('mousemove', (event) => {
-            if (this.camera.isDragging) {
-                const deltaX = event.clientX - this.camera.lastMousePosition.x;
-                const deltaY = event.clientY - this.camera.lastMousePosition.y;
-                
-                this.camera.rotation.y += deltaX * 0.01;
-                this.camera.rotation.x += deltaY * 0.01;
-                
-                this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
-                
-                this.camera.lastMousePosition = { x: event.clientX, y: event.clientY };
+            if (this.resourceManager.cameraController) {
+                this.resourceManager.cameraController.handleMouseMove(event.clientX, event.clientY);
             }
         });
         
         canvas.addEventListener('mouseup', () => {
-            this.camera.isDragging = false;
+            if (this.resourceManager.cameraController) {
+                this.resourceManager.cameraController.endDrag();
+            }
         });
         
         canvas.addEventListener('mouseleave', () => {
-            this.camera.isDragging = false;
+            if (this.resourceManager.cameraController) {
+                this.resourceManager.cameraController.endDrag();
+            }
         });
         
         canvas.addEventListener('wheel', (event) => {
             event.preventDefault();
-            this.camera.position.z += event.deltaY * 0.05;
-            this.camera.position.z = Math.max(5, Math.min(50, this.camera.position.z));
+            if (this.resourceManager.cameraController) {
+                this.resourceManager.cameraController.adjustZoom(event.deltaY);
+            }
         });
     }
     
@@ -107,10 +116,10 @@ class LorentzExperience extends Experience {
             y += dy * dt;
             z += dz * dt;
             
-            // Scale the points to get a good size
-            this.points[i * 3] = x * 0.2;
-            this.points[i * 3 + 1] = y * 0.2;
-            this.points[i * 3 + 2] = z * 0.2;
+            // Store raw values without scaling
+            this.points[i * 3] = x;
+            this.points[i * 3 + 1] = y;
+            this.points[i * 3 + 2] = z;
         }
     }
     
@@ -170,7 +179,6 @@ class LorentzExperience extends Experience {
     }
     
     createRenderPipeline() {
-        // Simple shader for the Lorentz attractor
         const shaderModule = this.device.createShaderModule({
             label: "Lorentz Shader",
             code: `
@@ -180,41 +188,29 @@ class LorentzExperience extends Experience {
                 };
                 
                 struct Uniforms {
-                    viewMatrix: mat4x4<f32>,
                     time: f32,
+                    padding: vec3<f32>,
                 }
                 
-                @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+                @group(0) @binding(0) var<uniform> projection: mat4x4<f32>;
+                @group(0) @binding(1) var<uniform> view: mat4x4<f32>;
+                @group(0) @binding(2) var<uniform> uniforms: Uniforms;
                 
                 @vertex
                 fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
                     var output: VertexOutput;
                     
-                    // Apply view matrix
-                    let pos = uniforms.viewMatrix * vec4<f32>(position, 1.0);
+                    // Scale in world space for better visibility
+                    let scale = 2.0;
+                    let worldPos = vec4<f32>(position * scale, 1.0);
+                    let viewPos = view * worldPos;
+                    output.position = projection * viewPos;
                     
-                    // Better perspective calculation with adjusted scale
-                    let scale = 0.1; // Slightly larger scale
-                    let z_dist = max(0.1, abs(pos.z));
-                    let perspective = 1.0 / z_dist;
-                    
-                    // Map to normalized device coordinates with better depth handling
-                    output.position = vec4<f32>(
-                        pos.x * scale,
-                        pos.y * scale,
-                        pos.z * 0.01 + 0.5,
-                        1.0
-                    );
-                    
-                    // Color based on position with more vibrant colors
-                    let t = fract(atan2(position.y, position.x) / 6.28318 + 0.5);
-                    let height = (position.z + 20.0) / 40.0; // Adjusted for new bounds
-                    
-                    // Create a warmer color scheme
+                    // Simple color based on position
                     output.color = vec3<f32>(
-                        0.7 + 0.3 * sin(t * 6.28318),
-                        0.5 + 0.5 * sin(t * 6.28318 + 2.09),
-                        0.3 + 0.7 * height
+                        0.5 + 0.5 * sin(position.x * 0.1),
+                        0.5 + 0.5 * sin(position.y * 0.1),
+                        0.5 + 0.5 * sin(position.z * 0.1)
                     );
                     
                     return output;
@@ -222,22 +218,39 @@ class LorentzExperience extends Experience {
                 
                 @fragment
                 fn fragmentMain(@location(0) color: vec3<f32>) -> @location(0) vec4<f32> {
-                    // Create a soft glow effect with higher alpha for better visibility
-                    return vec4<f32>(color, 0.6);
+                    return vec4<f32>(color, 1.0);
                 }
             `
         });
-        
-        // Create uniform buffer for view matrix and time
-        this.uniformBuffer = this.device.createBuffer({
-            size: 80, // mat4x4 (64 bytes) + time (4 bytes) + padding (12 bytes)
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            label: 'Lorentz Uniforms'
+
+        // Create explicit bind group layout
+        const bindGroupLayout = this.device.createBindGroupLayout({
+            label: 'Lorentz Bind Group Layout',
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: 'uniform' }
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: 'uniform' }
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: 'uniform' }
+                }
+            ]
         });
-        
+
         // Create pipeline
         this.renderPipeline = this.device.createRenderPipeline({
-            layout: 'auto',
+            label: 'Lorentz Pipeline',
+            layout: this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout]
+            }),
             vertex: {
                 module: shaderModule,
                 entryPoint: 'vertexMain',
@@ -254,42 +267,46 @@ class LorentzExperience extends Experience {
                 module: shaderModule,
                 entryPoint: 'fragmentMain',
                 targets: [{
-                    format: navigator.gpu.getPreferredCanvasFormat(),
-                    blend: {
-                        color: {
-                            srcFactor: 'src-alpha',
-                            dstFactor: 'one',  // Additive blending for glow effect
-                            operation: 'add'
-                        },
-                        alpha: {
-                            srcFactor: 'one',
-                            dstFactor: 'one-minus-src-alpha',
-                            operation: 'add'
-                        }
-                    }
+                    format: navigator.gpu.getPreferredCanvasFormat()
                 }]
             },
             primitive: {
-                topology: 'point-list',
-                cullMode: 'none'
+                topology: 'point-list'
+            },
+            depthStencil: {
+                format: 'depth24plus',
+                depthWriteEnabled: true,
+                depthCompare: 'less'
             }
         });
-        
-        // Create bind group
-        this.bindGroup = this.device.createBindGroup({
-            layout: this.renderPipeline.getBindGroupLayout(0),
-            entries: [{
-                binding: 0,
-                resource: {
-                    buffer: this.uniformBuffer
-                }
-            }]
+
+        // Create uniform buffer for time
+        this.uniformBuffer = this.device.createBuffer({
+            size: 16,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            label: 'Lorentz Time Uniforms'
         });
-    }
-    
-    async initialize() {
-        console.log("Initializing Lorentz Experience");
-        return true;
+
+        // Create bind group
+        const { projectionBuffer, viewBuffer } = this.resourceManager.camera.getBuffers();
+        
+        this.bindGroup = this.device.createBindGroup({
+            layout: bindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: { buffer: projectionBuffer }
+                },
+                {
+                    binding: 1,
+                    resource: { buffer: viewBuffer }
+                },
+                {
+                    binding: 2,
+                    resource: { buffer: this.uniformBuffer }
+                }
+            ]
+        });
     }
     
     updateParameters(params) {
@@ -303,85 +320,48 @@ class LorentzExperience extends Experience {
         this.device.queue.writeBuffer(this.vertexBuffer, 0, this.points);
     }
     
-    createViewMatrix() {
-        // Create a simple view matrix from camera rotation and position
-        const cx = Math.cos(this.camera.rotation.x);
-        const sx = Math.sin(this.camera.rotation.x);
-        const cy = Math.cos(this.camera.rotation.y);
-        const sy = Math.sin(this.camera.rotation.y);
-        const cz = Math.cos(this.camera.rotation.z);
-        const sz = Math.sin(this.camera.rotation.z);
-        
-        // Create rotation matrix
-        const m = new Float32Array(16);
-        
-        // Combined rotation matrix (X, Y, Z order)
-        m[0] = cy * cz;
-        m[1] = cy * sz;
-        m[2] = -sy;
-        m[3] = 0;
-        
-        m[4] = sx * sy * cz - cx * sz;
-        m[5] = sx * sy * sz + cx * cz;
-        m[6] = sx * cy;
-        m[7] = 0;
-        
-        m[8] = cx * sy * cz + sx * sz;
-        m[9] = cx * sy * sz - sx * cz;
-        m[10] = cx * cy;
-        m[11] = 0;
-        
-        // Translation - move further back to avoid clipping
-        m[12] = 0;
-        m[13] = 0;
-        m[14] = -this.camera.position.z - 5.0; // Add extra distance to avoid clipping
-        m[15] = 1;
-        
-        return m;
-    }
-    
     render(commandEncoder, textureView) {
-        if (!textureView) return;
+        if (!textureView || !this.resourceManager.camera) return;
         
-        // Update time
-        this.time += 0.01;
-        
-        // Apply auto-rotation if not being controlled by mouse
-        if (!this.camera.isDragging) {
-            this.camera.rotation.y += this.params.rotationSpeed;
-            this.camera.rotation.x += this.params.rotationSpeed * 0.5;
+        try {
+            // Update time
+            this.time += 0.01;
+            
+            // Update uniform buffer with time
+            const uniformData = new Float32Array(4); // time + padding
+            uniformData[0] = this.time;
+            
+            this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
+            
+            // Update points
+            this.updatePoints();
+            
+            // Create render pass
+            const renderPassDescriptor = {
+                colorAttachments: [{
+                    view: textureView,
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    loadOp: 'clear',
+                    storeOp: 'store'
+                }],
+                depthStencilAttachment: {
+                    view: this.resourceManager.getDepthTextureView(),
+                    depthClearValue: 1.0,
+                    depthLoadOp: 'clear',
+                    depthStoreOp: 'store'
+                }
+            };
+            
+            // Render
+            const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+            passEncoder.setPipeline(this.renderPipeline);
+            passEncoder.setBindGroup(0, this.bindGroup);
+            passEncoder.setVertexBuffer(0, this.vertexBuffer);
+            passEncoder.draw(this.numPoints);
+            passEncoder.end();
+        } catch (error) {
+            console.error('Error in Lorentz render:', error);
         }
-        
-        // Create view matrix
-        const viewMatrix = this.createViewMatrix();
-        
-        // Update uniform buffer
-        const uniformData = new Float32Array(20); // 16 for matrix + 1 for time + 3 padding
-        uniformData.set(viewMatrix, 0);
-        uniformData[16] = this.time;
-        
-        this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
-        
-        // Update points
-        this.updatePoints();
-        
-        // Create render pass
-        const renderPassDescriptor = {
-            colorAttachments: [{
-                view: textureView,
-                clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                loadOp: 'clear',
-                storeOp: 'store'
-            }]
-        };
-        
-        // Render
-        const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-        passEncoder.setPipeline(this.renderPipeline);
-        passEncoder.setBindGroup(0, this.bindGroup);
-        passEncoder.setVertexBuffer(0, this.vertexBuffer);
-        passEncoder.draw(this.numPoints);
-        passEncoder.end();
     }
     
     cleanup() {
@@ -402,10 +382,6 @@ class LorentzExperience extends Experience {
         this.uniformBuffer = null;
         this.renderPipeline = null;
         this.bindGroup = null;
-    }
-    
-    getCamera() {
-        return this.camera;
     }
 }
 
