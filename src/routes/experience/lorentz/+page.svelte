@@ -93,7 +93,7 @@
 <div class="experience-container">
     <canvas bind:this={canvas}></canvas>
     
-    <a href="/" class="back-button">← Back</a>
+    <a href="/" class="back-button">⏎ Back</a>
     
     <div class="control-panel">
         <h2>LORENTZ ATTRACTOR</h2>

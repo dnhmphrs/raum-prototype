@@ -64,7 +64,7 @@
     </div>
   {/if}
   
-  <a href="/" class="back-button">← Back</a> d
+  <a href="/" class="back-button">⏎ Back</a> d
 </div>
 
 <style>
