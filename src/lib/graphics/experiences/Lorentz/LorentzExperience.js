@@ -9,13 +9,12 @@ class LorentzExperience extends Experience {
         this.device = device;
         this.resourceManager = resourceManager;
         
-        // Lorentz parameters - matched from successful geometry.svelte implementation
+        // Classic Lorenz parameters for the butterfly shape
         this.params = {
-            a: 4.9,
-            b: 5.4,
-            f: 6.9,
-            g: 1.0,
-            dt: 0.0006,
+            sigma: 10.0,
+            rho: 28.0,
+            beta: 8.0/3.0,
+            dt: 0.004,
             rotationSpeed: 0.002
         };
         
@@ -88,24 +87,27 @@ class LorentzExperience extends Experience {
     }
     
     generateInitialPoints() {
-        // Initialize with the successful parameters from geometry.svelte
-        let x = 0.01, y = 0.01, z = 0.01;
-        const a = this.params.a;
-        const b = this.params.b;
-        const f = this.params.f;
-        const g = this.params.g;
+        // Use classic Lorenz parameters for the butterfly shape
+        let x = 0.1, y = 0.1, z = 0.1;
+        const sigma = this.params.sigma;
+        const rho = this.params.rho;
+        const beta = this.params.beta;
         const dt = this.params.dt;
         
         for (let i = 0; i < this.numPoints; i++) {
-            // Use the equations from geometry.svelte that produced the nice butterfly
-            x = x - dt * a * x + dt * y * y - dt * z * z + dt * a * f;
-            y = y - dt * y + dt * x * y - dt * b * x * z + dt * g;
-            z = z - dt * z + dt * b * x * y + dt * x * z;
+            // Classic Lorenz equations
+            const dx = sigma * (y - x);
+            const dy = x * (rho - z) - y;
+            const dz = x * y - beta * z;
             
-            // Scale the points to match geometry.svelte
-            this.points[i * 3] = x * 2;
-            this.points[i * 3 + 1] = y * 2;
-            this.points[i * 3 + 2] = z * 2;
+            x += dx * dt;
+            y += dy * dt;
+            z += dz * dt;
+            
+            // Scale the points to get a good size
+            this.points[i * 3] = x * 0.2;
+            this.points[i * 3 + 1] = y * 0.2;
+            this.points[i * 3 + 2] = z * 0.2;
         }
     }
     
@@ -120,21 +122,25 @@ class LorentzExperience extends Experience {
     }
     
     updatePoints() {
-        // Use the exact same update logic from geometry.svelte
-        const a = 0.9 + Math.random() * 7;  // Creates natural variation
-        const b = 3.4 + Math.random() * 8;
-        const f = 9.9 + Math.random() * 9;
-        const g = 1 + Math.random();
-        const t = 0.0001;  // Smaller time step for smoother motion
+        // Use classic Lorenz parameters with tiny variations for natural movement
+        const sigma = this.params.sigma * (1 + Math.random() * 0.01);
+        const rho = this.params.rho * (1 + Math.random() * 0.01);
+        const beta = this.params.beta * (1 + Math.random() * 0.01);
+        const dt = this.params.dt;
         
         for (let i = 0; i < this.numPoints; i++) {
             const x = this.points[i * 3];
             const y = this.points[i * 3 + 1];
             const z = this.points[i * 3 + 2];
             
-            this.points[i * 3] = x - t * a * x + t * y * y - t * z * z + t * a * f;
-            this.points[i * 3 + 1] = y - t * y + t * x * y - t * b * x * z + t * g;
-            this.points[i * 3 + 2] = z - t * z + t * b * x * y + t * x * z;
+            // Classic Lorenz equations
+            const dx = sigma * (y - x);
+            const dy = x * (rho - z) - y;
+            const dz = x * y - beta * z;
+            
+            this.points[i * 3] = x + dx * dt;
+            this.points[i * 3 + 1] = y + dy * dt;
+            this.points[i * 3 + 2] = z + dz * dt;
         }
         
         this.device.queue.writeBuffer(this.vertexBuffer, 0, this.points);
@@ -165,14 +171,14 @@ class LorentzExperience extends Experience {
                     let pos = uniforms.viewMatrix * vec4<f32>(position, 1.0);
                     
                     // Better perspective calculation with adjusted scale
-                    let scale = 0.015; // Adjusted to match geometry.svelte scale
+                    let scale = 0.08; // Larger scale to see the butterfly better
                     let z_dist = max(0.1, abs(pos.z));
                     let perspective = 1.0 / z_dist;
                     
                     // Map to normalized device coordinates with better depth handling
                     output.position = vec4<f32>(
-                        pos.x * scale * perspective,
-                        pos.y * scale * perspective,
+                        pos.x * scale,
+                        pos.y * scale,
                         pos.z * 0.01 + 0.5, // Better depth scaling
                         1.0
                     );
@@ -181,11 +187,11 @@ class LorentzExperience extends Experience {
                     let t = fract(atan2(position.y, position.x) / 6.28318 + 0.5);
                     let height = (position.z + 30.0) / 60.0;
                     
-                    // Create a warmer color scheme similar to geometry.svelte
+                    // Create a warmer color scheme
                     output.color = vec3<f32>(
-                        0.9 + 0.1 * sin(t * 6.28318),
-                        0.7 + 0.3 * sin(t * 6.28318 + 2.09),
-                        0.5 + 0.5 * height
+                        0.7 + 0.3 * sin(t * 6.28318),
+                        0.5 + 0.5 * sin(t * 6.28318 + 2.09),
+                        0.3 + 0.7 * height
                     );
                     
                     return output;
@@ -194,7 +200,7 @@ class LorentzExperience extends Experience {
                 @fragment
                 fn fragmentMain(@location(0) color: vec3<f32>) -> @location(0) vec4<f32> {
                     // Create a soft glow effect with higher alpha for better visibility
-                    return vec4<f32>(color, 0.8);
+                    return vec4<f32>(color, 0.6);
                 }
             `
         });
@@ -264,10 +270,9 @@ class LorentzExperience extends Experience {
     }
     
     updateParameters(params) {
-        if (params.a !== undefined) this.params.a = params.a;
-        if (params.b !== undefined) this.params.b = params.b;
-        if (params.f !== undefined) this.params.f = params.f;
-        if (params.g !== undefined) this.params.g = params.g;
+        if (params.sigma !== undefined) this.params.sigma = params.sigma;
+        if (params.rho !== undefined) this.params.rho = params.rho;
+        if (params.beta !== undefined) this.params.beta = params.beta;
         if (params.dt !== undefined) this.params.dt = params.dt;
         if (params.rotationSpeed !== undefined) this.params.rotationSpeed = params.rotationSpeed;
         
