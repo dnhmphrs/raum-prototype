@@ -102,7 +102,7 @@ export default class LorentzPipeline extends Pipeline {
                     module: renderModule,
                     entryPoint: 'vertexMain',
                     buffers: [{
-                        arrayStride: 16, // Each vertex is 16 bytes (vec3 + padding)
+                        arrayStride: 16, // 16 bytes per vertex (vec3 + padding)
                         attributes: [{
                             shaderLocation: 0,
                             offset: 0,
@@ -118,7 +118,7 @@ export default class LorentzPipeline extends Pipeline {
                     }]
                 },
                 primitive: {
-                    topology: 'line-strip'
+                    topology: 'point-list'
                 }
             });
             

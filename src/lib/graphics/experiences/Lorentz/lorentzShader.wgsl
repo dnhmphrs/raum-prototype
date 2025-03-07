@@ -9,24 +9,16 @@ struct VertexOutput {
 fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     var output: VertexOutput;
     
-    // Scale the attractor to fit the screen better
-    let scale = 0.03; // Increased from 0.02
-    let scaled = position * scale;
-    
-    // Center the attractor
+    // Very simple transformation - just pass through with minimal scaling
     output.position = vec4<f32>(
-        scaled.x * viewport.y / viewport.x,  // Adjust for aspect ratio
-        scaled.y,
-        scaled.z * 0.5,
+        position.x * 0.1,  // Simple scaling
+        position.y * 0.1,  // Simple scaling
+        0.0,               // Flatten to 2D for debugging
         1.0
     );
     
-    // More vibrant color based on position
-    output.color = vec3<f32>(
-        sin(scaled.x * 0.5) * 0.5 + 0.5,
-        cos(scaled.y * 0.5) * 0.5 + 0.5,
-        sin(scaled.z * 0.5) * 0.5 + 0.5
-    );
+    // Bright color for visibility
+    output.color = vec3<f32>(1.0, 1.0, 0.0); // Bright yellow
     
     return output;
 }

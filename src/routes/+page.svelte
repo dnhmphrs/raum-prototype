@@ -78,55 +78,8 @@
       typeWriter();
     }
     
-    // Initialize Lorentz background if WebGPU is supported
-    if (navigator.gpu) {
-      try {
-        // Initialize the engine with the canvas
-        engine = new Engine(canvas);
-        
-        // Create a special config for the background
-        const backgroundConfig = {
-          position: { x: 0, y: 0, z: 100 },
-          fov: 45 * (Math.PI / 180),
-          baseDistance: 100.0
-        };
-        
-        // Start the Lorentz experience with custom config
-        await engine.start(LorentzExperience, backgroundConfig);
-        
-        // Customize the Lorentz parameters for background
-        if (engine.currentExperience) {
-          engine.currentExperience.sigma = 10;
-          engine.currentExperience.rho = 28;
-          engine.currentExperience.beta = 8/3;
-          engine.currentExperience.dt = 0.0005; // Very slow for subtle movement
-        }
-        
-        backgroundLoaded = true;
-        
-        // Handle window resize
-        const handleResize = () => {
-          if (engine) {
-            if (typeof engine.handleResize === 'function') {
-              engine.handleResize();
-            } else if (engine.resourceManager && typeof engine.resourceManager.handleResize === 'function') {
-              engine.resourceManager.handleResize();
-            }
-          }
-        };
-        
-        window.addEventListener('resize', handleResize);
-        
-        return () => {
-          window.removeEventListener('resize', handleResize);
-          if (engine) {
-            engine.cleanup();
-          }
-        };
-      } catch (error) {
-        console.error("Error initializing background:", error);
-      }
-    }
+    // No WebGPU background on home page
+    backgroundLoaded = true;
   });
 </script>
 
