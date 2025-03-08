@@ -46,6 +46,11 @@ class RiemannExperience extends Experience {
         }
     }
     
+    // For compatibility with the original code
+    changeManifold(surfaceType) {
+        return this.updateSurface(surfaceType);
+    }
+    
     createBuffers() {
         // Create vertices for the grid
         const vertices = new Float32Array(this.totalVertices * 3); // x, y, z for each vertex

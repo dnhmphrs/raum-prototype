@@ -3,6 +3,7 @@ import Camera from './camera/Camera';
 import CameraController from './camera/CameraController';
 import InteractionManager from './core/InteractionManager';
 import ResourceManager from './core/ResourceManager';
+import Experience from './experiences/Experience';
 import { vec3 } from 'gl-matrix';
 
 class Engine {
