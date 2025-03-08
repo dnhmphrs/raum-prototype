@@ -39,18 +39,18 @@
     },
     {
       id: 'riemann',
-      name: 'RIEMANN',
+      name: 'RIEMANN SURFACE',
       description: '2D manifolds in 3D space',
       thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
-    {
-      id: 'lorentz',
-      name: 'LORENTZ',
-      description: 'Lorentz attractor visualization',
-      thumbnail: '/placeholder.png',
-      color: '#00ffff'
-    }
+    // {
+    //   id: 'lorentz',
+    //   name: 'LORENTZ',
+    //   description: 'Lorentz attractor visualization',
+    //   thumbnail: '/placeholder.png',
+    //   color: '#00ffff'
+    // }
   ];
   
   let selectedExp = null;

@@ -42,15 +42,91 @@ class ResourceManager {
 	}
 
 	getDepthTextureView() {
-		return this.depthTexture.createView();
+		if (!this.depthTexture) {
+			console.warn("Depth texture is null, attempting to recreate");
+			// Try to get canvas dimensions
+			let width = 0;
+			let height = 0;
+			
+			if (this.canvas) {
+				width = this.canvas.width;
+				height = this.canvas.height;
+			} else if (this.device && this.device.canvas) {
+				width = this.device.canvas.width;
+				height = this.device.canvas.height;
+			}
+			
+			// Only recreate if we have valid dimensions
+			if (width > 0 && height > 0) {
+				this.updateDepthTexture(width, height);
+				console.log(`Recreated depth texture with size ${width}x${height}`);
+			} else {
+				console.warn("Cannot recreate depth texture: invalid dimensions");
+				return null;
+			}
+		}
+		
+		// Return null instead of throwing an error if depthTexture is still null
+		return this.depthTexture ? this.depthTexture.createView() : null;
 	}
 
 	updateViewportSize(width, height) {
-		const viewportData = new Float32Array([width, height]);
-		this.device.queue.writeBuffer(this.buffers.viewportBuffer, 0, viewportData);
+		console.log(`ResourceManager updating viewport size: ${width}x${height}`);
+		
+		// Update canvas dimensions
+		if (this.canvas) {
+			this.canvas.width = width;
+			this.canvas.height = height;
+		}
+		
+		// Update camera aspect ratio
+		if (this.camera) {
+			this.camera.updateAspect(width, height);
+		}
+		
+		// Update depth texture
+		this.updateDepthTexture(width, height);
+		
+		// Notify all experiences of the resize
+		if (this.experiences) {
+			for (const experience of Object.values(this.experiences)) {
+				if (experience && typeof experience.handleResize === 'function') {
+					experience.handleResize(width, height);
+				}
+			}
+		}
+	}
 
-		this.camera.updateAspect(width, height);
-		this.initializeDepthTexture(width, height);
+	updateDepthTexture(width, height) {
+		// Validate dimensions
+		if (!width || !height || width <= 0 || height <= 0) {
+			console.warn(`Invalid dimensions for depth texture: ${width}x${height}`);
+			return;
+		}
+		
+		try {
+			// Clean up existing depth texture if it exists
+			if (this.depthTexture) {
+				// No need to destroy WebGPU textures, they're automatically garbage collected
+				this.depthTexture = null;
+				this.depthTextureView = null;
+			}
+			
+			// Create a new depth texture with the updated dimensions
+			this.depthTexture = this.device.createTexture({
+				size: { width, height, depthOrArrayLayers: 1 },
+				format: 'depth24plus',
+				usage: GPUTextureUsage.RENDER_ATTACHMENT
+			});
+			
+			// Pre-create the view for faster access
+			this.depthTextureView = this.depthTexture.createView();
+			console.log(`Depth texture recreated with size ${width}x${height}`);
+		} catch (error) {
+			console.error("Error creating depth texture:", error);
+			this.depthTexture = null;
+			this.depthTextureView = null;
+		}
 	}
 
 	updateMousePosition(x, y) {

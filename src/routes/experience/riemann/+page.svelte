@@ -27,8 +27,16 @@
         console.log(`Changing manifold to: ${manifoldType}`);
         selectedManifold = manifoldTypes.find(m => m.id === manifoldType);
         
+        // Try multiple ways to find the experience
         if (experience) {
+            console.log("Using local experience reference");
             experience.updateSurface(manifoldType);
+        } else if (engine && engine.scene && engine.scene.currentExperience) {
+            console.log("Using engine.scene.currentExperience");
+            engine.scene.currentExperience.updateSurface(manifoldType);
+        } else if (window.riemannExperience) {
+            console.log("Using global window.riemannExperience");
+            window.riemannExperience.updateSurface(manifoldType);
         } else {
             console.error("Experience not initialized yet");
         }
@@ -41,7 +49,15 @@
             
             // Start the Riemann experience and store the reference
             const result = await engine.start(RiemannExperience);
-            experience = engine.experience;
+            
+            // Try to get the experience reference in multiple ways
+            if (engine.experience) {
+                experience = engine.experience;
+            } else if (engine.scene && engine.scene.currentExperience) {
+                experience = engine.scene.currentExperience;
+            } else if (window.riemannExperience) {
+                experience = window.riemannExperience;
+            }
             
             console.log("Experience initialized:", experience);
             

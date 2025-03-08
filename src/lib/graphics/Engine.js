@@ -31,11 +31,33 @@ class Engine {
 
 		// Initialize Shared Resource Manager
 		this.resourceManager = new ResourceManager(this.device, this.camera);
+		
+		// Make sure camera controller is available in the resource manager
+		this.resourceManager.cameraController = this.cameraController;
+		
 		this.resourceManager.initialize(this.canvas.width, this.canvas.height);
 
 		// Initialize Scene
 		this.scene = new SceneClass(this.device, this.resourceManager);
 		await this.scene.initialize();
+		
+		// Store the current experience for easier access
+		if (this.scene && this.scene.currentExperience) {
+			this.experience = this.scene.currentExperience;
+		} else if (this.resourceManager && this.resourceManager.experiences) {
+			// Try to find the experience in the resource manager
+			const experienceKeys = Object.keys(this.resourceManager.experiences);
+			if (experienceKeys.length > 0) {
+				this.experience = this.resourceManager.experiences[experienceKeys[0]];
+			}
+		}
+		
+		// If we're starting a specific experience directly (not a scene with multiple experiences)
+		if (!this.experience && SceneClass.prototype instanceof Experience) {
+			this.experience = this.scene;
+		}
+		
+		console.log("Engine started with experience:", this.experience);
 
 		// Initialize Interaction Manager
 		this.interactionManager = new InteractionManager(this.canvas, this);
@@ -43,6 +65,8 @@ class Engine {
 
 		// Start rendering loop
 		this.render();
+		
+		return this.experience;
 	}
 
 	updateViewport(width, height) {
@@ -122,22 +146,40 @@ class Engine {
 		
 		// Update canvas size
 		if (this.canvas) {
-			const width = window.innerWidth;
-			const height = window.innerHeight;
+			const width = this.canvas.clientWidth;
+			const height = this.canvas.clientHeight;
 			
-			this.canvas.width = width;
-			this.canvas.height = height;
-			console.log(`Canvas resized to ${width}x${height}`);
-			
-			// Update viewport if needed
-			if (this.resourceManager && this.resourceManager.updateViewportSize) {
-				this.resourceManager.updateViewportSize(width, height);
+			if (width > 0 && height > 0) {
+				this.canvas.width = width;
+				this.canvas.height = height;
+				console.log(`Canvas resized to ${width}x${height}`);
+				
+				// Update context configuration if needed
+				if (this.context) {
+					this.context.configure({
+						device: this.device,
+						format: navigator.gpu.getPreferredCanvasFormat(),
+						alphaMode: 'premultiplied'
+					});
+				}
+				
+				// Update viewport if needed
+				if (this.resourceManager && this.resourceManager.updateViewportSize) {
+					this.resourceManager.updateViewportSize(width, height);
+				}
+				
+				// Update camera aspect ratio
+				if (this.camera) {
+					this.camera.updateAspect(width, height);
+				}
+				
+				// Call resize on scene if it exists
+				if (this.scene && typeof this.scene.handleResize === 'function') {
+					this.scene.handleResize(width, height);
+				}
+			} else {
+				console.warn(`Invalid canvas dimensions: ${width}x${height}`);
 			}
-		}
-		
-		// Call resize on scene if it exists
-		if (this.scene && typeof this.scene.handleResize === 'function') {
-			this.scene.handleResize();
 		}
 	}
 }
