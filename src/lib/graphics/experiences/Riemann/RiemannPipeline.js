@@ -73,7 +73,7 @@ class RiemannPipeline {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Initialize all shaders - using relative paths for production compatibility
+            // Initialize all shaders - using paths relative to this module
             await this.initializeShader('default', './shaders/RiemannShader.wgsl');
             await this.initializeShader('kp', './shaders/KPShader.wgsl');
             await this.initializeShader('sine', './shaders/SineShader.wgsl');
