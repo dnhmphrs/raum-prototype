@@ -18,7 +18,6 @@ export const KPShader = `
     // Function to generate color based on height
     fn heightColor(height: f32, time: f32) -> vec3<f32> {
         // Map height to a normalized range [0, 1]
-        // KP values typically range from -0.5 to 0.5
         let normalizedHeight = (height + 0.5) * 1.0;
         
         // Create a color gradient based on height
@@ -40,52 +39,64 @@ export const KPShader = `
         return finalColor;
     }
     
-    // Function to create a dynamic symmetric and positive definite matrix based on time
-    fn createDynamicOmega(time: f32) -> mat3x3<f32> {
-        let t = time * 0.1;
-        let sinT = sin(3.14159 * t);
-        let cosT = cos(3.14159 * t);
-
-        // Define the matrix B
+    // Function to create a hexagonal Omega matrix for shallow water wave patterns
+    fn createHexagonalOmega(time: f32) -> mat3x3<f32> {
+        // Slower time evolution for smoother animation
+        let t = time * 0.05;
+        
+        // Create a matrix that produces hexagonal patterns
+        // For hexagonal patterns, we need specific relationships between the matrix elements
+        
+        // Base matrix with hexagonal symmetry (60-degree rotational symmetry)
+        let a = 1.0 + 0.2 * sin(t);
+        let b = 0.5 * cos(t * 0.7);
+        
+        // This matrix structure helps create hexagonal patterns
+        // The ratio of diagonal to off-diagonal elements is important
         let B = mat3x3<f32>(
-            1.0 + 0.5 * sinT, 0.5 * cosT, 0.2 * sinT,
-            0.5 * cosT, 1.0 + 0.5 * cosT, 0.1 * sinT,
-            0.2 * sinT, 0.1 * cosT, 1.0 + 0.5 * sinT
+            a, b/2.0, 0.0,
+            b/2.0, a, 0.0,
+            0.0, 0.0, a/2.0
         );
-
+        
         // Compute A = B^T * B to ensure positive definiteness
         return transpose(B) * B;
     }
     
-    // Base phase vectors
-    const baseK = vec3<f32>(0.5, 1.0, 1.2060);
-    const baseL = vec3<f32>(-0.2, -1.3974, 0.6148);
-    const baseOmega = vec3<f32>(-1.1427, -6.2228, -0.3940);
+    // Base phase vectors - adjusted for more detailed waves
+    // These vectors control the wave directions and frequencies
+    const baseK = vec3<f32>(0.6, 0.0, 0.0);  // Primary x-direction - increased frequency
+    const baseL = vec3<f32>(0.3, 0.52, 0.0); // 60° offset for hexagonal pattern - increased frequency
+    const baseM = vec3<f32>(0.3, -0.52, 0.0); // -60° offset for hexagonal pattern - increased frequency
     
-    // Function to compute the real part of the KP solution
-    fn kpSolutionReal(z: vec3<f32>, Omega: mat3x3<f32>) -> f32 {
+    // Function to compute the KP solution with more detailed waves
+    fn kpSolutionSmooth(z: vec3<f32>, Omega: mat3x3<f32>, time: f32) -> f32 {
         var sum: f32 = 0.0;
         
-        // Iterate over the range of n values for 3 dimensions
-        for (var n1: i32 = -2; n1 <= 2; n1++) {
-            for (var n2: i32 = -2; n2 <= 2; n2++) {
-                for (var n3: i32 = -2; n3 <= 2; n3++) {
-                    let n = vec3<f32>(f32(n1), f32(n2), f32(n3));
-                    
-                    // Compute n^T * Omega * n
-                    let nt_Omega_n = dot(n, Omega * n);
-                    
-                    // Compute 2 * n^T * z
-                    let nt_z = 2.0 * dot(n, z);
-                    
-                    // Compute the real part of the exponential term
-                    let exponent = 3.14159 * (nt_Omega_n + nt_z);
-                    let realPart = cos(exponent); // Use cosine for the real part
-                    
-                    sum += realPart;
-                }
-            }
-        }
+        // Use fewer terms for smoother appearance
+        // We'll use a combination of 3 wave directions with harmonics
+        
+        // Primary wave in x direction
+        let phase1 = dot(baseK, z) + 0.2 * time;
+        sum += 0.4 * cos(6.28318 * phase1);
+        
+        // Secondary wave at 60 degrees
+        let phase2 = dot(baseL, z) + 0.15 * time;
+        sum += 0.3 * cos(6.28318 * phase2);
+        
+        // Tertiary wave at -60 degrees
+        let phase3 = dot(baseM, z) + 0.25 * time;
+        sum += 0.3 * cos(6.28318 * phase3);
+        
+        // Add some harmonics for more natural appearance
+        sum += 0.15 * cos(12.56636 * phase1); // 2x frequency
+        sum += 0.1 * cos(12.56636 * phase2); // 2x frequency
+        sum += 0.1 * cos(12.56636 * phase3); // 2x frequency
+        
+        // Add interference pattern for hexagonal structure
+        // This creates the hexagonal peaks where the three wave systems constructively interfere
+        let interference = cos(6.28318 * phase1) * cos(6.28318 * phase2) * cos(6.28318 * phase3);
+        sum += 0.3 * interference;
         
         return sum;
     }
@@ -97,39 +108,48 @@ export const KPShader = `
         // Store original position for coloring
         output.worldPos = position;
         
-        // Create a dynamic matrix based on time
+        // Get time
         let time = timeUniform.time;
-        let OmegaDynamic = createDynamicOmega(time);
         
-        // Calculate the phase variable z using phase vectors
-        // Ensure we're using the exact position coordinates for perfect centering
-        let z = baseK * position.x + baseL * position.y + vec3<f32>(0.0, 0.0, 0.0);
+        // Create hexagonal Omega matrix
+        let hexOmega = createHexagonalOmega(time);
         
-        // Calculate the real part of the KP solution at z
-        let kpValue = kpSolutionReal(z, OmegaDynamic);
+        // Calculate the phase variable z
+        // Scale for more detailed appearance - less zoomed out
+        let scaleFactor = 1.0; // No scaling to see full detail
+        let x = position.x * scaleFactor;
+        let y = position.y * scaleFactor;
+        let z = vec3<f32>(x, y, 0.0);
+        
+        // Calculate the KP solution
+        let kpValue = kpSolutionSmooth(z, hexOmega, time);
         
         // Create a modified position with KP solution as z-coordinate
+        // Scale height for better visibility
         var modifiedPosition = position;
-        modifiedPosition.z = kpValue * 0.05;
+        modifiedPosition.z = kpValue * 0.2; // Moderate amplitude for clear wave patterns
         
         // Transform position with view and projection matrices
         output.position = projection * view * vec4<f32>(modifiedPosition, 1.0);
         
         // Calculate normal (approximate)
-        // For KP surfaces, we need a better normal approximation
         let epsilon = 0.01;
         let dx = vec3<f32>(epsilon, 0.0, 0.0);
         let dy = vec3<f32>(0.0, epsilon, 0.0);
         
-        let zx = kpSolutionReal(baseK * (position.x + epsilon) + baseL * position.y, OmegaDynamic) * 0.05;
-        let zy = kpSolutionReal(baseK * position.x + baseL * (position.y + epsilon), OmegaDynamic) * 0.05;
+        // Calculate neighboring points for normal calculation
+        let zx = vec3<f32>(x + epsilon, y, 0.0);
+        let zy = vec3<f32>(x, y + epsilon, 0.0);
         
-        let tangentX = vec3<f32>(dx.x, 0.0, zx - modifiedPosition.z);
-        let tangentY = vec3<f32>(0.0, dy.y, zy - modifiedPosition.z);
+        let heightX = kpSolutionSmooth(zx, hexOmega, time) * 0.2;
+        let heightY = kpSolutionSmooth(zy, hexOmega, time) * 0.2;
+        
+        let tangentX = vec3<f32>(dx.x, 0.0, heightX - modifiedPosition.z);
+        let tangentY = vec3<f32>(0.0, dy.y, heightY - modifiedPosition.z);
         
         output.normal = normalize(cross(tangentX, tangentY));
         
-        // Generate color based on height (KP value)
+        // Generate color based on height
         output.color = heightColor(modifiedPosition.z, time);
         
         return output;
