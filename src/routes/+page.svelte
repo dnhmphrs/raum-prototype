@@ -23,13 +23,13 @@
       thumbnail: '/placeholder.png',
       color: '#00ff00'
     },
-    {
-      id: 'cube',
-      name: 'CUBE',
-      description: 'Interactive 3D cube visualization',
-      thumbnail: '/placeholder.png',
-      color: '#ff0000'
-    },
+    // {
+    //   id: 'cube',
+    //   name: 'CUBE',
+    //   description: 'Interactive 3D cube visualization',
+    //   thumbnail: '/placeholder.png',
+    //   color: '#ff0000'
+    // },
     {
       id: 'neuralnet',
       name: 'NEURAL NET',
@@ -44,13 +44,13 @@
       thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
-    {
-      id: 'lorentz',
-      name: 'LORENTZ',
-      description: 'Lorentz attractor visualization',
-      thumbnail: '/placeholder.png',
-      color: '#00ffff'
-    }
+    // {
+    //   id: 'lorentz',
+    //   name: 'LORENTZ',
+    //   description: 'Lorentz attractor visualization',
+    //   thumbnail: '/placeholder.png',
+    //   color: '#00ffff'
+    // }
   ];
   
   let selectedExp = null;
