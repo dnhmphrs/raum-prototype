@@ -17,8 +17,8 @@
         { id: 'torus', name: 'Torus' }
     ];
     
-    // Current selected manifold
-    let selectedManifold = manifoldTypes[0];
+    // Current selected manifold - set KP as default
+    let selectedManifold = manifoldTypes.find(m => m.id === 'kp');
     
     // Function to change the manifold
     function changeManifold(manifoldType) {
@@ -58,6 +58,11 @@
             }
             
             console.log("Experience initialized:", experience);
+            
+            // Ensure KP is the selected manifold
+            if (experience) {
+                experience.updateSurface('kp');
+            }
             
             // Handle window resize
             const handleResize = () => {

@@ -23,8 +23,8 @@ class RiemannExperience extends Experience {
         this.totalVertices = this.resolution * this.resolution;
         this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6; // 2 triangles per grid cell
         
-        // Current surface type
-        this.currentSurface = 'flat';
+        // Current surface type - set KP as default
+        this.currentSurface = 'kp';
         
         // Animation time
         this.time = 0;
