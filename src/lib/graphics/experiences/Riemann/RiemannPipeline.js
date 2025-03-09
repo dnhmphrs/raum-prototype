@@ -73,13 +73,13 @@ class RiemannPipeline {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Initialize all shaders
-            await this.initializeShader('default', '/src/lib/graphics/experiences/Riemann/shaders/RiemannShader.wgsl');
-            await this.initializeShader('kp', '/src/lib/graphics/experiences/Riemann/shaders/KPShader.wgsl');
-            await this.initializeShader('sine', '/src/lib/graphics/experiences/Riemann/shaders/SineShader.wgsl');
-            await this.initializeShader('ripple', '/src/lib/graphics/experiences/Riemann/shaders/RippleShader.wgsl');
-            await this.initializeShader('complex', '/src/lib/graphics/experiences/Riemann/shaders/ComplexShader.wgsl');
-            await this.initializeShader('torus', '/src/lib/graphics/experiences/Riemann/shaders/TorusShader.wgsl');
+            // Initialize all shaders - using relative paths for production compatibility
+            await this.initializeShader('default', './shaders/RiemannShader.wgsl');
+            await this.initializeShader('kp', './shaders/KPShader.wgsl');
+            await this.initializeShader('sine', './shaders/SineShader.wgsl');
+            await this.initializeShader('ripple', './shaders/RippleShader.wgsl');
+            await this.initializeShader('complex', './shaders/ComplexShader.wgsl');
+            await this.initializeShader('torus', './shaders/TorusShader.wgsl');
             
             this.isInitialized = true;
             console.log("Riemann Pipeline initialized successfully");
@@ -94,9 +94,15 @@ class RiemannPipeline {
         console.log(`Initializing shader: ${shaderType} from ${shaderPath}`);
         
         try {
+            // Resolve the shader path relative to the current module
+            // For production builds, we need to ensure the path is relative to the deployed assets
+            const resolvedPath = new URL(shaderPath, import.meta.url).href;
+            console.log(`Resolved shader path: ${resolvedPath}`);
+            
             // Fetch the shader code from the WGSL file using browser's fetch API
-            const response = await fetch(shaderPath);
+            const response = await fetch(resolvedPath);
             if (!response.ok) {
+                console.error(`Failed to load shader: ${resolvedPath} (Status: ${response.status})`);
                 throw new Error(`Failed to load shader: ${shaderPath}`);
             }
             const shaderCode = await response.text();
