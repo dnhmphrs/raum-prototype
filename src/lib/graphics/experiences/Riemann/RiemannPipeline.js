@@ -1,9 +1,6 @@
-import { RiemannShader } from './shaders/RiemannShader.js';
-import { KPShader } from './shaders/KPShader.js';
-import { SineShader } from './shaders/SineShader.js';
-import { RippleShader } from './shaders/RippleShader.js';
-import { ComplexShader } from './shaders/ComplexShader.js';
-import { TorusShader } from './shaders/TorusShader.js';
+// Remove the Node.js imports
+// import { readFileSync } from 'fs';
+// import path from 'path';
 
 class RiemannPipeline {
     constructor(device, resourceManager) {
@@ -46,12 +43,12 @@ class RiemannPipeline {
             });
             
             // Initialize all shaders
-            await this.initializeShader('default', RiemannShader);
-            await this.initializeShader('kp', KPShader);
-            await this.initializeShader('sine', SineShader);
-            await this.initializeShader('ripple', RippleShader);
-            await this.initializeShader('complex', ComplexShader);
-            await this.initializeShader('torus', TorusShader);
+            await this.initializeShader('default', '/src/lib/graphics/experiences/Riemann/shaders/RiemannShader.wgsl');
+            await this.initializeShader('kp', '/src/lib/graphics/experiences/Riemann/shaders/KPShader.wgsl');
+            await this.initializeShader('sine', '/src/lib/graphics/experiences/Riemann/shaders/SineShader.wgsl');
+            await this.initializeShader('ripple', '/src/lib/graphics/experiences/Riemann/shaders/RippleShader.wgsl');
+            await this.initializeShader('complex', '/src/lib/graphics/experiences/Riemann/shaders/ComplexShader.wgsl');
+            await this.initializeShader('torus', '/src/lib/graphics/experiences/Riemann/shaders/TorusShader.wgsl');
             
             this.isInitialized = true;
             console.log("Riemann Pipeline initialized successfully");
@@ -62,49 +59,61 @@ class RiemannPipeline {
         }
     }
     
-    async initializeShader(shaderType, shaderCode) {
-        console.log(`Initializing shader: ${shaderType}`);
+    async initializeShader(shaderType, shaderPath) {
+        console.log(`Initializing shader: ${shaderType} from ${shaderPath}`);
         
-        // Create shader module
-        this.shaderModules[shaderType] = this.device.createShaderModule({
-            label: `Riemann ${shaderType} Shader`,
-            code: shaderCode
-        });
-        
-        // Create render pipeline
-        this.renderPipelines[shaderType] = this.device.createRenderPipeline({
-            layout: this.pipelineLayout,
-            vertex: {
-                module: this.shaderModules[shaderType],
-                entryPoint: 'vertexMain',
-                buffers: [{
-                    arrayStride: 12, // 3 floats, 4 bytes each
-                    attributes: [{
-                        shaderLocation: 0,
-                        offset: 0,
-                        format: 'float32x3'
-                    }]
-                }]
-            },
-            fragment: {
-                module: this.shaderModules[shaderType],
-                entryPoint: 'fragmentMain',
-                targets: [{
-                    format: navigator.gpu.getPreferredCanvasFormat()
-                }]
-            },
-            primitive: {
-                topology: 'triangle-list',
-                cullMode: 'none' // Show both sides of the surface
-            },
-            depthStencil: {
-                format: 'depth24plus',
-                depthWriteEnabled: true,
-                depthCompare: 'less'
+        try {
+            // Fetch the shader code from the WGSL file using browser's fetch API
+            const response = await fetch(shaderPath);
+            if (!response.ok) {
+                throw new Error(`Failed to load shader: ${shaderPath}`);
             }
-        });
-        
-        console.log(`Shader ${shaderType} initialized successfully`);
+            const shaderCode = await response.text();
+            
+            // Create shader module
+            this.shaderModules[shaderType] = this.device.createShaderModule({
+                label: `Riemann ${shaderType} Shader`,
+                code: shaderCode
+            });
+            
+            // Create render pipeline
+            this.renderPipelines[shaderType] = this.device.createRenderPipeline({
+                layout: this.pipelineLayout,
+                vertex: {
+                    module: this.shaderModules[shaderType],
+                    entryPoint: 'vertexMain',
+                    buffers: [{
+                        arrayStride: 12, // 3 floats, 4 bytes each
+                        attributes: [{
+                            shaderLocation: 0,
+                            offset: 0,
+                            format: 'float32x3'
+                        }]
+                    }]
+                },
+                fragment: {
+                    module: this.shaderModules[shaderType],
+                    entryPoint: 'fragmentMain',
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat()
+                    }]
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                    cullMode: 'none' // Show both sides of the surface
+                },
+                depthStencil: {
+                    format: 'depth24plus',
+                    depthWriteEnabled: true,
+                    depthCompare: 'less'
+                }
+            });
+            
+            console.log(`Shader ${shaderType} initialized successfully`);
+        } catch (error) {
+            console.error(`Error initializing shader ${shaderType}:`, error);
+            throw error;
+        }
     }
     
     setShaderType(shaderType) {
