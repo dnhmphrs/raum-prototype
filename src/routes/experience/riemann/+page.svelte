@@ -35,6 +35,17 @@
         { value: 5, label: 'Module 6' }
     ];
     
+    // Function to stop event propagation
+    function stopPropagation(event) {
+        event.stopPropagation();
+    }
+    
+    // Function to prevent default and stop propagation
+    function preventDefaultAndStopPropagation(event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
     // Function to change the manifold
     function changeManifold(manifoldType) {
         console.log(`Changing manifold to: ${manifoldType}`);
@@ -144,7 +155,13 @@
     
     <a href="/" class="back-button">⏎ Back</a>
     
-    <div class="control-panel">
+    <div 
+        class="control-panel"
+        on:mousedown={stopPropagation}
+        on:mouseup={stopPropagation}
+        on:mousemove={stopPropagation}
+        on:wheel={preventDefaultAndStopPropagation}
+    >
         <h2>RIEMANN MANIFOLD</h2>
         <p>Visualizing 2D manifolds in 3D space</p>
         
@@ -168,7 +185,7 @@
         
         {#if selectedManifold.id === 'kp'}
             <div class="kp-controls">
-                <h2>KP Shader Controls</h2>
+                <h2>𝜏-Function Controls</h2>
                 
                 <div class="control-group">
                     <label for="kp-scale">Module:</label>

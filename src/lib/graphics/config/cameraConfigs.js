@@ -11,9 +11,9 @@ export const cameraConfigs = {
     baseDistance: 1000.0    // Close for cube inspection
   },
   NeuralNet: {
-    position: { x: 0, y: 0, z: 5 },
+    position: { x: 0, y: 350, z: 550 },
     fov: 45 * (Math.PI / 180),
-    baseDistance: 750.0    // Medium distance for network visualization
+    baseDistance: 75900.0    // Medium distance for network visualization
   },
   Poincare: {
     position: { x: 0, y: 0, z: 10 },
