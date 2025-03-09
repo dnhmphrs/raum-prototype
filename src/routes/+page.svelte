@@ -39,7 +39,7 @@
     },
     {
       id: 'riemann',
-      name: 'RIEMANN SURFACE',
+      name: 'RIEMANN SURFACES',
       description: '2D manifolds in 3D space',
       thumbnail: '/placeholder.png',
       color: '#ffff00'
