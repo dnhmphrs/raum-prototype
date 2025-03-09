@@ -1,22 +1,24 @@
-import { RiemannShader } from './RiemannShader.js';
+import { RiemannShader } from './shaders/RiemannShader.js';
+import { KPShader } from './shaders/KPShader.js';
+import { SineShader } from './shaders/SineShader.js';
+import { RippleShader } from './shaders/RippleShader.js';
+import { ComplexShader } from './shaders/ComplexShader.js';
+import { TorusShader } from './shaders/TorusShader.js';
 
 class RiemannPipeline {
     constructor(device, resourceManager) {
         this.device = device;
         this.resourceManager = resourceManager;
         this.isInitialized = false;
+        this.currentShaderType = 'default';
+        this.shaderModules = {};
+        this.renderPipelines = {};
     }
     
     async initialize() {
         console.log("Initializing Riemann Pipeline");
         
         try {
-            // Create shader module
-            this.shaderModule = this.device.createShaderModule({
-                label: "Riemann Shader",
-                code: RiemannShader
-            });
-            
             // Create bind group layout
             this.bindGroupLayout = this.device.createBindGroupLayout({
                 entries: [
@@ -43,38 +45,13 @@ class RiemannPipeline {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Create render pipeline
-            this.renderPipeline = this.device.createRenderPipeline({
-                layout: this.pipelineLayout,
-                vertex: {
-                    module: this.shaderModule,
-                    entryPoint: 'vertexMain',
-                    buffers: [{
-                        arrayStride: 12, // 3 floats, 4 bytes each
-                        attributes: [{
-                            shaderLocation: 0,
-                            offset: 0,
-                            format: 'float32x3'
-                        }]
-                    }]
-                },
-                fragment: {
-                    module: this.shaderModule,
-                    entryPoint: 'fragmentMain',
-                    targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat()
-                    }]
-                },
-                primitive: {
-                    topology: 'triangle-list',
-                    cullMode: 'none' // Show both sides of the surface
-                },
-                depthStencil: {
-                    format: 'depth24plus',
-                    depthWriteEnabled: true,
-                    depthCompare: 'less'
-                }
-            });
+            // Initialize all shaders
+            await this.initializeShader('default', RiemannShader);
+            await this.initializeShader('kp', KPShader);
+            await this.initializeShader('sine', SineShader);
+            await this.initializeShader('ripple', RippleShader);
+            await this.initializeShader('complex', ComplexShader);
+            await this.initializeShader('torus', TorusShader);
             
             this.isInitialized = true;
             console.log("Riemann Pipeline initialized successfully");
@@ -85,9 +62,76 @@ class RiemannPipeline {
         }
     }
     
-    render(commandEncoder, textureView, depthTextureView, vertexBuffer, indexBuffer, uniformBuffer, indexCount) {
+    async initializeShader(shaderType, shaderCode) {
+        console.log(`Initializing shader: ${shaderType}`);
+        
+        // Create shader module
+        this.shaderModules[shaderType] = this.device.createShaderModule({
+            label: `Riemann ${shaderType} Shader`,
+            code: shaderCode
+        });
+        
+        // Create render pipeline
+        this.renderPipelines[shaderType] = this.device.createRenderPipeline({
+            layout: this.pipelineLayout,
+            vertex: {
+                module: this.shaderModules[shaderType],
+                entryPoint: 'vertexMain',
+                buffers: [{
+                    arrayStride: 12, // 3 floats, 4 bytes each
+                    attributes: [{
+                        shaderLocation: 0,
+                        offset: 0,
+                        format: 'float32x3'
+                    }]
+                }]
+            },
+            fragment: {
+                module: this.shaderModules[shaderType],
+                entryPoint: 'fragmentMain',
+                targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat()
+                }]
+            },
+            primitive: {
+                topology: 'triangle-list',
+                cullMode: 'none' // Show both sides of the surface
+            },
+            depthStencil: {
+                format: 'depth24plus',
+                depthWriteEnabled: true,
+                depthCompare: 'less'
+            }
+        });
+        
+        console.log(`Shader ${shaderType} initialized successfully`);
+    }
+    
+    setShaderType(shaderType) {
+        if (this.renderPipelines[shaderType]) {
+            this.currentShaderType = shaderType;
+            console.log(`Switched to shader: ${shaderType}`);
+            return true;
+        } else {
+            console.warn(`Shader ${shaderType} not found, using default`);
+            this.currentShaderType = 'default';
+            return false;
+        }
+    }
+    
+    render(commandEncoder, textureView, depthTextureView, vertexBuffer, indexBuffer, uniformBuffer, indexCount, shaderType = null) {
         if (!this.isInitialized || !textureView) {
             return;
+        }
+        
+        // Set shader type if provided
+        if (shaderType && this.renderPipelines[shaderType]) {
+            this.currentShaderType = shaderType;
+        }
+        
+        // Use default if current shader not found
+        if (!this.renderPipelines[this.currentShaderType]) {
+            this.currentShaderType = 'default';
         }
         
         // Validate depth texture view
@@ -137,7 +181,7 @@ class RiemannPipeline {
             
             // Begin render pass
             const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-            passEncoder.setPipeline(this.renderPipeline);
+            passEncoder.setPipeline(this.renderPipelines[this.currentShaderType]);
             passEncoder.setBindGroup(0, bindGroup);
             passEncoder.setVertexBuffer(0, vertexBuffer);
             passEncoder.setIndexBuffer(indexBuffer, 'uint32');

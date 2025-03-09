@@ -12,10 +12,8 @@
         { id: 'flat', name: 'Flat Surface' },
         { id: 'sine', name: 'Sine Wave' },
         { id: 'ripple', name: 'Ripple' },
-        { id: 'saddle', name: 'Saddle' },
-        { id: 'gaussian', name: 'Gaussian' },
         { id: 'complex', name: 'Complex Function' },
-        { id: 'mobius', name: 'Möbius Strip' },
+        { id: 'kp', name: 'KP Equation' },
         { id: 'torus', name: 'Torus' }
     ];
     

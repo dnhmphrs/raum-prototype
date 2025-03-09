@@ -29,6 +29,16 @@ class RiemannExperience extends Experience {
         // Animation time
         this.time = 0;
         
+        // Map of surface types to shader types
+        this.surfaceShaderMap = {
+            'flat': 'default',
+            'sine': 'sine',         // Use dedicated sine shader
+            'ripple': 'ripple',     // Use dedicated ripple shader
+            'complex': 'complex',   // Use dedicated complex shader
+            'kp': 'kp',             // Use dedicated KP shader
+            'torus': 'torus'        // Use dedicated torus shader
+        };
+        
         // Create vertex and index buffers
         this.createBuffers();
         
@@ -110,7 +120,19 @@ class RiemannExperience extends Experience {
         // Update current surface type
         this.currentSurface = surfaceType;
         
-        // Create new vertices
+        // For shader-based surfaces, just switch the shader
+        if (this.surfaceShaderMap[surfaceType]) {
+            const shaderType = this.surfaceShaderMap[surfaceType];
+            
+            // If this surface uses a dedicated shader, switch to it
+            if (shaderType !== 'default') {
+                console.log(`Switching to ${shaderType} shader for ${surfaceType} surface`);
+                this.pipeline.setShaderType(shaderType);
+                return;
+            }
+        }
+        
+        // For CPU-based surfaces, update the vertex buffer
         const vertices = new Float32Array(this.totalVertices * 3);
         
         // Generate the new surface
@@ -119,6 +141,9 @@ class RiemannExperience extends Experience {
         // Update vertex buffer with new vertices
         this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
         
+        // Switch back to default shader if needed
+        this.pipeline.setShaderType('default');
+        
         console.log(`Surface updated to ${surfaceType}`);
     }
     
@@ -126,13 +151,47 @@ class RiemannExperience extends Experience {
     generateSurface(vertices, surfaceType) {
         console.log(`Generating surface: ${surfaceType}`);
         
+        // Safety check for surfaceShaderMap
+        if (!this.surfaceShaderMap) {
+            console.warn("surfaceShaderMap is not defined, initializing with defaults");
+            this.surfaceShaderMap = {
+                'flat': 'default',
+                'sine': 'default',
+                'ripple': 'default',
+                'complex': 'default',
+                'kp': 'kp',
+                'torus': 'default'
+            };
+        }
+        
+        // For shader-based surfaces, just create a flat grid
+        if (this.surfaceShaderMap[surfaceType] && this.surfaceShaderMap[surfaceType] !== 'default') {
+            console.log(`Using shader for ${surfaceType}, generating flat grid`);
+            for (let y = 0; y < this.resolution; y++) {
+                for (let x = 0; x < this.resolution; x++) {
+                    const index = (y * this.resolution + x) * 3;
+                    
+                    // Map grid coordinates to [-2, 2] range - CENTERED EXACTLY
+                    const xPos = (x / (this.resolution - 1)) * 4 - 2;
+                    const yPos = (y / (this.resolution - 1)) * 4 - 2;
+                    
+                    // Set vertex position (flat grid)
+                    vertices[index] = xPos;     // x
+                    vertices[index + 1] = yPos; // y
+                    vertices[index + 2] = 0;    // z (flat)
+                }
+            }
+            return;
+        }
+        
+        // For CPU-based surfaces, generate the geometry
         for (let y = 0; y < this.resolution; y++) {
             for (let x = 0; x < this.resolution; x++) {
                 const index = (y * this.resolution + x) * 3;
                 
-                // Map grid coordinates to [-2, 2] range
-                const xPos = ((x / (this.resolution - 1)) * 4 - 2);
-                const yPos = ((y / (this.resolution - 1)) * 4 - 2);
+                // Map grid coordinates to [-2, 2] range - CENTERED EXACTLY
+                const xPos = (x / (this.resolution - 1)) * 4 - 2;
+                const yPos = (y / (this.resolution - 1)) * 4 - 2;
                 
                 // Set vertex position based on surface type
                 vertices[index] = xPos;     // x
@@ -156,36 +215,11 @@ class RiemannExperience extends Experience {
                         vertices[index + 2] = Math.sin(distance * 5) * 0.2;
                         break;
                         
-                    case 'saddle':
-                        // Saddle surface (hyperbolic paraboloid)
-                        vertices[index + 2] = (xPos * xPos - yPos * yPos) * 0.3;
-                        break;
-                        
-                    case 'gaussian':
-                        // Gaussian (bell curve)
-                        const gaussRadius = xPos * xPos + yPos * yPos;
-                        vertices[index + 2] = Math.exp(-gaussRadius * 2) * 1.5;
-                        break;
-                        
                     case 'complex':
                         // Complex function visualization
                         const r = Math.sqrt(xPos * xPos + yPos * yPos) + 0.01;
                         const theta = Math.atan2(yPos, xPos);
                         vertices[index + 2] = Math.sin(r * 5) * Math.cos(theta * 3) * 0.5;
-                        break;
-                        
-                    case 'mobius':
-                        // Möbius strip approximation
-                        const u = xPos * Math.PI; // Parameter along the strip
-                        const v = yPos; // Parameter across the strip
-                        
-                        // Parametric equations for Möbius strip
-                        const R = 1.5; // Major radius
-                        const w = 0.5; // Width of the strip
-                        
-                        vertices[index] = (R + v * Math.cos(u/2)) * Math.cos(u);
-                        vertices[index + 1] = (R + v * Math.cos(u/2)) * Math.sin(u);
-                        vertices[index + 2] = v * Math.sin(u/2);
                         break;
                         
                     case 'torus':
@@ -217,16 +251,29 @@ class RiemannExperience extends Experience {
             this.pipeline = new RiemannPipeline(this.device, this.resourceManager);
             await this.pipeline.initialize();
             
-            // Set camera position for better viewing
+            // Set camera position for better viewing - ADJUSTED FOR CENTERING
             if (this.resourceManager && this.resourceManager.camera) {
-                // Position camera to look at the grid from above
+                // Position camera directly above the center of the grid
                 this.resourceManager.camera.position = [0, 0, 5];
+                
+                // Look directly at the center of the grid (0,0,0)
+                this.resourceManager.camera.target = [0, 0, 0];
                 this.resourceManager.camera.updateView();
                 
                 // Set up camera controller if available
                 if (this.resourceManager.cameraController) {
+                    // Set the target to the center of the grid
+                    this.resourceManager.cameraController.target = [0, 0, 0];
+                    
+                    // Adjust distance for better viewing
                     this.resourceManager.cameraController.baseDistance = 5.0;
                     this.resourceManager.cameraController.distance = 5.0;
+                    
+                    // Set initial angles for a top-down view with slight perspective
+                    this.resourceManager.cameraController.theta = Math.PI / 4; // 45 degrees
+                    this.resourceManager.cameraController.phi = Math.PI / 4;   // 45 degrees
+                    
+                    // Update camera position based on these settings
                     this.resourceManager.cameraController.updateCameraPosition();
                 }
             }
@@ -261,7 +308,23 @@ class RiemannExperience extends Experience {
                 new Float32Array([0, 0, 0, this.time])
             );
             
-            // Render using pipeline
+            // Safety check for surfaceShaderMap
+            if (!this.surfaceShaderMap) {
+                console.warn("surfaceShaderMap is not defined in render, using default shader");
+                this.surfaceShaderMap = {
+                    'flat': 'default',
+                    'sine': 'default',
+                    'ripple': 'default',
+                    'complex': 'default',
+                    'kp': 'kp',
+                    'torus': 'default'
+                };
+            }
+            
+            // Get the shader type for the current surface
+            const shaderType = this.surfaceShaderMap[this.currentSurface] || 'default';
+            
+            // Render using pipeline with the appropriate shader
             this.pipeline.render(
                 commandEncoder,
                 textureView,
@@ -269,7 +332,8 @@ class RiemannExperience extends Experience {
                 this.vertexBuffer,
                 this.indexBuffer,
                 this.uniformBuffer,
-                this.totalIndices
+                this.totalIndices,
+                shaderType
             );
         } catch (error) {
             console.error('Error in Riemann render:', error);
