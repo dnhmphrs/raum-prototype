@@ -185,7 +185,7 @@
         
         {#if selectedManifold.id === 'kp'}
             <div class="kp-controls">
-                <h2>𝜏-Function Controls</h2>
+                <h2>𝜏-Function Params</h2>
                 
                 <div class="control-group">
                     <label for="kp-scale">Module:</label>
