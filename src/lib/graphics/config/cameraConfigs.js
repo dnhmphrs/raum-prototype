@@ -24,6 +24,11 @@ export const cameraConfigs = {
     position: { x: 0, y: 0, z: 100 },
     fov: 45 * (Math.PI / 180),
     baseDistance: 100.0  // Distance for Lorentz attractor
+  },
+  Riemann: {
+    position: { x: 0, y: 0, z: 3 },
+    fov: 45 * (Math.PI / 180),
+    baseDistance: 5.0  // Close distance for surface detail viewing
   }
 };
 

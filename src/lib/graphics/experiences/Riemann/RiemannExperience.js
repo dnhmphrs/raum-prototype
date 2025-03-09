@@ -286,12 +286,9 @@ class RiemannExperience extends Experience {
             // Initialize KP parameters
             this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
             
-            // Set camera position for better viewing - ADJUSTED FOR CENTERING
+            // Set camera target to center of grid without overriding position
             if (this.resourceManager && this.resourceManager.camera) {
-                // Position camera directly above the center of the grid
-                this.resourceManager.camera.position = [0, 0, 5];
-                
-                // Look directly at the center of the grid (0,0,0)
+                // Look at the center of the grid (0,0,0)
                 this.resourceManager.camera.target = [0, 0, 0];
                 this.resourceManager.camera.updateView();
                 
@@ -300,16 +297,12 @@ class RiemannExperience extends Experience {
                     // Set the target to the center of the grid
                     this.resourceManager.cameraController.target = [0, 0, 0];
                     
-                    // Adjust distance for better viewing
-                    this.resourceManager.cameraController.baseDistance = 5.0;
-                    this.resourceManager.cameraController.distance = 5.0;
+                    // Don't override the baseDistance and distance as they should come from cameraConfigs.js
                     
-                    // Set initial angles for a top-down view with slight perspective
-                    this.resourceManager.cameraController.theta = Math.PI / 4; // 45 degrees
-                    this.resourceManager.cameraController.phi = Math.PI / 4;   // 45 degrees
+                    // Don't set theta and phi angles - let the camera controller use its defaults
+                    // or the ones calculated from the position in the config
                     
-                    // Update camera position based on these settings
-                    this.resourceManager.cameraController.updateCameraPosition();
+                    // Don't call updateCameraPosition as it would override the camera position from the config
                 }
             }
             

@@ -5,17 +5,48 @@ export default class CameraController {
 	constructor(camera, target = vec3.fromValues(0, 0, 0), config = {}) {
 		this.camera = camera;
 		this.target = target;
+		
+		// Default angles
 		this.theta = Math.PI / 2;
 		this.phi = Math.PI / 4;
+		
+		// If camera position is already set (from config), calculate theta and phi from it
+		if (camera && camera.position && 
+		    (camera.position[0] !== 0 || camera.position[1] !== 0 || camera.position[2] !== 0)) {
+			// Calculate relative position from target
+			const relX = camera.position[0] - target[0];
+			const relY = camera.position[1] - target[1];
+			const relZ = camera.position[2] - target[2];
+			
+			// Calculate distance
+			const dist = Math.sqrt(relX * relX + relY * relY + relZ * relZ);
+			
+			// Calculate phi (vertical angle)
+			this.phi = Math.acos(relY / dist);
+			
+			// Calculate theta (horizontal angle)
+			this.theta = Math.atan2(relZ, relX);
+			
+			// Use this distance instead of the one from config
+			this.baseDistance = dist;
+			this.distance = dist;
+		} else {
+			// Use distance from config
+			this.baseDistance = config.baseDistance || 4000.0; // Base distance from target, configurable
+			this.distance = this.baseDistance; // Initial distance set by zoom
+		}
+		
 		this.currentZoom = 1.0;
-		this.baseDistance = config.baseDistance || 4000.0; // Base distance from target, configurable
-		this.distance = this.baseDistance; // Initial distance set by zoom
-
+		
 		this.isDragging = false;
 		this.lastMouseX = 0;
 		this.lastMouseY = 0;
 
-		this.updateCameraPosition();
+		// Only update camera position if it's not already set
+		if (!camera || !camera.position || 
+		    (camera.position[0] === 0 && camera.position[1] === 0 && camera.position[2] === 0)) {
+			this.updateCameraPosition();
+		}
 	}
 
 	startDrag(x, y) {

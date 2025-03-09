@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from 'svelte';
     import Engine from '$lib/graphics/Engine.js';
     import RiemannExperience from '$lib/graphics/experiences/Riemann/RiemannExperience.js';
+    import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
     
     let canvas;
     let engine;
@@ -89,8 +90,11 @@
             // Initialize the engine with the canvas
             engine = new Engine(canvas);
             
-            // Start the Riemann experience and store the reference
-            const result = await engine.start(RiemannExperience);
+            // Get the Riemann camera config
+            const cameraConfig = getCameraConfig('Riemann');
+            
+            // Start the Riemann experience with the camera config
+            const result = await engine.start(RiemannExperience, cameraConfig);
             
             // Try to get the experience reference in multiple ways
             if (engine.experience) {

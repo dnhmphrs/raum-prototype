@@ -27,7 +27,26 @@ class Engine {
 		this.context = context;
 
 		// Initialize Camera and Controller with config
-		this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight, cameraConfig);
+		this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight);
+		
+		// Set camera position and fov from config if provided
+		if (cameraConfig) {
+			// Set position
+			if (cameraConfig.position) {
+				this.camera.position = vec3.fromValues(
+					cameraConfig.position.x,
+					cameraConfig.position.y,
+					cameraConfig.position.z
+				);
+				this.camera.updateView();
+			}
+			
+			// Set field of view
+			if (cameraConfig.fov) {
+				this.camera.updateProjection(cameraConfig.fov);
+			}
+		}
+		
 		this.cameraController = new CameraController(this.camera, vec3.fromValues(0, 0, 0), cameraConfig);
 
 		// Initialize Shared Resource Manager
