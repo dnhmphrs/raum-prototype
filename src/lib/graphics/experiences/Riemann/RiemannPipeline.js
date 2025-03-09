@@ -73,13 +73,13 @@ class RiemannPipeline {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Initialize all shaders - using paths relative to this module
-            await this.initializeShader('default', './shaders/RiemannShader.wgsl');
-            await this.initializeShader('kp', './shaders/KPShader.wgsl');
-            await this.initializeShader('sine', './shaders/SineShader.wgsl');
-            await this.initializeShader('ripple', './shaders/RippleShader.wgsl');
-            await this.initializeShader('complex', './shaders/ComplexShader.wgsl');
-            await this.initializeShader('torus', './shaders/TorusShader.wgsl');
+            // Initialize all shaders with paths to the static directory
+            await this.initializeShader('default', '/shaders/riemann/RiemannShader.wgsl');
+            await this.initializeShader('kp', '/shaders/riemann/KPShader.wgsl');
+            await this.initializeShader('sine', '/shaders/riemann/SineShader.wgsl');
+            await this.initializeShader('ripple', '/shaders/riemann/RippleShader.wgsl');
+            await this.initializeShader('complex', '/shaders/riemann/ComplexShader.wgsl');
+            await this.initializeShader('torus', '/shaders/riemann/TorusShader.wgsl');
             
             this.isInitialized = true;
             console.log("Riemann Pipeline initialized successfully");
@@ -94,15 +94,10 @@ class RiemannPipeline {
         console.log(`Initializing shader: ${shaderType} from ${shaderPath}`);
         
         try {
-            // Resolve the shader path relative to the current module
-            // For production builds, we need to ensure the path is relative to the deployed assets
-            const resolvedPath = new URL(shaderPath, import.meta.url).href;
-            console.log(`Resolved shader path: ${resolvedPath}`);
-            
             // Fetch the shader code from the WGSL file using browser's fetch API
-            const response = await fetch(resolvedPath);
+            const response = await fetch(shaderPath);
             if (!response.ok) {
-                console.error(`Failed to load shader: ${resolvedPath} (Status: ${response.status})`);
+                console.error(`Failed to load shader: ${shaderPath} (Status: ${response.status})`);
                 throw new Error(`Failed to load shader: ${shaderPath}`);
             }
             const shaderCode = await response.text();
