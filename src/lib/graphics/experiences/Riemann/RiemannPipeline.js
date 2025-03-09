@@ -10,13 +10,39 @@ class RiemannPipeline {
         this.currentShaderType = 'default';
         this.shaderModules = {};
         this.renderPipelines = {};
+        
+        // Create KP shader parameters buffer with default values
+        this.kpParamsBuffer = this.device.createBuffer({
+            size: 16, // 4 floats (scaleIndex, distortion, padding1, padding2)
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            label: 'KP Shader Parameters Buffer'
+        });
+        
+        // Initialize with default values
+        this.updateKPParams(2, 0); // Default: scale index 2, no distortion
+    }
+    
+    // Method to update KP shader parameters
+    updateKPParams(scaleIndex, distortion) {
+        if (!this.device || !this.kpParamsBuffer) return;
+        
+        // Clamp values to valid ranges
+        scaleIndex = Math.max(0, Math.min(5, scaleIndex));
+        distortion = Math.max(0, Math.min(1, distortion));
+        
+        // Update the buffer
+        this.device.queue.writeBuffer(
+            this.kpParamsBuffer,
+            0,
+            new Float32Array([scaleIndex, distortion, 0, 0]) // Include padding
+        );
     }
     
     async initialize() {
         console.log("Initializing Riemann Pipeline");
         
         try {
-            // Create bind group layout
+            // Create bind group layout with additional binding for KP parameters
             this.bindGroupLayout = this.device.createBindGroupLayout({
                 entries: [
                     {
@@ -33,6 +59,11 @@ class RiemannPipeline {
                         binding: 2,
                         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                         buffer: { type: 'uniform' } // Time uniform
+                    },
+                    {
+                        binding: 3,
+                        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' } // KP shader parameters
                     }
                 ]
             });
@@ -168,6 +199,10 @@ class RiemannPipeline {
                     {
                         binding: 2,
                         resource: { buffer: uniformBuffer }
+                    },
+                    {
+                        binding: 3,
+                        resource: { buffer: this.kpParamsBuffer }
                     }
                 ]
             });

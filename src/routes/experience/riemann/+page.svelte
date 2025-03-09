@@ -13,12 +13,26 @@
         { id: 'sine', name: 'Sine Wave' },
         { id: 'ripple', name: 'Ripple' },
         { id: 'complex', name: 'Complex Function' },
-        { id: 'kp', name: 'KP Equation' },
+        { id: 'kp', name: '𝜏-Function / grid code' },
         { id: 'torus', name: 'Torus' }
     ];
     
     // Current selected manifold - set KP as default
     let selectedManifold = manifoldTypes.find(m => m.id === 'kp');
+    
+    // KP shader parameters
+    let kpScaleIndex = 2; // Default scale index (middle scale)
+    let kpDistortion = 0; // Default distortion (none)
+    
+    // Module options for KP shader
+    const scaleOptions = [
+        { value: 0, label: 'Module 1' },
+        { value: 1, label: 'Module 2' },
+        { value: 2, label: 'Module 3' },
+        { value: 3, label: 'Module 4' },
+        { value: 4, label: 'Module 5' },
+        { value: 5, label: 'Module 6' }
+    ];
     
     // Function to change the manifold
     function changeManifold(manifoldType) {
@@ -37,6 +51,36 @@
             window.riemannExperience.updateSurface(manifoldType);
         } else {
             console.error("Experience not initialized yet");
+        }
+    }
+    
+    // Function to update KP scale
+    function updateKPScale(scaleIndex) {
+        console.log(`Updating KP scale to: ${scaleIndex}`);
+        kpScaleIndex = scaleIndex;
+        
+        // Try multiple ways to find the experience
+        if (experience) {
+            experience.updateKPScale(scaleIndex);
+        } else if (engine && engine.scene && engine.scene.currentExperience) {
+            engine.scene.currentExperience.updateKPScale(scaleIndex);
+        } else if (window.riemannExperience) {
+            window.riemannExperience.updateKPScale(scaleIndex);
+        }
+    }
+    
+    // Function to update KP distortion
+    function updateKPDistortion(distortion) {
+        console.log(`Updating KP distortion to: ${distortion}`);
+        kpDistortion = distortion;
+        
+        // Try multiple ways to find the experience
+        if (experience) {
+            experience.updateKPDistortion(distortion);
+        } else if (engine && engine.scene && engine.scene.currentExperience) {
+            engine.scene.currentExperience.updateKPDistortion(distortion);
+        } else if (window.riemannExperience) {
+            window.riemannExperience.updateKPDistortion(distortion);
         }
     }
     
@@ -62,6 +106,10 @@
             // Ensure KP is the selected manifold
             if (experience) {
                 experience.updateSurface('kp');
+                
+                // Initialize KP parameters
+                experience.updateKPScale(kpScaleIndex);
+                experience.updateKPDistortion(kpDistortion);
             }
             
             // Handle window resize
@@ -88,7 +136,7 @@
 </svelte:head>
 
 <div class="experience-container">
-    <canvas bind:this={canvas}></canvas>
+    <canvas bind:this={canvas} class="webgpu-canvas"></canvas>
     
     <a href="/" class="back-button">⏎ Back</a>
     
@@ -113,6 +161,38 @@
         <div class="info">
             <p>Current: <span class="highlight">{selectedManifold.name}</span></p>
         </div>
+        
+        {#if selectedManifold.id === 'kp'}
+            <div class="kp-controls">
+                <h2>KP Shader Controls</h2>
+                
+                <div class="control-group">
+                    <label for="kp-scale">Module:</label>
+                    <select 
+                        id="kp-scale" 
+                        bind:value={kpScaleIndex} 
+                        on:change={() => updateKPScale(kpScaleIndex)}
+                    >
+                        {#each scaleOptions as option}
+                            <option value={option.value}>{option.label}</option>
+                        {/each}
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="kp-distortion">Distortion: {kpDistortion.toFixed(2)}</label>
+                    <input 
+                        type="range" 
+                        id="kp-distortion" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        bind:value={kpDistortion} 
+                        on:input={() => updateKPDistortion(kpDistortion)}
+                    />
+                </div>
+            </div>
+        {/if}
     </div>
 </div>
 
@@ -125,7 +205,7 @@
         background-color: #000;
     }
     
-    canvas {
+    .webgpu-canvas {
         width: 100%;
         height: 100%;
         display: block;
@@ -223,5 +303,33 @@
     .highlight {
         color: #00ffff;
         font-weight: bold;
+    }
+    
+    .kp-controls {
+        border-top: 1px solid #444;
+        padding-top: 15px;
+        margin-top: 10px;
+    }
+    
+    .control-group {
+        margin-bottom: 15px;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    select, input[type="range"] {
+        width: 100%;
+        padding: 5px;
+        background-color: #333;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 4px;
+    }
+    
+    select {
+        height: 30px;
     }
 </style> 

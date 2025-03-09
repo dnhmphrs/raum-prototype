@@ -26,6 +26,12 @@ class RiemannExperience extends Experience {
         // Current surface type - set KP as default
         this.currentSurface = 'kp';
         
+        // KP shader parameters
+        this.kpParams = {
+            scaleIndex: 2, // Default scale index (middle scale)
+            distortion: 0  // Default distortion (none)
+        };
+        
         // Animation time
         this.time = 0;
         
@@ -243,6 +249,32 @@ class RiemannExperience extends Experience {
         }
     }
     
+    // Method to update KP scale parameter
+    updateKPScale(scaleIndex) {
+        if (!this.pipeline) return;
+        
+        // Update local state
+        this.kpParams.scaleIndex = scaleIndex;
+        
+        // Update pipeline parameters
+        this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
+        
+        console.log(`Updated KP scale to index: ${scaleIndex}`);
+    }
+    
+    // Method to update KP distortion parameter
+    updateKPDistortion(distortion) {
+        if (!this.pipeline) return;
+        
+        // Update local state
+        this.kpParams.distortion = distortion;
+        
+        // Update pipeline parameters
+        this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
+        
+        console.log(`Updated KP distortion to: ${distortion}`);
+    }
+    
     async initialize() {
         console.log("Initializing Riemann Experience");
         
@@ -250,6 +282,9 @@ class RiemannExperience extends Experience {
             // Create pipeline
             this.pipeline = new RiemannPipeline(this.device, this.resourceManager);
             await this.pipeline.initialize();
+            
+            // Initialize KP parameters
+            this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
             
             // Set camera position for better viewing - ADJUSTED FOR CENTERING
             if (this.resourceManager && this.resourceManager.camera) {
