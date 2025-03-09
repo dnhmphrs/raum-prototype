@@ -9,34 +9,34 @@
   let mounted = false;
   
   onMount(async () => {
-    if (!navigator.gpu) {
+    if (canvas && navigator.gpu) {
+      // Initialize the engine with the canvas
+      engine = new Engine(canvas);
+      
+      // Start the Cube experience with camera config
+      await engine.start(CubeExperience, getCameraConfig('Cube'));
+      
+      mounted = true;
+      
+      // Handle window resize
+      const handleResize = () => {
+        if (engine) {
+          // Use engine.handleResize() instead of engine.resourceManager.handleResize()
+          engine.handleResize();
+        }
+      };
+      
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        if (engine) {
+          engine.cleanup();
+        }
+      };
+    } else if (!navigator.gpu) {
       alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
-      return;
     }
-    
-    // Initialize the engine with the canvas
-    engine = new Engine(canvas);
-    
-    // Start the Cube experience with camera config
-    await engine.start(CubeExperience, getCameraConfig('Cube'));
-    
-    mounted = true;
-    
-    // Handle window resize
-    const handleResize = () => {
-      if (engine && engine.resourceManager) {
-        engine.resourceManager.handleResize();
-      }
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (engine) {
-        engine.cleanup();
-      }
-    };
   });
   
   onDestroy(() => {

@@ -44,13 +44,13 @@
       thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
-    // {
-    //   id: 'lorentz',
-    //   name: 'LORENTZ',
-    //   description: 'Lorentz attractor visualization',
-    //   thumbnail: '/placeholder.png',
-    //   color: '#00ffff'
-    // }
+    {
+      id: 'lorentz',
+      name: 'LORENTZ',
+      description: 'Lorentz attractor visualization',
+      thumbnail: '/placeholder.png',
+      color: '#00ffff'
+    }
   ];
   
   let selectedExp = null;

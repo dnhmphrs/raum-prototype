@@ -1,99 +1,131 @@
 import Experience from '../Experience';
-import Cube from './Cube';
-import RenderPipeline3D from './RenderPipeline3D';
-import RenderPipeline2D from './RenderPipeline2D';
+import RenderPipeline2D from './RenderPipeline2D.js';
+import RenderPipeline3D from './RenderPipeline3D.js';
 
 class CubeExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
-
-		// Initialize 2D and 3D pipelines
-		this.pipeline2D = new RenderPipeline2D(
-			this.device,
-			resourceManager.getViewportBuffer(),
-			resourceManager.getMouseBuffer()
-		);
-
-		this.pipeline3D = new RenderPipeline3D(
-			this.device,
-			resourceManager.camera,
-			resourceManager.getViewportBuffer(),
-			resourceManager.getMouseBuffer()
-		);
-
-		this.addCubes();
-	}
-
-	async initialize() {
-		await this.pipeline2D.initialize();
-		await this.pipeline3D.initialize();
-	}
-
-	addCubes() {
-		const gridSize = 5; // Number of cubes in a grid
-		const spacing = 2; // Distance between cubes
-
-		for (let x = -gridSize; x <= gridSize; x++) {
-			for (let y = -gridSize; y <= gridSize; y++) {
-				for (let z = -gridSize; z <= gridSize; z++) {
-					const cube = new Cube(this.device);
-					cube.transform = { position: [x * spacing, y * spacing, z * spacing] };
-					this.addObject(cube);
-				}
+		console.log("Creating Cube Experience");
+		
+		// Store device and resource manager
+		this.device = device;
+		this.resourceManager = resourceManager;
+		
+		// Register this experience with the resource manager
+		if (this.resourceManager) {
+			if (!this.resourceManager.experiences) {
+				this.resourceManager.experiences = {};
 			}
+			this.resourceManager.experiences.cube = this;
+		}
+		
+		// Animation time
+		this.time = 0;
+		
+		// Create uniform buffer for time
+		this.uniformBuffer = this.device.createBuffer({
+			size: 16, // 3 unused floats + 1 float for time
+			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+			label: 'Cube Uniforms Buffer'
+		});
+		
+		// Expose this experience globally
+		if (typeof window !== 'undefined') {
+			window.cubeExperience = this;
+			console.log("Exposed Cube Experience globally as window.cubeExperience");
 		}
 	}
-
-	render(commandEncoder, textureView) {
-		// Render the 2D pipeline with a `clear`
-		const passDescriptor2D = {
-			colorAttachments: [
-				{
-					view: textureView,
-					loadOp: 'clear',
-					storeOp: 'store',
-					clearValue: { r: 0.2, g: 0.2, b: 0.2, a: 1.0 }
+	
+	async initialize() {
+		console.log("Initializing Cube Experience");
+		
+		try {
+			// Create 2D pipeline first (renders behind)
+			this.pipeline2D = new RenderPipeline2D(this.device, this.resourceManager);
+			await this.pipeline2D.initialize();
+			
+			// Create 3D pipeline (renders on top)
+			this.pipeline3D = new RenderPipeline3D(this.device, this.resourceManager);
+			await this.pipeline3D.initialize();
+			
+			// Set camera position for better viewing
+			if (this.resourceManager && this.resourceManager.camera) {
+				// Position camera to look at the cube
+				this.resourceManager.camera.position = [0, 0, 5];
+				this.resourceManager.camera.updateView();
+				
+				// Set up camera controller if available
+				if (this.resourceManager.cameraController) {
+					this.resourceManager.cameraController.baseDistance = 5.0;
+					this.resourceManager.cameraController.distance = 5.0;
+					this.resourceManager.cameraController.updateCameraPosition();
 				}
-			]
-		};
-		this.pipeline2D.render(commandEncoder, passDescriptor2D);
-
-		// Render the 3D pipeline with a `load`
-		const depthView = this.resourceManager.getDepthTextureView();
-		const passDescriptor3D = {
-			colorAttachments: [
-				{
-					view: textureView,
-					loadOp: 'load',
-					storeOp: 'store'
-				}
-			],
-			depthStencilAttachment: {
-				view: depthView,
-				depthLoadOp: 'clear',
-				depthClearValue: 1.0,
-				depthStoreOp: 'store'
 			}
-		};
-		this.pipeline3D.render(commandEncoder, passDescriptor3D, this.objects);
+			
+			console.log('Cube Experience initialized successfully');
+			return true;
+		} catch (error) {
+			console.error('Error initializing Cube Experience:', error);
+			return false;
+		}
 	}
-
+	
+	render(commandEncoder, textureView) {
+		if (!this.pipeline2D || !this.pipeline3D || !textureView) {
+			return;
+		}
+		
+		try {
+			// Update time (for animation)
+			this.time += 0.01;
+			
+			// Update uniform buffer with time
+			this.device.queue.writeBuffer(
+				this.uniformBuffer,
+				0,
+				new Float32Array([0, 0, 0, this.time])
+			);
+			
+			// First render the 2D background (Jacobi theta function)
+			this.pipeline2D.render(commandEncoder, textureView, this.time);
+			
+			// Get depth texture view for 3D rendering
+			const depthTextureView = this.resourceManager.getDepthTextureView?.();
+			if (!depthTextureView) {
+				console.warn("Depth texture view not available for 3D rendering");
+				return;
+			}
+			
+			// Then render the 3D content on top with transparent background
+			this.pipeline3D.render(
+				commandEncoder,
+				textureView,
+				depthTextureView,
+				this.uniformBuffer
+			);
+		} catch (error) {
+			console.error('Error in Cube Experience render:', error);
+		}
+	}
+	
+	handleResize(width, height) {
+		if (this.resourceManager.camera) {
+			this.resourceManager.camera.updateAspect(width, height);
+		}
+		
+		if (this.resourceManager.updateDepthTexture) {
+			this.resourceManager.updateDepthTexture(width, height);
+		}
+	}
+	
 	cleanup() {
-		// Cleanup pipelines
 		if (this.pipeline2D) {
 			this.pipeline2D.cleanup();
 		}
+		
 		if (this.pipeline3D) {
 			this.pipeline3D.cleanup();
 		}
-
-		// Cleanup objects
-		this.objects.forEach((object) => {
-			if (object.cleanup) {
-				object.cleanup();
-			}
-		});
-		this.objects = [];
 	}
 }
 
