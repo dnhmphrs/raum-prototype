@@ -146,8 +146,8 @@
         on:mousemove={stopPropagation}
         on:wheel={preventDefaultAndStopPropagation}
     >
-        <h2>τ-FUNCTION // GRID CODE</h2>
-        <p>Computational model of the grid code using a τ-function</p>
+        <h2>τ-FUNCTION // GRIDS</h2>
+        <p>Computational model of the grid code using τ-function</p>
         
         <div class="controls">
             <h3>Parameters</h3>
@@ -180,7 +180,8 @@
         </div>
         
         <div class="info">
-            <p>The τ-function is a mathematical model that produces hexagonal grid patterns similar to those observed in grid cells in the mammalian brain.</p>
+            <p>We use the τ-function as a mathematical model that produces hexagonal grid patterns similar to those observed in grid cells in the mammalian brain.</p>
+            <p>The τ-function comes from the interactions of a structured set of Fourier modes with added non-linearities. It is related to algebraic solutions to shallow water waves and the Riemann theta function. It naturally has stable solutions at discrete scales, with harmonic scaling ratios.</p>
         </div>
     </div>
 </div>
