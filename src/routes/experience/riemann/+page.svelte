@@ -7,6 +7,8 @@
     let canvas;
     let engine;
     let experience;
+    let isLoading = true; // Loading state
+    let loadingMessage = "Initializing WebGPU..."; // Dynamic loading message
     
     // Available manifold functions
     const manifoldTypes = [
@@ -51,6 +53,10 @@
         console.log(`Changing manifold to: ${manifoldType}`);
         selectedManifold = manifoldTypes.find(m => m.id === manifoldType);
         
+        // Show loading indicator while changing surface
+        isLoading = true;
+        loadingMessage = `Loading ${selectedManifold.name}...`;
+        
         // Try multiple ways to find the experience
         if (experience) {
             console.log("Using local experience reference");
@@ -64,6 +70,11 @@
         } else {
             console.error("Experience not initialized yet");
         }
+        
+        // Hide loading indicator after a short delay
+        setTimeout(() => {
+            isLoading = false;
+        }, 500);
     }
     
     // Function to update KP scale
@@ -99,12 +110,14 @@
     onMount(async () => {
         if (canvas && navigator.gpu) {
             // Initialize the engine with the canvas
+            loadingMessage = "Initializing graphics engine...";
             engine = new Engine(canvas);
             
             // Get the Riemann camera config
             const cameraConfig = getCameraConfig('Riemann');
             
             // Start the Riemann experience with the camera config
+            loadingMessage = "Loading Riemann experience...";
             const result = await engine.start(RiemannExperience, cameraConfig);
             
             // Try to get the experience reference in multiple ways
@@ -120,12 +133,18 @@
             
             // Ensure KP is the selected manifold
             if (experience) {
+                loadingMessage = "Loading 𝜏-Function surface...";
                 experience.updateSurface('kp');
                 
                 // Initialize KP parameters
                 experience.updateKPScale(kpScaleIndex);
                 experience.updateKPDistortion(kpDistortion);
             }
+            
+            // Hide loading indicator
+            setTimeout(() => {
+                isLoading = false;
+            }, 1000);
             
             // Handle window resize
             const handleResize = () => {
@@ -141,7 +160,10 @@
                 if (engine) engine.stop();
             };
         } else if (!navigator.gpu) {
-            alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
+            loadingMessage = "WebGPU is not supported in your browser";
+            setTimeout(() => {
+                alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
+            }, 1000);
         }
     });
 </script>
@@ -154,6 +176,14 @@
     <canvas bind:this={canvas} class="webgpu-canvas"></canvas>
     
     <a href="/" class="back-button">⏎ Back</a>
+    
+    <!-- Loading overlay -->
+    {#if isLoading}
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">{loadingMessage}</div>
+    </div>
+    {/if}
     
     <div 
         class="control-panel"
@@ -249,6 +279,42 @@
     
     .back-button:hover {
         background-color: rgba(0, 0, 0, 0.8);
+    }
+    
+    /* Loading overlay styles */
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(0, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #00ffff;
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+        color: #00ffff;
+        font-family: 'Courier New', monospace;
+        font-size: 16px;
+        text-align: center;
     }
     
     .control-panel {

@@ -10,6 +10,11 @@ class RiemannExperience extends Experience {
         this.device = device;
         this.resourceManager = resourceManager;
         
+        // Loading state
+        this.isLoading = true;
+        this.loadingProgress = 0;
+        this.loadingMessage = "Initializing...";
+        
         // Register this experience with the resource manager
         if (this.resourceManager) {
             if (!this.resourceManager.experiences) {
@@ -60,6 +65,27 @@ class RiemannExperience extends Experience {
             window.riemannExperience = this;
             console.log("Exposed RiemannExperience globally as window.riemannExperience");
         }
+    }
+    
+    // Method to update loading state
+    updateLoadingState(isLoading, message = "", progress = 0) {
+        this.isLoading = isLoading;
+        this.loadingMessage = message;
+        this.loadingProgress = progress;
+        
+        // Dispatch a custom event that the UI can listen for
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('riemann-loading-update', { 
+                detail: { 
+                    isLoading: this.isLoading,
+                    message: this.loadingMessage,
+                    progress: this.loadingProgress
+                } 
+            });
+            window.dispatchEvent(event);
+        }
+        
+        console.log(`Loading state: ${isLoading ? 'Loading' : 'Complete'} - ${message} (${progress}%)`);
     }
     
     // For compatibility with the original code
@@ -115,40 +141,37 @@ class RiemannExperience extends Experience {
     
     // Method to update the surface based on the selected type
     updateSurface(surfaceType) {
-        console.log(`Updating surface to: ${surfaceType}`);
+        console.log(`Updating surface to ${surfaceType}`);
         
-        // Skip if same surface type
-        if (surfaceType === this.currentSurface) {
-            console.log(`Surface already set to ${surfaceType}`);
-            return;
+        // Set loading state
+        this.updateLoadingState(true, `Loading ${surfaceType} surface...`, 0);
+        
+        // Safety check for surfaceShaderMap
+        if (!this.surfaceShaderMap) {
+            console.warn("surfaceShaderMap is not defined, initializing with defaults");
+            this.surfaceShaderMap = {
+                'flat': 'default',
+                'sine': 'default',
+                'ripple': 'default',
+                'complex': 'default',
+                'kp': 'kp',
+                'torus': 'default'
+            };
         }
         
         // Update current surface type
         this.currentSurface = surfaceType;
         
-        // For shader-based surfaces, just switch the shader
-        if (this.surfaceShaderMap[surfaceType]) {
-            const shaderType = this.surfaceShaderMap[surfaceType];
-            
-            // If this surface uses a dedicated shader, switch to it
-            if (shaderType !== 'default') {
-                console.log(`Switching to ${shaderType} shader for ${surfaceType} surface`);
-                this.pipeline.setShaderType(shaderType);
-                return;
-            }
+        // Get the corresponding shader type
+        const shaderType = this.surfaceShaderMap[surfaceType] || 'default';
+        
+        // Update shader type in pipeline
+        if (this.pipeline) {
+            this.pipeline.setShaderType(shaderType);
         }
         
-        // For CPU-based surfaces, update the vertex buffer
-        const vertices = new Float32Array(this.totalVertices * 3);
-        
-        // Generate the new surface
-        this.generateSurface(vertices, surfaceType);
-        
-        // Update vertex buffer with new vertices
-        this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
-        
-        // Switch back to default shader if needed
-        this.pipeline.setShaderType('default');
+        // Update loading state
+        this.updateLoadingState(false, `${surfaceType} surface loaded`, 100);
         
         console.log(`Surface updated to ${surfaceType}`);
     }
@@ -277,16 +300,22 @@ class RiemannExperience extends Experience {
     
     async initialize() {
         console.log("Initializing Riemann Experience");
+        this.updateLoadingState(true, "Initializing Riemann Experience...", 10);
         
         try {
             // Create pipeline
+            this.updateLoadingState(true, "Creating rendering pipeline...", 30);
             this.pipeline = new RiemannPipeline(this.device, this.resourceManager);
+            
+            this.updateLoadingState(true, "Initializing shaders...", 50);
             await this.pipeline.initialize();
             
             // Initialize KP parameters
+            this.updateLoadingState(true, "Setting up parameters...", 70);
             this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
             
             // Set camera target to center of grid without overriding position
+            this.updateLoadingState(true, "Configuring camera...", 90);
             if (this.resourceManager && this.resourceManager.camera) {
                 // Look at the center of the grid (0,0,0)
                 this.resourceManager.camera.target = [0, 0, 0];
@@ -306,9 +335,12 @@ class RiemannExperience extends Experience {
                 }
             }
             
+            // Set loading complete
+            this.updateLoadingState(false, "Riemann Experience initialized successfully", 100);
             console.log('Riemann Experience initialized successfully');
             return true;
         } catch (error) {
+            this.updateLoadingState(false, `Error: ${error.message}`, 100);
             console.error('Error initializing Riemann Experience:', error);
             return false;
         }
