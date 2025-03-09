@@ -10,39 +10,13 @@ class RiemannPipeline {
         this.currentShaderType = 'default';
         this.shaderModules = {};
         this.renderPipelines = {};
-        
-        // Create KP shader parameters buffer with default values
-        this.kpParamsBuffer = this.device.createBuffer({
-            size: 16, // 4 floats (scaleIndex, distortion, padding1, padding2)
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            label: 'KP Shader Parameters Buffer'
-        });
-        
-        // Initialize with default values
-        this.updateKPParams(2, 0); // Default: scale index 2, no distortion
-    }
-    
-    // Method to update KP shader parameters
-    updateKPParams(scaleIndex, distortion) {
-        if (!this.device || !this.kpParamsBuffer) return;
-        
-        // Clamp values to valid ranges
-        scaleIndex = Math.max(0, Math.min(5, scaleIndex));
-        distortion = Math.max(0, Math.min(1, distortion));
-        
-        // Update the buffer
-        this.device.queue.writeBuffer(
-            this.kpParamsBuffer,
-            0,
-            new Float32Array([scaleIndex, distortion, 0, 0]) // Include padding
-        );
     }
     
     async initialize() {
         console.log("Initializing Riemann Pipeline");
         
         try {
-            // Create bind group layout with additional binding for KP parameters
+            // Create bind group layout
             this.bindGroupLayout = this.device.createBindGroupLayout({
                 entries: [
                     {
@@ -59,11 +33,6 @@ class RiemannPipeline {
                         binding: 2,
                         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                         buffer: { type: 'uniform' } // Time uniform
-                    },
-                    {
-                        binding: 3,
-                        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-                        buffer: { type: 'uniform' } // KP shader parameters
                     }
                 ]
             });
@@ -73,13 +42,15 @@ class RiemannPipeline {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Initialize all shaders with paths to the static directory
-            await this.initializeShader('default', '/shaders/riemann/RiemannShader.wgsl');
-            await this.initializeShader('kp', '/shaders/riemann/KPShader.wgsl');
-            await this.initializeShader('sine', '/shaders/riemann/SineShader.wgsl');
-            await this.initializeShader('ripple', '/shaders/riemann/RippleShader.wgsl');
-            await this.initializeShader('complex', '/shaders/riemann/ComplexShader.wgsl');
-            await this.initializeShader('torus', '/shaders/riemann/TorusShader.wgsl');
+            // Base path for shaders - this will work in both development and production
+            const basePath = '/shaders/riemann';
+            
+            // Initialize all shaders with paths relative to the base URL
+            await this.initializeShader('default', `${basePath}/RiemannShader.wgsl`);
+            await this.initializeShader('sine', `${basePath}/SineShader.wgsl`);
+            await this.initializeShader('ripple', `${basePath}/RippleShader.wgsl`);
+            await this.initializeShader('complex', `${basePath}/ComplexShader.wgsl`);
+            await this.initializeShader('torus', `${basePath}/TorusShader.wgsl`);
             
             this.isInitialized = true;
             console.log("Riemann Pipeline initialized successfully");
@@ -200,10 +171,6 @@ class RiemannPipeline {
                     {
                         binding: 2,
                         resource: { buffer: uniformBuffer }
-                    },
-                    {
-                        binding: 3,
-                        resource: { buffer: this.kpParamsBuffer }
                     }
                 ]
             });
@@ -212,7 +179,7 @@ class RiemannPipeline {
             const renderPassDescriptor = {
                 colorAttachments: [{
                     view: textureView,
-                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    clearValue: { r: 0.0, g: 0.0, b: 0.1, a: 1.0 },
                     loadOp: 'clear',
                     storeOp: 'store'
                 }],

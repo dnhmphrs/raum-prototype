@@ -28,14 +28,8 @@ class RiemannExperience extends Experience {
         this.totalVertices = this.resolution * this.resolution;
         this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6; // 2 triangles per grid cell
         
-        // Current surface type - set KP as default
-        this.currentSurface = 'kp';
-        
-        // KP shader parameters
-        this.kpParams = {
-            scaleIndex: 2, // Default scale index (middle scale)
-            distortion: 0  // Default distortion (none)
-        };
+        // Current surface type - set flat as default
+        this.currentSurface = 'flat';
         
         // Animation time
         this.time = 0;
@@ -46,7 +40,6 @@ class RiemannExperience extends Experience {
             'sine': 'sine',         // Use dedicated sine shader
             'ripple': 'ripple',     // Use dedicated ripple shader
             'complex': 'complex',   // Use dedicated complex shader
-            'kp': 'kp',             // Use dedicated KP shader
             'torus': 'torus'        // Use dedicated torus shader
         };
         
@@ -154,7 +147,6 @@ class RiemannExperience extends Experience {
                 'sine': 'default',
                 'ripple': 'default',
                 'complex': 'default',
-                'kp': 'kp',
                 'torus': 'default'
             };
         }
@@ -188,7 +180,6 @@ class RiemannExperience extends Experience {
                 'sine': 'default',
                 'ripple': 'default',
                 'complex': 'default',
-                'kp': 'kp',
                 'torus': 'default'
             };
         }
@@ -272,32 +263,6 @@ class RiemannExperience extends Experience {
         }
     }
     
-    // Method to update KP scale parameter
-    updateKPScale(scaleIndex) {
-        if (!this.pipeline) return;
-        
-        // Update local state
-        this.kpParams.scaleIndex = scaleIndex;
-        
-        // Update pipeline parameters
-        this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
-        
-        console.log(`Updated KP scale to index: ${scaleIndex}`);
-    }
-    
-    // Method to update KP distortion parameter
-    updateKPDistortion(distortion) {
-        if (!this.pipeline) return;
-        
-        // Update local state
-        this.kpParams.distortion = distortion;
-        
-        // Update pipeline parameters
-        this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
-        
-        console.log(`Updated KP distortion to: ${distortion}`);
-    }
-    
     async initialize() {
         console.log("Initializing Riemann Experience");
         this.updateLoadingState(true, "Initializing Riemann Experience...", 10);
@@ -309,10 +274,6 @@ class RiemannExperience extends Experience {
             
             this.updateLoadingState(true, "Initializing shaders...", 50);
             await this.pipeline.initialize();
-            
-            // Initialize KP parameters
-            this.updateLoadingState(true, "Setting up parameters...", 70);
-            this.pipeline.updateKPParams(this.kpParams.scaleIndex, this.kpParams.distortion);
             
             // Set camera target to center of grid without overriding position
             this.updateLoadingState(true, "Configuring camera...", 90);
@@ -376,7 +337,6 @@ class RiemannExperience extends Experience {
                     'sine': 'default',
                     'ripple': 'default',
                     'complex': 'default',
-                    'kp': 'kp',
                     'torus': 'default'
                 };
             }

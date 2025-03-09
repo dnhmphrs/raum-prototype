@@ -29,6 +29,11 @@ export const cameraConfigs = {
     position: { x: 0, y: -4, z: 4 },
     fov: 45 * (Math.PI / 180),
     baseDistance: 3.0  // Close distance for surface detail viewing
+  },
+  GridCode: {
+    position: { x: 0, y: -4, z: 4 },
+    fov: 45 * (Math.PI / 180),
+    baseDistance: 3.0  // Same as Riemann for consistent viewing
   }
 };
 

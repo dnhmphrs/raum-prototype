@@ -93,7 +93,7 @@
 	crossorigin="anonymous"
 /> -->
 
-	<link rel="preload" href="/notcrowded2.png" as="image" type="image/png" fetchpriority="high" />
+	<!-- <link rel="preload" href="/notcrowded2.png" as="image" type="image/png" fetchpriority="high" /> -->
 </svelte:head>
 
 <div class="app">

@@ -44,6 +44,13 @@
       thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
+    {
+      id: 'gridcode',
+      name: 'τ-FUNCTION // GRID CODE',
+      description: 'Computational model of the grid code using a τ-function',
+      thumbnail: '/placeholder.png',
+      color: '#ff9900'
+    },
     // {
     //   id: 'lorentz',
     //   name: 'LORENTZ',

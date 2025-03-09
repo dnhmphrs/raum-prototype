@@ -1,7 +1,7 @@
 <script>
     import { onMount, onDestroy } from 'svelte';
     import Engine from '$lib/graphics/Engine.js';
-    import RiemannExperience from '$lib/graphics/experiences/Riemann/RiemannExperience.js';
+    import GridCodeExperience from '$lib/graphics/experiences/GridCode/GridCodeExperience.js';
     import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
     
     let canvas;
@@ -10,17 +10,19 @@
     let isLoading = true; // Loading state
     let loadingMessage = "Initializing WebGPU..."; // Dynamic loading message
     
-    // Available manifold functions
-    const manifoldTypes = [
-        { id: 'flat', name: 'Flat Surface' },
-        { id: 'sine', name: 'Sine Wave' },
-        { id: 'ripple', name: 'Ripple' },
-        { id: 'complex', name: 'Complex Function' },
-        { id: 'torus', name: 'Torus' }
-    ];
+    // KP shader parameters
+    let kpScaleIndex = 2; // Default scale index (middle scale)
+    let kpDistortion = 0; // Default distortion (none)
     
-    // Current selected manifold - set flat as default
-    let selectedManifold = manifoldTypes.find(m => m.id === 'flat');
+    // Module options for KP shader
+    const scaleOptions = [
+        { value: 0, label: 'Module 1' },
+        { value: 1, label: 'Module 2' },
+        { value: 2, label: 'Module 3' },
+        { value: 3, label: 'Module 4' },
+        { value: 4, label: 'Module 5' },
+        { value: 5, label: 'Module 6' }
+    ];
     
     // Function to stop event propagation
     function stopPropagation(event) {
@@ -33,33 +35,34 @@
         event.stopPropagation();
     }
     
-    // Function to change the manifold
-    function changeManifold(manifoldType) {
-        console.log(`Changing manifold to: ${manifoldType}`);
-        selectedManifold = manifoldTypes.find(m => m.id === manifoldType);
-        
-        // Show loading indicator while changing surface
-        isLoading = true;
-        loadingMessage = `Loading ${selectedManifold.name}...`;
+    // Function to update KP scale
+    function updateKPScale(scaleIndex) {
+        console.log(`Updating KP scale to: ${scaleIndex}`);
+        kpScaleIndex = scaleIndex;
         
         // Try multiple ways to find the experience
         if (experience) {
-            console.log("Using local experience reference");
-            experience.updateSurface(manifoldType);
+            experience.updateKPScale(scaleIndex);
         } else if (engine && engine.scene && engine.scene.currentExperience) {
-            console.log("Using engine.scene.currentExperience");
-            engine.scene.currentExperience.updateSurface(manifoldType);
-        } else if (window.riemannExperience) {
-            console.log("Using global window.riemannExperience");
-            window.riemannExperience.updateSurface(manifoldType);
-        } else {
-            console.error("Experience not initialized yet");
+            engine.scene.currentExperience.updateKPScale(scaleIndex);
+        } else if (window.gridCodeExperience) {
+            window.gridCodeExperience.updateKPScale(scaleIndex);
         }
+    }
+    
+    // Function to update KP distortion
+    function updateKPDistortion(distortion) {
+        console.log(`Updating KP distortion to: ${distortion}`);
+        kpDistortion = distortion;
         
-        // Hide loading indicator after a short delay
-        setTimeout(() => {
-            isLoading = false;
-        }, 500);
+        // Try multiple ways to find the experience
+        if (experience) {
+            experience.updateKPDistortion(distortion);
+        } else if (engine && engine.scene && engine.scene.currentExperience) {
+            engine.scene.currentExperience.updateKPDistortion(distortion);
+        } else if (window.gridCodeExperience) {
+            window.gridCodeExperience.updateKPDistortion(distortion);
+        }
     }
     
     onMount(async () => {
@@ -68,28 +71,28 @@
             loadingMessage = "Initializing graphics engine...";
             engine = new Engine(canvas);
             
-            // Get the Riemann camera config
-            const cameraConfig = getCameraConfig('Riemann');
+            // Get the Grid Code camera config
+            const cameraConfig = getCameraConfig('GridCode');
             
-            // Start the Riemann experience with the camera config
-            loadingMessage = "Loading Riemann experience...";
-            const result = await engine.start(RiemannExperience, cameraConfig);
+            // Start the Grid Code experience with the camera config
+            loadingMessage = "Loading Grid Code experience...";
+            const result = await engine.start(GridCodeExperience, cameraConfig);
             
             // Try to get the experience reference in multiple ways
             if (engine.experience) {
                 experience = engine.experience;
             } else if (engine.scene && engine.scene.currentExperience) {
                 experience = engine.scene.currentExperience;
-            } else if (window.riemannExperience) {
-                experience = window.riemannExperience;
+            } else if (window.gridCodeExperience) {
+                experience = window.gridCodeExperience;
             }
             
             console.log("Experience initialized:", experience);
             
-            // Set initial surface to flat
+            // Initialize KP parameters
             if (experience) {
-                loadingMessage = "Loading Flat Surface...";
-                experience.updateSurface('flat');
+                experience.updateKPScale(kpScaleIndex);
+                experience.updateKPDistortion(kpDistortion);
             }
             
             // Hide loading indicator
@@ -120,7 +123,7 @@
 </script>
 
 <svelte:head>
-    <title>Riemann Manifold</title>
+    <title>τ-Function // Grid Code</title>
 </svelte:head>
 
 <div class="experience-container">
@@ -143,25 +146,41 @@
         on:mousemove={stopPropagation}
         on:wheel={preventDefaultAndStopPropagation}
     >
-        <h2>RIEMANN MANIFOLD</h2>
-        <p>Visualizing 2D manifolds in 3D space</p>
+        <h2>τ-FUNCTION // GRID CODE</h2>
+        <p>Computational model of the grid code using a τ-function</p>
         
-        <div class="manifold-selector">
-            <h3>Select Manifold</h3>
-            <div class="button-group">
-                {#each manifoldTypes as manifold}
-                    <button 
-                        class:active={selectedManifold.id === manifold.id}
-                        on:click={() => changeManifold(manifold.id)}
-                    >
-                        {manifold.name}
-                    </button>
-                {/each}
+        <div class="controls">
+            <h3>Parameters</h3>
+            
+            <div class="control-group">
+                <label for="kp-scale">Module:</label>
+                <select 
+                    id="kp-scale" 
+                    bind:value={kpScaleIndex} 
+                    on:change={() => updateKPScale(kpScaleIndex)}
+                >
+                    {#each scaleOptions as option}
+                        <option value={option.value}>{option.label}</option>
+                    {/each}
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="kp-distortion">Distortion: {kpDistortion.toFixed(2)}</label>
+                <input 
+                    type="range" 
+                    id="kp-distortion" 
+                    min="0" 
+                    max="1" 
+                    step="0.01" 
+                    bind:value={kpDistortion} 
+                    on:input={() => updateKPDistortion(kpDistortion)}
+                />
             </div>
         </div>
         
         <div class="info">
-            <p>Current: <span class="highlight">{selectedManifold.name}</span></p>
+            <p>The τ-function is a mathematical model that produces hexagonal grid patterns similar to those observed in grid cells in the mammalian brain.</p>
         </div>
     </div>
 </div>
@@ -218,9 +237,9 @@
     .loading-spinner {
         width: 50px;
         height: 50px;
-        border: 3px solid rgba(0, 255, 255, 0.3);
+        border: 3px solid rgba(255, 153, 0, 0.3);
         border-radius: 50%;
-        border-top-color: #00ffff;
+        border-top-color: #ff9900;
         animation: spin 1s ease-in-out infinite;
         margin-bottom: 20px;
     }
@@ -230,7 +249,7 @@
     }
     
     .loading-text {
-        color: #00ffff;
+        color: #ff9900;
         font-family: 'Courier New', monospace;
         font-size: 16px;
         text-align: center;
@@ -257,7 +276,7 @@
         font-size: 18px;
         letter-spacing: 2px;
         text-transform: uppercase;
-        color: #00ffff;
+        color: #ff9900;
     }
     
     .control-panel h3 {
@@ -273,31 +292,32 @@
         opacity: 0.9;
     }
     
-    .button-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+    .controls {
+        border-top: 1px solid #444;
+        padding-top: 15px;
+        margin-top: 10px;
     }
     
-    button {
-        background-color: rgba(30, 30, 30, 0.8);
+    .control-group {
+        margin-bottom: 15px;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    select, input[type="range"] {
+        width: 100%;
+        padding: 5px;
+        background-color: #333;
         color: white;
-        border: 1px solid rgba(100, 100, 100, 0.3);
-        padding: 8px 12px;
+        border: 1px solid #555;
         border-radius: 4px;
-        font-family: 'Courier New', monospace;
-        cursor: pointer;
-        transition: all 0.2s;
     }
     
-    button:hover {
-        background-color: rgba(50, 50, 50, 0.8);
-        border-color: rgba(150, 150, 150, 0.5);
-    }
-    
-    button.active {
-        background-color: rgba(0, 150, 150, 0.5);
-        border-color: #00ffff;
+    select {
+        height: 30px;
     }
     
     .info {
@@ -307,7 +327,7 @@
     }
     
     .highlight {
-        color: #00ffff;
+        color: #ff9900;
         font-weight: bold;
     }
 </style> 
