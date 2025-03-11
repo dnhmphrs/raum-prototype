@@ -24,7 +24,7 @@ class RiemannExperience extends Experience {
         }
         
         // Grid resolution
-        this.resolution = 50; // Reduced from 100 to 50 for better performance
+        this.resolution = 100; // Reduced from 100 to 50 for better performance
         this.totalVertices = this.resolution * this.resolution;
         this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6; // 2 triangles per grid cell
         
