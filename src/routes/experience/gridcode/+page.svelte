@@ -123,7 +123,7 @@
 </script>
 
 <svelte:head>
-    <title>τ-Function // Grid Code</title>
+    <title>Θ-Function // Grid Code</title>
 </svelte:head>
 
 <div class="experience-container">
@@ -146,8 +146,8 @@
         on:mousemove={stopPropagation}
         on:wheel={preventDefaultAndStopPropagation}
     >
-        <h2>τ-FUNCTION // GRIDS</h2>
-        <p>Computational model of the grid code using τ-function</p>
+        <h2>Θ-FUNCTION // GRIDS</h2>
+        <p>Computational model of the grid code using Θ-function</p>
         
         <div class="controls">
             <h3>Parameters</h3>
@@ -179,10 +179,20 @@
             </div>
         </div>
         
-        <div class="info">
-            <p>We use the τ-function as a mathematical model that produces hexagonal grid patterns similar to those observed in grid cells in the mammalian brain.</p>
-            <p>The τ-function comes from the interactions of a structured set of Fourier modes with added non-linearities. It is related to algebraic solutions to shallow water waves and the Riemann theta function. It naturally has stable solutions at discrete scales, with harmonic scaling ratios.</p>
-        </div>
+        <div class="theta">
+            <p>
+                Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns.
+                They provide a mathematical model of the mammalian grid code - with harmonic scaling ratios.
+            </p>
+          </div>
+          <div class="tau">
+            <p>
+                τ-functions extend Θ-functions by incorporating non-linear interactions among the Fourier modes.
+                This allows the model to capture the subtle irregularities and complexities of real-life phenomena - such as shallow water waves,
+                They will allow us to model the grid code in complex envrionments, such as Carptener et al. (2015).
+            </p>
+          </div>
+          
     </div>
 </div>
 
