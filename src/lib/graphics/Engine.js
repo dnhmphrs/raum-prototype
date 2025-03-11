@@ -106,14 +106,7 @@ class Engine {
 	}
 
 	cleanup() {
-		if (this.currentExperience) {
-			this.currentExperience.cleanup();
-			this.currentExperience = null;
-		}
-		
-		if (this.resourceManager) {
-			this.resourceManager.cleanup();
-		}
+		console.log("Engine cleanup called");
 		
 		// Stop animation frame if it's running
 		if (this.animationFrameId) {
@@ -121,22 +114,65 @@ class Engine {
 			this.animationFrameId = null;
 		}
 		
+		// Clean up experience
+		if (this.experience) {
+			console.log("Cleaning up experience");
+			this.experience.cleanup();
+			this.experience = null;
+		}
+		
+		// Clean up scene if different from experience
+		if (this.scene && this.scene !== this.experience) {
+			console.log("Cleaning up scene");
+			if (typeof this.scene.cleanup === 'function') {
+				this.scene.cleanup();
+			}
+			this.scene = null;
+		}
+		
 		// Cleanup interaction manager
-		if (this.interactionManager && this.interactionManager.destroy) {
-			this.interactionManager.destroy();
+		if (this.interactionManager) {
+			console.log("Cleaning up interaction manager");
+			if (typeof this.interactionManager.destroy === 'function') {
+				this.interactionManager.destroy();
+			}
+			this.interactionManager = null;
 		}
 
 		// Cleanup camera and controller
-		if (this.camera && this.camera.cleanup) {
-			this.camera.cleanup();
+		if (this.camera) {
+			console.log("Cleaning up camera");
+			if (typeof this.camera.cleanup === 'function') {
+				this.camera.cleanup();
+			}
+			this.camera = null;
 		}
-		if (this.cameraController && this.cameraController.cleanup) {
-			this.cameraController.cleanup();
+		
+		if (this.cameraController) {
+			console.log("Cleaning up camera controller");
+			if (typeof this.cameraController.cleanup === 'function') {
+				this.cameraController.cleanup();
+			}
+			this.cameraController = null;
+		}
+		
+		// Clean up resource manager last
+		if (this.resourceManager) {
+			console.log("Cleaning up resource manager");
+			this.resourceManager.cleanup();
+			this.resourceManager = null;
 		}
 
 		// Reset device and context
 		this.device = null;
 		this.context = null;
+		
+		// Force garbage collection if available
+		if (typeof window !== 'undefined' && window.gc) {
+			window.gc();
+		}
+		
+		console.log("Engine cleanup complete");
 	}
 
 	render() {

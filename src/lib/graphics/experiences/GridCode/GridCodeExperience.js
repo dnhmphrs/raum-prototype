@@ -284,13 +284,35 @@ class GridCodeExperience extends Experience {
     cleanup() {
         console.log("Cleaning up Grid Code Experience");
         
-        // Clean up buffers
-        if (this.vertexBuffer) this.vertexBuffer = null;
-        if (this.indexBuffer) this.indexBuffer = null;
-        if (this.uniformBuffer) this.uniformBuffer = null;
-        
         // Clean up pipeline
-        if (this.pipeline) this.pipeline.cleanup();
+        if (this.pipeline) {
+            this.pipeline.cleanup();
+            this.pipeline = null;
+        }
+        
+        // Clean up buffers - no need to destroy, just null the references
+        // to allow garbage collection
+        this.vertexBuffer = null;
+        this.indexBuffer = null;
+        this.uniformBuffer = null;
+        
+        // Reset state
+        this.isLoading = true;
+        this.loadingProgress = 0;
+        this.time = 0;
+        
+        // Remove from resource manager
+        if (this.resourceManager && this.resourceManager.experiences) {
+            this.resourceManager.experiences.gridcode = null;
+        }
+        
+        // Remove global reference
+        if (typeof window !== 'undefined' && window.gridCodeExperience) {
+            window.gridCodeExperience = null;
+        }
+        
+        // Call parent cleanup
+        super.cleanup();
     }
 }
 

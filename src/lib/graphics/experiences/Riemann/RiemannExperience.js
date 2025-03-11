@@ -24,7 +24,7 @@ class RiemannExperience extends Experience {
         }
         
         // Grid resolution
-        this.resolution = 100; // 100x100 grid
+        this.resolution = 50; // Reduced from 100 to 50 for better performance
         this.totalVertices = this.resolution * this.resolution;
         this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6; // 2 triangles per grid cell
         
@@ -46,17 +46,11 @@ class RiemannExperience extends Experience {
         // Create vertex and index buffers
         this.createBuffers();
         
-        // Create uniform buffer for time
-        this.uniformBuffer = this.device.createBuffer({
-            size: 16, // 3 unused floats + 1 float for time
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            label: 'Riemann Uniforms Buffer'
-        });
+        // Uniform buffer will be created in initialize() method
         
-        // Expose this experience globally
+        // Register this experience globally for easier access
         if (typeof window !== 'undefined') {
             window.riemannExperience = this;
-            console.log("Exposed RiemannExperience globally as window.riemannExperience");
         }
     }
     
@@ -93,15 +87,17 @@ class RiemannExperience extends Experience {
         // Generate a flat grid initially
         this.generateSurface(vertices, 'flat');
         
-        // Create vertex buffer
+        // Create vertex buffer with mappedAtCreation for better memory management
         this.vertexBuffer = this.device.createBuffer({
             size: vertices.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true,
             label: 'Riemann Vertex Buffer'
         });
         
-        // Upload vertices to GPU
-        this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
+        // Copy data to the mapped buffer and unmap
+        new Float32Array(this.vertexBuffer.getMappedRange()).set(vertices);
+        this.vertexBuffer.unmap();
         
         // Create indices for the grid
         const indices = new Uint32Array(this.totalIndices);
@@ -121,15 +117,17 @@ class RiemannExperience extends Experience {
             }
         }
         
-        // Create index buffer
+        // Create index buffer with mappedAtCreation for better memory management
         this.indexBuffer = this.device.createBuffer({
             size: indices.byteLength,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true,
             label: 'Riemann Index Buffer'
         });
         
-        // Upload indices to GPU
-        this.device.queue.writeBuffer(this.indexBuffer, 0, indices);
+        // Copy data to the mapped buffer and unmap
+        new Uint32Array(this.indexBuffer.getMappedRange()).set(indices);
+        this.indexBuffer.unmap();
     }
     
     // Method to update the surface based on the selected type
@@ -265,17 +263,30 @@ class RiemannExperience extends Experience {
     
     async initialize() {
         console.log("Initializing Riemann Experience");
-        this.updateLoadingState(true, "Initializing Riemann Experience...", 10);
+        this.updateLoadingState(true, "Initializing pipeline...", 10);
         
         try {
-            // Create pipeline
-            this.updateLoadingState(true, "Creating rendering pipeline...", 30);
+            // Create uniform buffer for time
+            this.uniformBuffer = this.device.createBuffer({
+                size: 16, // 3 unused floats + 1 float for time
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                label: 'Riemann Uniforms Buffer'
+            });
+            
+            // Create the pipeline
             this.pipeline = new RiemannPipeline(this.device, this.resourceManager);
             
-            this.updateLoadingState(true, "Initializing shaders...", 50);
-            await this.pipeline.initialize();
+            // Initialize the pipeline
+            const success = await this.pipeline.initialize();
+            if (!success) {
+                console.error("Failed to initialize Riemann Pipeline");
+                this.updateLoadingState(true, "Failed to initialize pipeline", 100);
+                return false;
+            }
             
-            // Set camera target to center of grid without overriding position
+            this.updateLoadingState(true, "Pipeline initialized", 50);
+            
+            // Set up camera target to center of grid without overriding position
             this.updateLoadingState(true, "Configuring camera...", 90);
             if (this.resourceManager && this.resourceManager.camera) {
                 // Look at the center of the grid (0,0,0)
@@ -286,23 +297,14 @@ class RiemannExperience extends Experience {
                 if (this.resourceManager.cameraController) {
                     // Set the target to the center of the grid
                     this.resourceManager.cameraController.target = [0, 0, 0];
-                    
-                    // Don't override the baseDistance and distance as they should come from cameraConfigs.js
-                    
-                    // Don't set theta and phi angles - let the camera controller use its defaults
-                    // or the ones calculated from the position in the config
-                    
-                    // Don't call updateCameraPosition as it would override the camera position from the config
                 }
             }
             
-            // Set loading complete
-            this.updateLoadingState(false, "Riemann Experience initialized successfully", 100);
-            console.log('Riemann Experience initialized successfully');
+            this.updateLoadingState(false, "Initialization complete", 100);
             return true;
         } catch (error) {
+            console.error("Error initializing Riemann Experience:", error);
             this.updateLoadingState(false, `Error: ${error.message}`, 100);
-            console.error('Error initializing Riemann Experience:', error);
             return false;
         }
     }
@@ -371,9 +373,32 @@ class RiemannExperience extends Experience {
     }
     
     cleanup() {
+        console.log("Cleaning up Riemann Experience");
+        
+        // Clean up pipeline
         if (this.pipeline) {
             this.pipeline.cleanup();
+            this.pipeline = null;
         }
+        
+        // Clean up buffers - no need to destroy, just null the references
+        // to allow garbage collection
+        this.vertexBuffer = null;
+        this.indexBuffer = null;
+        this.uniformBuffer = null;
+        
+        // Reset state
+        this.isLoading = true;
+        this.loadingProgress = 0;
+        this.time = 0;
+        
+        // Remove from resource manager
+        if (this.resourceManager && this.resourceManager.experiences) {
+            this.resourceManager.experiences.riemann = null;
+        }
+        
+        // Call parent cleanup
+        super.cleanup();
     }
 }
 
