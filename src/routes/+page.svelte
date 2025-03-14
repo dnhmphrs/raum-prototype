@@ -104,7 +104,7 @@
   //     // No WebGPU support, just mark as loaded
   //     backgroundLoaded = true;
   //   }
-  // });
+  });
   
   onDestroy(() => {
     // Clean up engine when component is destroyed
