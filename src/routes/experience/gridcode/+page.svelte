@@ -37,8 +37,21 @@
     
     // Function to handle wheel events in the control panel
     function handleControlPanelWheel(event) {
-        // Don't stop propagation, just let the natural scrolling happen
-        // But prevent the event from affecting the canvas/scene
+        // This function ensures that wheel events in the control panel
+        // don't affect the 3D experience behind it
+        
+        // Check if scrolling is needed within the control panel
+        const panel = event.currentTarget;
+        const atTop = panel.scrollTop === 0;
+        const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight;
+        
+        // Only prevent default if we're at the boundaries to avoid overscrolling
+        // This allows natural scrolling within the panel
+        if ((atTop && event.deltaY < 0) || (atBottom && event.deltaY > 0)) {
+            event.preventDefault();
+        }
+        
+        // Always stop propagation to prevent the event from reaching the canvas
         event.stopPropagation();
     }
     
@@ -146,6 +159,7 @@
     </div>
     {/if}
     
+    <!-- Control panel with proper wheel event handling -->
     <div 
         class="control-panel"
         on:mousedown={stopPropagation}
