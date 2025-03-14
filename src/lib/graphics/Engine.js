@@ -238,6 +238,12 @@ class Engine {
 			}
 		}
 	}
+
+	// Add a stop method that calls cleanup for compatibility
+	stop() {
+		console.log("Engine stop called");
+		this.cleanup();
+	}
 }
 
 export default Engine;

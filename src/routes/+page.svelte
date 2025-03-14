@@ -10,9 +10,9 @@
 </style> -->
 
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
-  import LorentzExperience from '$lib/graphics/experiences/Lorentz/LorentzExperience.js';
+  import HomeBackgroundExperience from '$lib/graphics/experiences/Home/HomeBackgroundExperience.js';
   import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   const experiences = [
@@ -85,8 +85,32 @@
       typeWriter();
     }
     
-    // No WebGPU background on home page
-    backgroundLoaded = true;
+    // Initialize WebGPU background
+    if (canvas && navigator.gpu) {
+      try {
+        // Initialize the engine with the canvas
+        engine = new Engine(canvas);
+        
+        // Start the background experience
+        await engine.start(HomeBackgroundExperience);
+        
+        backgroundLoaded = true;
+        console.log("Background shader initialized");
+      } catch (error) {
+        console.error("Error initializing background shader:", error);
+        backgroundLoaded = true; // Still mark as loaded to avoid blocking UI
+      }
+    } else {
+      // No WebGPU support, just mark as loaded
+      backgroundLoaded = true;
+    }
+  });
+  
+  onDestroy(() => {
+    // Clean up engine when component is destroyed
+    if (engine) {
+      engine.stop();
+    }
   });
 </script>
 
@@ -99,7 +123,7 @@
   <canvas bind:this={canvas}></canvas>
 </div>
 
-<div class="container {mounted ? 'loaded' : ''}">
+<div class="container {mounted && backgroundLoaded ? 'loaded' : ''}">
   <header>
     <div class="terminal">
       <div class="terminal-header">
@@ -170,7 +194,7 @@
   }
   
   :global(body) {
-    background-color: #000;
+    background-color: transparent;
     color: #00ff00;
     font-family: 'Courier New', monospace;
     margin: 0;
@@ -184,6 +208,7 @@
     padding: 2rem;
     opacity: 0;
     transition: opacity 0.5s ease;
+    background-color: rgba(0, 0, 0, 0.5);
   }
   
   .loaded {
@@ -414,7 +439,7 @@
     width: 100%;
     height: 100%;
     z-index: -1;
-    opacity: 0.3; /* Subtle background */
+    opacity: 0.8;
   }
   
   .background-canvas canvas {
