@@ -33,21 +33,21 @@
     {
       id: 'neuralnet',
       name: 'NEURAL NET',
-      description: 'Interactive visualization of neural network training. Observe weight adjustments and data flow through connected layers as the network learns to recognize patterns.',
+      description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
       thumbnail: '/placeholder.png',
       color: '#ff0000'
     },
     {
       id: 'riemann',
       name: 'RIEMANN SURFACES',
-      description: 'Visualization of complex mathematical functions as 3D surfaces. Explore how multivalued functions unfold into single-valued representations in higher dimensions.',
+      description: 'Visualization of complex mathematical functions as 3D surfaces. Early steps to figuring out what Riemann was on about in his 1851 thesis.',
       thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
     {
       id: 'gridcode',
       name: 'Θ-FUNCTION // GRID CODE',
-      description: 'Model of neural grid cells using theta functions. Visualize how the brain encodes spatial information through hexagonal firing patterns in the entorhinal cortex.',
+      description: 'Model of medial entorhinal grid cells using the Riemann theta functions. Visualising how the brain encodes spatial information in a structured form..',
       thumbnail: '/placeholder.png',
       color: '#ff9900'
     },
@@ -168,21 +168,22 @@
           <div class="preview-ascii">
             {#if selectedExp.id === 'flocking'}
               <pre class="ascii-art">
-/^v^\
-          /^v^\                      /^v^\
-                       /^v^\
-       
-       /^v^\
+      /^v^\         /^v^\
+                          
+         /^v^\
+                /^v^\
+   
+        /^v^\
   
-  FLOCKING
+  FLOCKING / HUNTING
               </pre>
             {:else if selectedExp.id === 'neuralnet'}
               <pre class="ascii-art">
-  ●───●───●───●───●
- /│\\  │   │   │  /│\\
-● │ ●─┼───┼───┼─● │ ●
- \\│/  │   │   │  \\│/
-  ●───●───●───●───●
+  o---o---o       o---o---o       o---o---o
+ /|\ /|\ /|\     /|\ /|\ /|\     /|\ /|\ /|\
+o---o---o---o   o---o---o---o   o---o---o---o
+ \|/ \|/ \|/     \|/ \|/ \|/     \|/ \|/ \|/
+  o---o---o       o---o---o       o---o---o
   
   NEURAL NET
               </pre>
@@ -194,15 +195,15 @@
  \   /     \   /     \   /
   '-'       '-'       '-'
   
-  RIEMANN
+  RIEMANN SURFACES
               </pre>
             {:else if selectedExp.id === 'gridcode'}
               <pre class="ascii-art">
-⬡    ⬡    ⬡    ⬡    ⬡
-  ⬡    ⬡    ⬡    ⬡    ⬡
-⬡    ⬡    ⬡    ⬡    ⬡
-  ⬡    ⬡    ⬡    ⬡    ⬡
-⬡    ⬡    ⬡    ⬡    ⬡
+   ⬡     ⬡     ⬡     ⬡  
+ ⬡     ⬡     ⬡     ⬡     ⬡
+   ⬡     ⬡     ⬡     ⬡  
+ ⬡     ⬡     ⬡     ⬡     ⬡
+   ⬡     ⬡     ⬡     ⬡  
   
   GRID CODE
               </pre>
