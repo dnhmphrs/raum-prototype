@@ -21,8 +21,19 @@ class Engine {
 	}
 
 	async start(SceneClass, cameraConfig = {}) {
+		// Check if WebGPU is available
+		if (typeof navigator === 'undefined' || !navigator.gpu) {
+			console.error('WebGPU is not available in this environment');
+			return null;
+		}
+		
 		// Reinitialize WebGPU context
 		const { device, context } = await initializeWebGPU(this.canvas);
+		if (!device || !context) {
+			console.error('Failed to initialize WebGPU');
+			return null;
+		}
+		
 		this.device = device;
 		this.context = context;
 

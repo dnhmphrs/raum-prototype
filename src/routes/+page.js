@@ -1,3 +1,5 @@
-// since there's no dynamic data here, we can prerender
-// it so that it gets served as a static asset in production
-export const prerender = true;
+// Disable prerendering for WebGPU content
+export const prerender = false;
+
+// Enable SSR for better SEO
+export const ssr = true;
