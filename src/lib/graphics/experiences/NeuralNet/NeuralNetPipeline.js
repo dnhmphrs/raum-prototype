@@ -1,5 +1,4 @@
 import Pipeline from '../../pipelines/Pipeline';
-import neuronShader from './neuronShader.wgsl';
 
 export default class NeuralNetPipeline extends Pipeline {
 	constructor(device, camera, viewportBuffer, mouseBuffer, neuronCount, dendriteCount, cube) {
@@ -24,11 +23,29 @@ export default class NeuralNetPipeline extends Pipeline {
 		this.globalModulation = Math.random();
 		this.previousModulation = this.globalModulation;
 		this.targetModulation = Math.random();
+		
+		// Shader code
+		this.shaderCode = null;
 	}
 
 	async initialize() {
 		const format = navigator.gpu.getPreferredCanvasFormat();
 		const { projectionBuffer, viewBuffer } = this.camera.getBuffers();
+
+		// Fetch the shader from the static directory
+		try {
+			const response = await fetch('/shaders/neuralnet/neuronShader.wgsl');
+			if (response.ok) {
+				this.shaderCode = await response.text();
+				console.log("Neuron shader loaded from static directory");
+			} else {
+				console.error("Failed to load neuron shader from static directory");
+				return;
+			}
+		} catch (error) {
+			console.error("Error loading neuron shader:", error);
+			return;
+		}
 
 		// Ensure sizes are aligned to 4 bytes
 		const alignTo4Bytes = (size) => Math.ceil(size / 4) * 4;
@@ -89,7 +106,7 @@ export default class NeuralNetPipeline extends Pipeline {
 			label: 'Neuron Render Pipeline',
 			layout: this.device.createPipelineLayout({ bindGroupLayouts: [neuronBindGroupLayout] }),
 			vertex: {
-				module: this.device.createShaderModule({ code: neuronShader }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'vertex_main_neuron',
 				buffers: [
 					{
@@ -99,7 +116,7 @@ export default class NeuralNetPipeline extends Pipeline {
 				]
 			},
 			fragment: {
-				module: this.device.createShaderModule({ code: neuronShader }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'fragment_main_neuron',
 				targets: [
 					{
@@ -135,7 +152,7 @@ export default class NeuralNetPipeline extends Pipeline {
 			label: 'Dendrite Render Pipeline',
 			layout: this.device.createPipelineLayout({ bindGroupLayouts: [dendriteBindGroupLayout] }),
 			vertex: {
-				module: this.device.createShaderModule({ code: neuronShader }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'vertex_main_dendrite',
 				buffers: [
 					{
@@ -145,7 +162,7 @@ export default class NeuralNetPipeline extends Pipeline {
 				]
 			},
 			fragment: {
-				module: this.device.createShaderModule({ code: neuronShader }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'fragment_main_dendrite',
 				targets: [
 					{
@@ -181,7 +198,7 @@ export default class NeuralNetPipeline extends Pipeline {
 			label: 'Cube Render Pipeline',
 			layout: this.device.createPipelineLayout({ bindGroupLayouts: [cubeBindGroupLayout] }),
 			vertex: {
-				module: this.device.createShaderModule({ code: neuronShader }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'vertex_main_cube',
 				buffers: [
 					{
@@ -191,7 +208,7 @@ export default class NeuralNetPipeline extends Pipeline {
 				]
 			},
 			fragment: {
-				module: this.device.createShaderModule({ code: neuronShader }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'fragment_main_cube',
 				targets: [
 					{

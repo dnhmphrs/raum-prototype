@@ -1,5 +1,3 @@
-import computeShader from '../shaders/compute.wgsl';
-
 export default class ComputePipeline {
 	constructor(device) {
 		this.device = device;
@@ -7,6 +5,7 @@ export default class ComputePipeline {
 		this.storageBuffer = null;
 		this.readBuffer = null;
 		this.bindGroup = null;
+		this.shaderCode = null;
 	}
 
 	async initialize() {
@@ -32,15 +31,33 @@ export default class ComputePipeline {
 	}
 
 	async createPipeline() {
-		// Create a compute pipeline
-		this.pipeline = this.device.createComputePipeline({
+		// Fetch the shader from the static directory
+		try {
+			const response = await fetch('/shaders/compute/compute.wgsl');
+			if (response.ok) {
+				this.shaderCode = await response.text();
+				console.log("Compute shader loaded from static directory");
+			} else {
+				console.error("Failed to load compute shader from static directory");
+				return false;
+			}
+		} catch (error) {
+			console.error("Error loading compute shader:", error);
+			return false;
+		}
+		
+		// Create the shader module
+		const shaderModule = this.device.createShaderModule({
+			label: 'Compute Shader Module',
+			code: this.shaderCode
+		});
+
+		// Create the compute pipeline
+		this.pipeline = await this.device.createComputePipelineAsync({
 			label: 'Compute Pipeline',
 			layout: 'auto',
 			compute: {
-				module: this.device.createShaderModule({
-					label: 'Compute Shader',
-					code: computeShader
-				}),
+				module: shaderModule,
 				entryPoint: 'compute_main'
 			}
 		});

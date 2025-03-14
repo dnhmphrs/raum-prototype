@@ -1,6 +1,4 @@
 import Pipeline from '../../pipelines/Pipeline';
-import lorentzShader from './lorentzShader.wgsl';
-import lorentzComputeShader from './lorentzComputeShader.wgsl';
 
 export default class LorentzPipeline extends Pipeline {
     constructor(device, numPoints, viewportBuffer) {
@@ -38,16 +36,44 @@ export default class LorentzPipeline extends Pipeline {
             padding2: 0
         };
         
+        // Shader code
+        this.lorentzShaderCode = null;
+        this.lorentzComputeShaderCode = null;
+        
         console.log("LorentzPipeline constructor completed");
     }
 
     async initialize() {
         try {
+            console.log("Loading shader files...");
+            
+            // Fetch the shader files from the static directory
+            try {
+                // Fetch compute shader
+                const computeResponse = await fetch('/shaders/lorentz/lorentzComputeShader.wgsl');
+                if (!computeResponse.ok) {
+                    throw new Error(`Failed to load compute shader: ${computeResponse.statusText}`);
+                }
+                this.lorentzComputeShaderCode = await computeResponse.text();
+                console.log("Lorentz compute shader loaded from static directory");
+                
+                // Fetch render shader
+                const renderResponse = await fetch('/shaders/lorentz/lorentzShader.wgsl');
+                if (!renderResponse.ok) {
+                    throw new Error(`Failed to load render shader: ${renderResponse.statusText}`);
+                }
+                this.lorentzShaderCode = await renderResponse.text();
+                console.log("Lorentz render shader loaded from static directory");
+            } catch (error) {
+                console.error("Error loading Lorentz shaders:", error);
+                throw error;
+            }
+            
             console.log("Creating compute shader module...");
             // Create compute shader
             const computeModule = this.device.createShaderModule({
                 label: 'Lorentz compute shader',
-                code: lorentzComputeShader
+                code: this.lorentzComputeShaderCode
             });
             
             // Create compute pipeline
@@ -77,7 +103,7 @@ export default class LorentzPipeline extends Pipeline {
             // Create render shader
             const renderModule = this.device.createShaderModule({
                 label: 'Lorentz render shader',
-                code: lorentzShader
+                code: this.lorentzShaderCode
             });
             
             // Create explicit bind group layout for render pipeline

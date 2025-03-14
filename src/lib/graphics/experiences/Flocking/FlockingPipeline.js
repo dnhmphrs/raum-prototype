@@ -1,12 +1,6 @@
 // FlockingPipeline.js
 
 import Pipeline from '../../pipelines/Pipeline';
-import birdShader from './birdShader.wgsl';
-import predatorShader from './predatorShader.wgsl'; // Import the predator shader
-import flockingShader from './flockingShader.wgsl';
-import huntingShader from './huntingShader.wgsl';
-import backgroundShader from './backgroundShader.wgsl';
-import guidingLineShaderCode from './guidingLineShader.wgsl'; // Ensure correct path
 import PredatorCamera from '../../camera/PredatorCamera'; // Import the new PredatorCamera class
 import { vec3 } from 'gl-matrix';
 
@@ -74,6 +68,14 @@ export default class FlockingPipeline extends Pipeline {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             label: 'Performance Mode Buffer'
         });
+
+        // Shader code variables
+        this.birdShaderCode = null;
+        this.predatorShaderCode = null;
+        this.flockingShaderCode = null;
+        this.huntingShaderCode = null;
+        this.backgroundShaderCode = null;
+        this.guidingLineShaderCode = null;
     }
 
     async initialize() {
@@ -130,23 +132,85 @@ export default class FlockingPipeline extends Pipeline {
             label: 'Time Buffer'
         });
 
-        // Initialize compute pipelines
-        await this.initializeFlockingComputePipeline();
-        await this.initializeHuntingComputePipeline();
-
-        // Initialize render pipelines after all buffers are created
-        const format = navigator.gpu.getPreferredCanvasFormat();
-        const { projectionBuffer, viewBuffer } = this.camera.getBuffers();
-        await this.initializeRenderPipelines(format, projectionBuffer, viewBuffer);
-
         // Initialize predator camera projection
         this.predatorCamera.updateProjection();
+
+        // IMPORTANT: Load all shader files from static directory FIRST
+        try {
+            console.log("Loading shader files from static directory...");
+            
+            // Load bird shader
+            const birdResponse = await fetch('/shaders/flocking/birdShader.wgsl');
+            if (!birdResponse.ok) {
+                throw new Error(`Failed to load bird shader: ${birdResponse.statusText}`);
+            }
+            this.birdShaderCode = await birdResponse.text();
+            console.log("Bird shader loaded from static directory");
+            
+            // Load predator shader
+            const predatorResponse = await fetch('/shaders/flocking/predatorShader.wgsl');
+            if (!predatorResponse.ok) {
+                throw new Error(`Failed to load predator shader: ${predatorResponse.statusText}`);
+            }
+            this.predatorShaderCode = await predatorResponse.text();
+            console.log("Predator shader loaded from static directory");
+            
+            // Load flocking shader
+            const flockingResponse = await fetch('/shaders/flocking/flockingShader.wgsl');
+            if (!flockingResponse.ok) {
+                throw new Error(`Failed to load flocking shader: ${flockingResponse.statusText}`);
+            }
+            this.flockingShaderCode = await flockingResponse.text();
+            console.log("Flocking shader loaded from static directory");
+            
+            // Load hunting shader
+            const huntingResponse = await fetch('/shaders/flocking/huntingShader.wgsl');
+            if (!huntingResponse.ok) {
+                throw new Error(`Failed to load hunting shader: ${huntingResponse.statusText}`);
+            }
+            this.huntingShaderCode = await huntingResponse.text();
+            console.log("Hunting shader loaded from static directory");
+            
+            // Load background shader
+            const backgroundResponse = await fetch('/shaders/flocking/backgroundShader.wgsl');
+            if (!backgroundResponse.ok) {
+                throw new Error(`Failed to load background shader: ${backgroundResponse.statusText}`);
+            }
+            this.backgroundShaderCode = await backgroundResponse.text();
+            console.log("Background shader loaded from static directory");
+            
+            // Load guiding line shader
+            const guidingLineResponse = await fetch('/shaders/flocking/guidingLineShader.wgsl');
+            if (!guidingLineResponse.ok) {
+                throw new Error(`Failed to load guiding line shader: ${guidingLineResponse.statusText}`);
+            }
+            this.guidingLineShaderCode = await guidingLineResponse.text();
+            console.log("Guiding line shader loaded from static directory");
+            
+            // Now that all shaders are loaded, initialize the pipelines
+            console.log("All shaders loaded, initializing pipelines...");
+            
+            // Initialize compute pipelines
+            await this.initializeFlockingComputePipeline();
+            await this.initializeHuntingComputePipeline();
+
+            // Initialize render pipelines after all buffers are created
+            const format = navigator.gpu.getPreferredCanvasFormat();
+            const { projectionBuffer, viewBuffer } = this.camera.getBuffers();
+            await this.initializeRenderPipelines(format, projectionBuffer, viewBuffer);
+            
+            console.log("All pipelines initialized successfully");
+            return true;
+        } catch (error) {
+            console.error("Error in FlockingPipeline initialization:", error);
+            return false;
+        }
     }
 
     async initializeFlockingComputePipeline() {
         // Create a shader module for the compute shader
         const computeModule = this.device.createShaderModule({
-            code: flockingShader
+            code: this.flockingShaderCode
         });
 
         // Create a bind group layout for the compute shader
@@ -208,7 +272,7 @@ export default class FlockingPipeline extends Pipeline {
     async initializeHuntingComputePipeline() {
         // Create shader module
         const huntingModule = this.device.createShaderModule({
-            code: huntingShader
+            code: this.huntingShaderCode
         });
 
         // Define bind group layout matching the shader bindings
@@ -276,12 +340,12 @@ export default class FlockingPipeline extends Pipeline {
                 bindGroupLayouts: [backgroundBindGroupLayout]
             }),
             vertex: {
-                module: this.device.createShaderModule({ code: backgroundShader }),
+                module: this.device.createShaderModule({ code: this.backgroundShaderCode }),
                 entryPoint: 'vertex_main',
                 buffers: [] // No vertex buffers needed
             },
             fragment: {
-                module: this.device.createShaderModule({ code: backgroundShader }),
+                module: this.device.createShaderModule({ code: this.backgroundShaderCode }),
                 entryPoint: 'fragment_main',
                 targets: [{ format }]
             },
@@ -342,7 +406,7 @@ export default class FlockingPipeline extends Pipeline {
                 bindGroupLayouts: [birdBindGroupLayout]
             }),
             vertex: {
-                module: this.device.createShaderModule({ code: birdShader }),
+                module: this.device.createShaderModule({ code: this.birdShaderCode }),
                 entryPoint: 'vertex_main',
                 buffers: [
                     {
@@ -354,7 +418,7 @@ export default class FlockingPipeline extends Pipeline {
                 ]
             },
             fragment: {
-                module: this.device.createShaderModule({ code: birdShader }),
+                module: this.device.createShaderModule({ code: this.birdShaderCode }),
                 entryPoint: 'fragment_main',
                 targets: [{
                     format,
@@ -379,7 +443,7 @@ export default class FlockingPipeline extends Pipeline {
             label: 'Predator Render Pipeline',
             layout: this.device.createPipelineLayout({ bindGroupLayouts: [predatorBindGroupLayout] }),
             vertex: {
-                module: this.device.createShaderModule({ code: predatorShader }),
+                module: this.device.createShaderModule({ code: this.predatorShaderCode }),
                 entryPoint: 'vertex_main',
                 buffers: [
                     {
@@ -389,7 +453,7 @@ export default class FlockingPipeline extends Pipeline {
                 ]
             },
             fragment: {
-                module: this.device.createShaderModule({ code: predatorShader }),
+                module: this.device.createShaderModule({ code: this.predatorShaderCode }),
                 entryPoint: 'fragment_main',
                 targets: [{ format }]
             },
@@ -443,7 +507,7 @@ export default class FlockingPipeline extends Pipeline {
             label: 'Guiding Line Render Pipeline',
             layout: this.device.createPipelineLayout({ bindGroupLayouts: [guidingLineBindGroupLayout] }),
             vertex: {
-                module: this.device.createShaderModule({ code: guidingLineShaderCode }),
+                module: this.device.createShaderModule({ code: this.guidingLineShaderCode }),
                 entryPoint: 'vertex_main',
                 buffers: [
                     {
@@ -455,7 +519,7 @@ export default class FlockingPipeline extends Pipeline {
                 ]
             },
             fragment: {
-                module: this.device.createShaderModule({ code: guidingLineShaderCode }),
+                module: this.device.createShaderModule({ code: this.guidingLineShaderCode }),
                 entryPoint: 'fragment_main',
                 targets: [{ format }]
             },

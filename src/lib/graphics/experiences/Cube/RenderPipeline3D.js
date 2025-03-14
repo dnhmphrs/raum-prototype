@@ -1,5 +1,4 @@
 import Pipeline from '../../pipelines/Pipeline';
-import shaderCode from './theta3D.wgsl';
 
 export default class RenderPipeline3D extends Pipeline {
 	constructor(device, camera, viewportBuffer, mouseBuffer) {
@@ -7,145 +6,107 @@ export default class RenderPipeline3D extends Pipeline {
 		this.camera = camera;
 		this.viewportBuffer = viewportBuffer;
 		this.mouseBuffer = mouseBuffer;
+		this.shaderCode = null;
 	}
 
 	async initialize() {
 		console.log("Initializing 3D Pipeline");
 		
 		try {
-			// Create bind group layout
-			this.bindGroupLayout = this.device.createBindGroupLayout({
-				entries: [
-					{
-						binding: 0,
-						visibility: GPUShaderStage.VERTEX,
-						buffer: { type: 'uniform' } // Projection matrix
-					},
-					{
-						binding: 1,
-						visibility: GPUShaderStage.VERTEX,
-						buffer: { type: 'uniform' } // View matrix
-					},
-					{
-						binding: 2,
-						visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-						buffer: { type: 'uniform' } // Time uniform
-					}
-				]
-			});
-			
-			// Create pipeline layout
-			this.pipelineLayout = this.device.createPipelineLayout({
-				bindGroupLayouts: [this.bindGroupLayout]
-			});
-			
-			// Create shader module
-			this.shaderModule = this.device.createShaderModule({
-				label: 'Cube Shader',
-				code: `
-					struct VertexOutput {
-						@builtin(position) position: vec4<f32>,
-						@location(0) color: vec3<f32>
-					};
-					
-					struct TimeUniform {
-						unused: vec3<f32>,
-						time: f32,
-					}
-					
-					@group(0) @binding(0) var<uniform> projection: mat4x4<f32>;
-					@group(0) @binding(1) var<uniform> view: mat4x4<f32>;
-					@group(0) @binding(2) var<uniform> timeUniform: TimeUniform;
-					
-					@vertex
-					fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
-						var output: VertexOutput;
-						
-						// Rotate the cube
-						let time = timeUniform.time;
-						let rotationX = mat4x4<f32>(
-							1.0, 0.0, 0.0, 0.0,
-							0.0, cos(time * 0.5), -sin(time * 0.5), 0.0,
-							0.0, sin(time * 0.5), cos(time * 0.5), 0.0,
-							0.0, 0.0, 0.0, 1.0
-						);
-						
-						let rotationY = mat4x4<f32>(
-							cos(time), 0.0, sin(time), 0.0,
-							0.0, 1.0, 0.0, 0.0,
-							-sin(time), 0.0, cos(time), 0.0,
-							0.0, 0.0, 0.0, 1.0
-						);
-						
-						// Apply rotation and transform
-						let rotatedPosition = rotationY * rotationX * vec4<f32>(position, 1.0);
-						output.position = projection * view * rotatedPosition;
-						
-						// Generate color based on position
-						output.color = normalize(abs(position)) * 0.5 + 0.5;
-						
-						return output;
-					}
-					
-					@fragment
-					fn fragmentMain(@location(0) color: vec3<f32>) -> @location(0) vec4<f32> {
-						return vec4<f32>(color, 1.0);
-					}
-				`
-			});
-			
-			// Create render pipeline
-			this.pipeline = this.device.createRenderPipeline({
-				layout: this.pipelineLayout,
-				vertex: {
-					module: this.shaderModule,
-					entryPoint: 'vertexMain',
-					buffers: [{
-						arrayStride: 12, // 3 floats, 4 bytes each
-						attributes: [{
-							shaderLocation: 0,
-							offset: 0,
-							format: 'float32x3'
-						}]
-					}]
-				},
-				fragment: {
-					module: this.shaderModule,
-					entryPoint: 'fragmentMain',
-					targets: [{
-						format: navigator.gpu.getPreferredCanvasFormat(),
-						blend: {
-							color: {
-								srcFactor: 'src-alpha',
-								dstFactor: 'one-minus-src-alpha',
-								operation: 'add'
-							},
-							alpha: {
-								srcFactor: 'one',
-								dstFactor: 'one-minus-src-alpha',
-								operation: 'add'
-							}
-						}
-					}]
-				},
-				primitive: {
-					topology: 'triangle-list',
-					cullMode: 'back'
-				},
-				depthStencil: {
-					format: 'depth24plus',
-					depthWriteEnabled: true,
-					depthCompare: 'less'
-				}
-			});
-			
-			this.isInitialized = true;
-			console.log("3D Pipeline initialized successfully");
-			return true;
+			// Fetch the shader from the static directory
+			const response = await fetch('/shaders/cube/theta3D.wgsl');
+			if (response.ok) {
+				this.shaderCode = await response.text();
+				console.log("Cube shader loaded from static directory");
+			} else {
+				console.error("Failed to load cube shader from static directory");
+				return false;
+			}
 		} catch (error) {
-			console.error("Error initializing 3D Pipeline:", error);
+			console.error("Error loading cube shader:", error);
 			return false;
 		}
+
+		// Create bind group layout
+		this.bindGroupLayout = this.device.createBindGroupLayout({
+			entries: [
+				{
+					binding: 0,
+					visibility: GPUShaderStage.VERTEX,
+					buffer: { type: 'uniform' } // Projection matrix
+				},
+				{
+					binding: 1,
+					visibility: GPUShaderStage.VERTEX,
+					buffer: { type: 'uniform' } // View matrix
+				},
+				{
+					binding: 2,
+					visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+					buffer: { type: 'uniform' } // Time uniform
+				}
+			]
+		});
+
+		// Create pipeline layout
+		this.pipelineLayout = this.device.createPipelineLayout({
+			bindGroupLayouts: [this.bindGroupLayout]
+		});
+
+		// Create shader module
+		this.shaderModule = this.device.createShaderModule({
+			label: 'Cube Shader',
+			code: this.shaderCode
+		});
+		
+		// Create render pipeline
+		this.pipeline = this.device.createRenderPipeline({
+			layout: this.pipelineLayout,
+			vertex: {
+				module: this.shaderModule,
+				entryPoint: 'vertexMain',
+				buffers: [{
+					arrayStride: 12, // 3 floats, 4 bytes each
+					attributes: [{
+						shaderLocation: 0,
+						offset: 0,
+						format: 'float32x3'
+					}]
+				}]
+			},
+			fragment: {
+				module: this.shaderModule,
+				entryPoint: 'fragmentMain',
+				targets: [{
+					format: navigator.gpu.getPreferredCanvasFormat(),
+					blend: {
+						color: {
+							srcFactor: 'src-alpha',
+							dstFactor: 'one-minus-src-alpha',
+							operation: 'add'
+						},
+						alpha: {
+							srcFactor: 'one',
+							dstFactor: 'one-minus-src-alpha',
+							operation: 'add'
+						}
+					}
+				}]
+			},
+			primitive: {
+				topology: 'triangle-list',
+				cullMode: 'back'
+			},
+			depthStencil: {
+				format: 'depth24plus',
+				depthWriteEnabled: true,
+				depthCompare: 'less'
+			}
+		});
+		
+		this.isInitialized = true;
+		console.log("3D Pipeline initialized successfully");
+		return true;
 	}
 
 	render(commandEncoder, textureView, depthTextureView, uniformBuffer) {

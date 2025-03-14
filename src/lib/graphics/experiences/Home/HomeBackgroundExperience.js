@@ -1,7 +1,7 @@
 import Experience from '../Experience.js';
 import { createFullScreenQuad } from '../../utils/geometryUtils.js';
-// Import the shader directly with a fallback mechanism
-import matrixShader from './MatrixShader.wgsl';
+// Remove the direct import
+// import matrixShader from './MatrixShader.wgsl';
 
 // Simple fallback shader in case the imported one fails
 const FALLBACK_SHADER = `
@@ -133,11 +133,19 @@ class HomeBackgroundExperience extends Experience {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Use the imported shader with fallback
-            let shaderCode = matrixShader;
-            if (!shaderCode || shaderCode.trim() === '') {
-                console.warn("Matrix shader not found, using fallback shader");
-                shaderCode = FALLBACK_SHADER;
+            // Fetch the shader from the static directory instead of using the imported one
+            let shaderCode = FALLBACK_SHADER;
+            try {
+                const response = await fetch('/shaders/home/MatrixShader.wgsl');
+                if (response.ok) {
+                    shaderCode = await response.text();
+                    console.log("Matrix shader loaded from static directory");
+                } else {
+                    console.warn("Matrix shader not found in static directory, using fallback shader");
+                }
+            } catch (error) {
+                console.error("Error loading Matrix shader:", error);
+                console.warn("Using fallback shader");
             }
             
             const shaderModule = this.device.createShaderModule({
