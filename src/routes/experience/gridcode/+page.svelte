@@ -159,7 +159,7 @@
                 <div class="psychosis">
                     <p>
                         As a final note, an impaired grid code has been implicated in schizophrenia [Convertino et al. 2023].
-                        In pyschosis, we may expect that the regular hexagonal grids dissapear somewhat (impaired fronto-tempporal connectivity [Friston and Frith, 1995] leading to a noisy projection from mPFC). The MEC grid code will instead look chaotic: <i>a raging sea.</i>
+                        In pyschosis, we may expect that the regular hexagonal grids dissapear somewhat (impaired fronto-tempporal connectivity [Friston and Frith, 1995] due to a 'noisy' projection from mPFC to the MEC grid code [conjecture]). The MEC grid code will instead look chaotic: <i>a raging sea.</i>
                     </p>
               </div>
         </div>
