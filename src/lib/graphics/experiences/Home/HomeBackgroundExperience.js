@@ -24,8 +24,28 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
 
 @fragment
 fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+    // Apply subtle warping effect around mouse cursor
+    var warped_uv = uv;
+    let mouse_vector = uv - mouse;
+    let mouse_dist = length(mouse_vector);
+    let warp_strength = 0.03; // Very subtle warping
+    let warp_radius = 0.3; // Radius of influence
+    
+    // Only apply warping within the radius
+    if (mouse_dist < warp_radius) {
+        // Calculate warping factor - stronger closer to cursor, fading out to edge
+        let warp_factor = smoothstep(warp_radius, 0.0, mouse_dist) * warp_strength;
+        
+        // Create a subtle swirl/lens effect
+        let angle = atan2(mouse_vector.y, mouse_vector.x) + sin(time * 0.5) * 0.2;
+        let swirl = vec2<f32>(cos(angle), sin(angle)) * mouse_dist;
+        
+        // Apply the warping
+        warped_uv -= swirl * warp_factor;
+    }
+    
     // Simple gradient background
-    var color = vec3<f32>(uv.x * 0.1, uv.y * 0.1, 0.1);
+    var color = vec3<f32>(warped_uv.x * 0.1, warped_uv.y * 0.1, 0.1);
     
     // Add time-based animation
     color.g += sin(time) * 0.1 + 0.1;

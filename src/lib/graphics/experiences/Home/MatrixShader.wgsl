@@ -30,8 +30,28 @@ fn hash(p: vec2<f32>) -> f32 {
 
 @fragment
 fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+    // Apply subtle warping effect around mouse cursor
+    var warped_uv = uv;
+    let mouse_vector = uv - mouse;
+    let mouse_dist = length(mouse_vector);
+    let warp_strength = 0.03; // Very subtle warping
+    let warp_radius = 0.3; // Radius of influence
+    
+    // Only apply warping within the radius
+    if (mouse_dist < warp_radius) {
+        // Calculate warping factor - stronger closer to cursor, fading out to edge
+        let warp_factor = smoothstep(warp_radius, 0.0, mouse_dist) * warp_strength;
+        
+        // Create a subtle swirl/lens effect
+        let angle = atan2(mouse_vector.y, mouse_vector.x) + sin(time * 0.5) * 0.2;
+        let swirl = vec2<f32>(cos(angle), sin(angle)) * mouse_dist;
+        
+        // Apply the warping
+        warped_uv -= swirl * warp_factor;
+    }
+    
     // Adjust UV to maintain aspect ratio
-    var uv_aspect = uv;
+    var uv_aspect = warped_uv;
     uv_aspect.x *= resolution.x / resolution.y;
     
     // Create a grid for the matrix effect
@@ -86,21 +106,16 @@ fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     color = mix(color, alt_color2, color_shift * (1.0 - color_amount));
     
     // Add subtle scan lines
-    let scan_line = sin(uv.y * resolution.y * 0.5) * 0.5 + 0.5;
+    let scan_line = sin(warped_uv.y * resolution.y * 0.5) * 0.5 + 0.5;
     color *= 0.9 + scan_line * 0.2;
     
     // Add subtle vignette
-    let vignette = 1.0 - length((uv - 0.5) * 1.5);
+    let vignette = 1.0 - length((warped_uv - 0.5) * 1.5);
     color *= vignette;
     
     // Add subtle noise
-    let noise = random(uv + time * 0.01) * 0.05;
+    let noise = random(warped_uv + time * 0.01) * 0.05;
     color += noise;
-    
-    // Add mouse interaction - enhanced glow around mouse position
-    let mouse_dist = length(uv - mouse);
-    let mouse_glow = smoothstep(0.4, 0.0, mouse_dist) * 0.5;
-    color += vec3<f32>(0.0, mouse_glow, mouse_glow * 0.7);
     
     return vec4<f32>(color, 1.0);
 } 
