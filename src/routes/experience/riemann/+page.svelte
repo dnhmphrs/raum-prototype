@@ -19,8 +19,8 @@
         { id: 'torus', name: 'Torus' }
     ];
     
-    // Current selected manifold - set flat as default
-    let selectedManifold = manifoldTypes.find(m => m.id === 'flat');
+    // Current selected manifold - set ripple as default
+    let selectedManifold = manifoldTypes.find(m => m.id === 'ripple');
     
     // Function to stop event propagation
     function stopPropagation(event) {
@@ -56,10 +56,11 @@
             console.error("Experience not initialized yet");
         }
         
-        // Hide loading indicator after a short delay
-        setTimeout(() => {
+        // Hide loading indicator after the surface is updated
+        // Use requestAnimationFrame to ensure the new surface is rendered
+        requestAnimationFrame(() => {
             isLoading = false;
-        }, 500);
+        });
     }
     
     onMount(async () => {
@@ -86,16 +87,20 @@
             
             console.log("Experience initialized:", experience);
             
-            // Set initial surface to flat
+            // Set initial surface to ripple
             if (experience) {
-                loadingMessage = "Loading Flat Surface...";
-                experience.updateSurface('flat');
+                loadingMessage = "Loading Ripple Surface...";
+                experience.updateSurface('ripple');
             }
             
-            // Hide loading indicator
-            setTimeout(() => {
+            // Update loading message to indicate we're finalizing
+            loadingMessage = "Finalizing...";
+            
+            // Hide loading screen immediately after the next frame renders
+            // This ensures the experience is visible and ready
+            requestAnimationFrame(() => {
                 isLoading = false;
-            }, 1000);
+            });
             
             // Handle window resize
             const handleResize = () => {

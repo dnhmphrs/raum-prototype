@@ -115,10 +115,14 @@
                 experience.updateKPDistortion(kpDistortion);
             }
             
-            // Hide loading indicator
-            setTimeout(() => {
+            // Update loading message to indicate we're finalizing
+            loadingMessage = "Finalizing...";
+            
+            // Hide loading screen immediately after the next frame renders
+            // This ensures the experience is visible and ready
+            requestAnimationFrame(() => {
                 isLoading = false;
-            }, 1000);
+            });
             
             // Handle window resize
             const handleResize = () => {
