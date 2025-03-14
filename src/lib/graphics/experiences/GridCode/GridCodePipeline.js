@@ -233,15 +233,40 @@ class GridCodePipeline {
     cleanup() {
         console.log("Cleaning up Grid Code Pipeline");
         
-        // Clean up resources
-        this.shaderModule = null;
-        this.renderPipeline = null;
-        this.bindGroupLayout = null;
-        this.pipelineLayout = null;
+        // Clean up resources - explicitly nullify WebGPU resources
+        if (this.shaderModule) {
+            console.log("Nullifying shader module");
+            this.shaderModule = null;
+        }
+        
+        if (this.renderPipeline) {
+            console.log("Nullifying render pipeline");
+            this.renderPipeline = null;
+        }
+        
+        if (this.bindGroupLayout) {
+            console.log("Nullifying bind group layout");
+            this.bindGroupLayout = null;
+        }
+        
+        if (this.pipelineLayout) {
+            console.log("Nullifying pipeline layout");
+            this.pipelineLayout = null;
+        }
         
         if (this.kpParamsBuffer) {
+            console.log("Nullifying KP params buffer");
             this.kpParamsBuffer = null;
         }
+        
+        // Clear device and resource manager references
+        this.device = null;
+        this.resourceManager = null;
+        
+        // Mark as not initialized
+        this.isInitialized = false;
+        
+        console.log("Grid Code Pipeline cleanup complete");
     }
 }
 

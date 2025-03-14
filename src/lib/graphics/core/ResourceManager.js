@@ -135,21 +135,56 @@ class ResourceManager {
 	}
 
 	cleanup() {
-		// Destroy buffers
-		if (this.buffers.viewportBuffer) {
-			this.buffers.viewportBuffer.destroy();
-			this.buffers.viewportBuffer = null;
+		console.log("ResourceManager cleanup called");
+		
+		// Clean up all experiences first
+		if (this.experiences) {
+			console.log("Cleaning up experiences in ResourceManager");
+			for (const key in this.experiences) {
+				if (this.experiences[key] && typeof this.experiences[key].cleanup === 'function') {
+					console.log(`Cleaning up experience: ${key}`);
+					this.experiences[key].cleanup();
+				}
+				this.experiences[key] = null;
+			}
+			this.experiences = {};
 		}
-		if (this.buffers.mouseBuffer) {
-			this.buffers.mouseBuffer.destroy();
-			this.buffers.mouseBuffer = null;
+		
+		// Destroy buffers - WebGPU buffers need to be explicitly nullified
+		// to allow garbage collection
+		if (this.buffers) {
+			for (const key in this.buffers) {
+				if (this.buffers[key]) {
+					console.log(`Nullifying buffer: ${key}`);
+					this.buffers[key] = null;
+				}
+			}
+			this.buffers = {};
 		}
 
-		// Destroy depth texture
+		// Destroy depth texture - WebGPU textures need to be explicitly nullified
 		if (this.depthTexture) {
-			this.depthTexture.destroy();
+			console.log("Nullifying depth texture");
 			this.depthTexture = null;
 		}
+		
+		if (this.depthTextureView) {
+			this.depthTextureView = null;
+		}
+		
+		// Clear camera reference
+		this.camera = null;
+		this.cameraController = null;
+		
+		// Clear device reference
+		this.device = null;
+		
+		// Clear canvas reference if it exists
+		if (this.canvas) {
+			this.canvas = null;
+		}
+		
+		console.log("ResourceManager cleanup complete");
 	}
 }
 

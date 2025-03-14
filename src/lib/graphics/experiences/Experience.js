@@ -15,11 +15,37 @@ class Experience {
 	}
 
 	cleanup() {
-		// Clean up any resources specific to this experience
-		this.objects = [];
+		console.log("Base Experience cleanup called");
 		
-		// Any additional cleanup specific to the experience
-		// ...
+		// Clean up any resources specific to this experience
+		if (this.objects && this.objects.length > 0) {
+			console.log(`Cleaning up ${this.objects.length} objects`);
+			for (let i = 0; i < this.objects.length; i++) {
+				const object = this.objects[i];
+				if (object && typeof object.cleanup === 'function') {
+					object.cleanup();
+				}
+			}
+			this.objects = [];
+		}
+		
+		// Clean up pipelines
+		if (this.pipelines && this.pipelines.length > 0) {
+			console.log(`Cleaning up ${this.pipelines.length} pipelines`);
+			for (let i = 0; i < this.pipelines.length; i++) {
+				const pipeline = this.pipelines[i];
+				if (pipeline && typeof pipeline.cleanup === 'function') {
+					pipeline.cleanup();
+				}
+			}
+			this.pipelines = [];
+		}
+		
+		// Clear device and resource manager references
+		this.device = null;
+		this.resourceManager = null;
+		
+		console.log("Base Experience cleanup complete");
 	}
 }
 

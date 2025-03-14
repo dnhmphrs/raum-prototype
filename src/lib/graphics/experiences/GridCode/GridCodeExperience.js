@@ -286,15 +286,26 @@ class GridCodeExperience extends Experience {
         
         // Clean up pipeline
         if (this.pipeline) {
+            console.log("Cleaning up Grid Code Pipeline");
             this.pipeline.cleanup();
             this.pipeline = null;
         }
         
-        // Clean up buffers - no need to destroy, just null the references
-        // to allow garbage collection
-        this.vertexBuffer = null;
-        this.indexBuffer = null;
-        this.uniformBuffer = null;
+        // Clean up buffers - explicitly nullify WebGPU resources
+        if (this.vertexBuffer) {
+            console.log("Nullifying vertex buffer");
+            this.vertexBuffer = null;
+        }
+        
+        if (this.indexBuffer) {
+            console.log("Nullifying index buffer");
+            this.indexBuffer = null;
+        }
+        
+        if (this.uniformBuffer) {
+            console.log("Nullifying uniform buffer");
+            this.uniformBuffer = null;
+        }
         
         // Reset state
         this.isLoading = true;
@@ -303,16 +314,26 @@ class GridCodeExperience extends Experience {
         
         // Remove from resource manager
         if (this.resourceManager && this.resourceManager.experiences) {
-            this.resourceManager.experiences.gridcode = null;
+            console.log("Removing Grid Code Experience from resource manager");
+            if (this.resourceManager.experiences.gridcode === this) {
+                this.resourceManager.experiences.gridcode = null;
+            }
         }
         
         // Remove global reference
-        if (typeof window !== 'undefined' && window.gridCodeExperience) {
+        if (typeof window !== 'undefined' && window.gridCodeExperience === this) {
+            console.log("Removing global Grid Code Experience reference");
             window.gridCodeExperience = null;
         }
         
+        // Clear device and resource manager references
+        this.device = null;
+        this.resourceManager = null;
+        
         // Call parent cleanup
         super.cleanup();
+        
+        console.log("Grid Code Experience cleanup complete");
     }
 }
 

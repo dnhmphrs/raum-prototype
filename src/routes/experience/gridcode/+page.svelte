@@ -135,7 +135,29 @@
             
             return () => {
                 window.removeEventListener('resize', handleResize);
-                if (engine) engine.stop();
+                console.log("Component being destroyed, cleaning up resources");
+                
+                // First remove global references
+                if (window.gridCodeExperience) {
+                    window.gridCodeExperience = null;
+                }
+                
+                // Then stop the engine which will trigger all cleanup
+                if (engine) {
+                    console.log("Stopping engine");
+                    engine.stop();
+                    engine = null;
+                }
+                
+                // Clear experience reference
+                if (experience) {
+                    experience = null;
+                }
+                
+                // Force garbage collection if available
+                if (window.gc) {
+                    window.gc();
+                }
             };
         } else if (!navigator.gpu) {
             loadingMessage = "WebGPU is not supported in your browser";

@@ -164,12 +164,19 @@ class Engine {
 		}
 
 		// Reset device and context
+		// Note: We don't destroy the device or context as they're managed by the browser
 		this.device = null;
 		this.context = null;
 		
-		// Force garbage collection if available
-		if (typeof window !== 'undefined' && window.gc) {
-			window.gc();
+		// Remove any global references that might be causing memory leaks
+		if (typeof window !== 'undefined') {
+			if (window.gridCodeExperience) {
+				window.gridCodeExperience = null;
+			}
+			// Force garbage collection if available (though this is rarely available in browsers)
+			if (window.gc) {
+				window.gc();
+			}
 		}
 		
 		console.log("Engine cleanup complete");
