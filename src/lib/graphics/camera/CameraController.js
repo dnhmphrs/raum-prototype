@@ -106,6 +106,24 @@ export default class CameraController {
 	updateAspect(width, height) {
 		this.camera.updateAspect(width, height);
 	}
+	
+	cleanup() {
+		console.log("Cleaning up CameraController");
+		
+		// Clear references to camera
+		this.camera = null;
+		
+		// Reset state
+		this.isDragging = false;
+		this.lastMouseX = 0;
+		this.lastMouseY = 0;
+		this.currentZoom = 1.0;
+		
+		// Clear target reference
+		this.target = null;
+		
+		console.log("CameraController cleanup complete");
+	}
 }
 
 // Camera configurations for each experience

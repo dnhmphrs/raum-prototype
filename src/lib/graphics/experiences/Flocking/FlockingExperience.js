@@ -51,8 +51,9 @@ class FlockingExperience extends Experience {
         this.guidingLine = new GuidingLineGeometry(this.device);
         this.addObject(this.guidingLine);
 
-        // Bind the visibility change handler
-        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        // Bind the visibility change handler and store the bound function
+        this.handleVisibilityChangeBound = this.handleVisibilityChange.bind(this);
+        document.addEventListener('visibilitychange', this.handleVisibilityChangeBound);
     }
 
     async initialize() {
@@ -216,25 +217,56 @@ class FlockingExperience extends Experience {
     }
 
     cleanup() {
+        console.log("Cleaning up FlockingExperience");
+        
+        // Remove event listeners
+        document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
+        
+        // Cleanup pipeline
         if (this.pipeline) {
+            console.log("Cleaning up FlockingPipeline");
             this.pipeline.cleanup();
+            this.pipeline = null;
         }
 
         // Cleanup birds
-        this.birds.forEach((bird) => {
-            if (bird.cleanup) {
-                bird.cleanup();
-            }
-        });
-        this.birds = [];
+        if (this.birds && this.birds.length > 0) {
+            console.log(`Cleaning up ${this.birds.length} birds`);
+            this.birds.forEach((bird) => {
+                if (bird && typeof bird.cleanup === 'function') {
+                    bird.cleanup();
+                }
+            });
+            this.birds = [];
+        }
 
         // Cleanup predator
         if (this.predator) {
-            this.predator.cleanup();
+            console.log("Cleaning up predator");
+            if (typeof this.predator.cleanup === 'function') {
+                this.predator.cleanup();
+            }
             this.predator = null;
         }
-
-        document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        
+        // Cleanup guiding line
+        if (this.guidingLine) {
+            console.log("Cleaning up guiding line");
+            if (typeof this.guidingLine.cleanup === 'function') {
+                this.guidingLine.cleanup();
+            }
+            this.guidingLine = null;
+        }
+        
+        // Reset performance tracking
+        this.frameCount = 0;
+        this.frameTimes = [];
+        this.performanceScaleFactor = 1.0;
+        
+        // Call parent cleanup to handle common resources
+        super.cleanup();
+        
+        console.log("FlockingExperience cleanup complete");
     }
 
     onResize(width, height) {

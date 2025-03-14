@@ -727,16 +727,64 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     cleanup() {
-        if (this.phaseBuffer) this.phaseBuffer.destroy();
-        if (this.positionBuffer) this.positionBuffer.destroy();
-        if (this.velocityBuffer) this.velocityBuffer.destroy();
-        if (this.predatorPositionBuffer) this.predatorPositionBuffer.destroy();
-        if (this.predatorVelocityBuffer) this.predatorVelocityBuffer.destroy();
-        if (this.flockingParamsBuffer) this.flockingParamsBuffer.destroy();
+        console.log("Cleaning up FlockingPipeline");
+        
+        // Destroy all buffers
+        const buffers = [
+            'phaseBuffer', 'positionBuffer', 'velocityBuffer', 
+            'predatorPositionBuffer', 'predatorVelocityBuffer', 
+            'flockingParamsBuffer', 'deltaTimeBuffer', 'targetIndexBuffer'
+        ];
+        
+        buffers.forEach(bufferName => {
+            if (this[bufferName]) {
+                console.log(`Destroying ${bufferName}`);
+                this[bufferName] = null;
+            }
+        });
+        
+        // Clean up bind groups
+        const bindGroups = [
+            'flockingComputeBindGroup', 'huntingComputeBindGroup',
+            'birdBindGroup', 'predatorBindGroup', 'guidingLineBindGroup',
+            'backgroundBindGroup'
+        ];
+        
+        bindGroups.forEach(groupName => {
+            if (this[groupName]) {
+                console.log(`Nullifying ${groupName}`);
+                this[groupName] = null;
+            }
+        });
+        
+        // Clean up pipelines
+        const pipelines = [
+            'flockingComputePipeline', 'huntingComputePipeline',
+            'birdPipeline', 'predatorPipeline'
+        ];
+        
+        pipelines.forEach(pipelineName => {
+            if (this[pipelineName]) {
+                console.log(`Nullifying ${pipelineName}`);
+                this[pipelineName] = null;
+            }
+        });
 
         // Cleanup predator camera
-        this.predatorCamera.cleanup();
-
+        if (this.predatorCamera) {
+            console.log("Cleaning up predator camera");
+            this.predatorCamera.cleanup();
+            this.predatorCamera = null;
+        }
+        
+        // Clear references to external resources
+        this.camera = null;
+        this.viewportBuffer = null;
+        this.mouseBuffer = null;
+        
+        console.log("FlockingPipeline cleanup complete");
+        
+        // Call parent cleanup
         super.cleanup();
     }
 

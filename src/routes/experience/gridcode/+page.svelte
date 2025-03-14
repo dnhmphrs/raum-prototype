@@ -24,6 +24,40 @@
         { value: 5, label: 'Module 6' }
     ];
     
+    // Memory monitoring
+    let memoryMonitorInterval;
+    let memoryUsage = { current: 0, peak: 0 };
+    
+    // Function to monitor memory usage
+    function startMemoryMonitoring() {
+        if (typeof window.performance !== 'undefined' && window.performance.memory) {
+            memoryMonitorInterval = setInterval(() => {
+                const currentUsage = window.performance.memory.usedJSHeapSize;
+                memoryUsage.current = currentUsage;
+                memoryUsage.peak = Math.max(memoryUsage.peak, currentUsage);
+                
+                // Log if memory usage is growing significantly
+                if (currentUsage > 0.9 * window.performance.memory.jsHeapSizeLimit) {
+                    console.warn("Memory usage is approaching the limit!", formatBytes(currentUsage));
+                    
+                    // Try to force garbage collection
+                    if (engine && typeof engine.performGarbageCollection === 'function') {
+                        engine.performGarbageCollection();
+                    }
+                }
+            }, 5000); // Check every 5 seconds
+        }
+    }
+    
+    // Helper function to format bytes
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
     // Function to stop event propagation
     function stopPropagation(event) {
         event.stopPropagation();
@@ -87,6 +121,9 @@
     
     onMount(async () => {
         if (canvas && navigator.gpu) {
+            // Start memory monitoring
+            startMemoryMonitoring();
+            
             // Initialize the engine with the canvas
             loadingMessage = "Initializing graphics engine...";
             engine = new Engine(canvas);
@@ -136,6 +173,18 @@
             return () => {
                 window.removeEventListener('resize', handleResize);
                 console.log("Component being destroyed, cleaning up resources");
+                
+                // Stop memory monitoring
+                if (memoryMonitorInterval) {
+                    clearInterval(memoryMonitorInterval);
+                    memoryMonitorInterval = null;
+                }
+                
+                // Log final memory usage
+                if (typeof window.performance !== 'undefined' && window.performance.memory) {
+                    console.log("Final memory usage:", formatBytes(window.performance.memory.usedJSHeapSize));
+                    console.log("Peak memory usage:", formatBytes(memoryUsage.peak));
+                }
                 
                 // First remove global references
                 if (window.gridCodeExperience) {

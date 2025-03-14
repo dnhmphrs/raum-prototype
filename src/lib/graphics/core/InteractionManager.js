@@ -29,12 +29,35 @@ class InteractionManager {
 	}
 
 	destroy() {
+		console.log("Destroying InteractionManager");
+		
 		// Remove event listeners using the same bound methods
 		window.removeEventListener('resize', this.handleResize);
 		window.removeEventListener('mousemove', this.handleMouseMove);
 		window.removeEventListener('mousedown', this.handleMouseDown);
 		window.removeEventListener('mouseup', this.handleMouseUp);
 		window.removeEventListener('wheel', this.handleMouseWheel);
+		
+		// Clear references
+		this.canvas = null;
+		this.engine = null;
+		this.isDragging = false;
+		this.lastMouseX = 0;
+		this.lastMouseY = 0;
+		
+		// Reset store values if possible
+		try {
+			if (typeof mousePosition !== 'undefined' && mousePosition.set) {
+				mousePosition.set({ x: 0, y: 0 });
+			}
+			if (typeof viewportSize !== 'undefined' && viewportSize.set) {
+				viewportSize.set({ width: 0, height: 0 });
+			}
+		} catch (e) {
+			console.error("Error resetting store values:", e);
+		}
+		
+		console.log("InteractionManager destroyed");
 	}
 
 	handleResize() {

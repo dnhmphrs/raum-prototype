@@ -18,6 +18,18 @@ class Engine {
 		this.interactionManager = null;
 		this.currentExperience = null;
 		this.animationFrameId = null;
+		
+		// Memory management
+		this.memoryStats = {
+			startTime: Date.now(),
+			lastCleanupTime: 0,
+			resourceCount: 0,
+			cleanupCount: 0
+		};
+		
+		// Auto cleanup interval (every 5 minutes)
+		this.autoCleanupInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
+		this.lastAutoCleanupTime = Date.now();
 	}
 
 	async start(SceneClass, cameraConfig = {}) {
@@ -189,6 +201,14 @@ class Engine {
 			return;
 		}
 		
+		// Check if auto cleanup is needed
+		const now = Date.now();
+		if (now - this.lastAutoCleanupTime > this.autoCleanupInterval) {
+			console.log("Performing auto cleanup");
+			this.performGarbageCollection();
+			this.lastAutoCleanupTime = now;
+		}
+		
 		try {
 			// Get the current texture from the context
 			const textureView = this.context.getCurrentTexture().createView();
@@ -258,6 +278,41 @@ class Engine {
 	stop() {
 		console.log("Engine stop called");
 		this.cleanup();
+	}
+
+	// Add a method to force garbage collection and memory cleanup
+	performGarbageCollection() {
+		console.log("Forcing garbage collection");
+		
+		// Update memory stats
+		this.memoryStats.lastCleanupTime = Date.now();
+		this.memoryStats.cleanupCount++;
+		
+		// Log memory usage if available
+		if (window.performance && window.performance.memory) {
+			const memoryInfo = window.performance.memory;
+			console.log("Memory usage:", {
+				totalJSHeapSize: this.formatBytes(memoryInfo.totalJSHeapSize),
+				usedJSHeapSize: this.formatBytes(memoryInfo.usedJSHeapSize),
+				jsHeapSizeLimit: this.formatBytes(memoryInfo.jsHeapSizeLimit)
+			});
+		}
+		
+		// Force garbage collection if available
+		if (typeof window !== 'undefined' && window.gc) {
+			window.gc();
+		}
+	}
+	
+	// Helper method to format bytes to human-readable format
+	formatBytes(bytes) {
+		if (bytes === 0) return '0 Bytes';
+		
+		const k = 1024;
+		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 	}
 }
 
