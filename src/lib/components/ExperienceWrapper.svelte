@@ -4,6 +4,7 @@
 -->
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { page } from '$app/stores';
   import Engine from '$lib/graphics/Engine.js';
   import { getMemoryStats, formatBytes } from '$lib/graphics/utils/MemoryManager.js';
   
@@ -20,7 +21,9 @@
   let isLoading = true;
   let loadingMessage = "Initializing WebGPU...";
   let memoryMonitorInterval;
+  let autoCleanupIntervalId;
   let memoryUsage = { current: 0, peak: 0 };
+  let currentPath;
   
   // Event dispatcher
   const dispatch = createEventDispatcher();
@@ -54,7 +57,33 @@
     }
   }
   
+  // Function to start automatic cleanup
+  function startAutoCleanup() {
+    if (autoCleanupIntervalId) {
+      clearInterval(autoCleanupIntervalId);
+    }
+    
+    autoCleanupIntervalId = setInterval(() => {
+      console.log("Performing scheduled garbage collection");
+      forceCleanup();
+    }, autoCleanupInterval);
+  }
+  
+  // Watch for route changes to trigger cleanup
+  $: if (page && $page.url.pathname !== currentPath) {
+    currentPath = $page.url.pathname;
+    if (engine && !isLoading) {
+      console.log("Route changed, performing garbage collection");
+      forceCleanup();
+    }
+  }
+  
   onMount(async () => {
+    // Store initial path
+    if (page) {
+      currentPath = $page.url.pathname;
+    }
+    
     if (canvas && navigator.gpu) {
       // Start memory monitoring
       startMemoryMonitoring();
@@ -69,6 +98,9 @@
       // Start the experience with the camera config
       loadingMessage = `Loading ${experienceClass.name} experience...`;
       experience = await engine.start(experienceClass, cameraConfig);
+      
+      // Start automatic cleanup
+      startAutoCleanup();
       
       // Dispatch the experience ready event
       dispatch('ready', { engine, experience });
@@ -99,6 +131,12 @@
         if (memoryMonitorInterval) {
           clearInterval(memoryMonitorInterval);
           memoryMonitorInterval = null;
+        }
+        
+        // Stop auto cleanup
+        if (autoCleanupIntervalId) {
+          clearInterval(autoCleanupIntervalId);
+          autoCleanupIntervalId = null;
         }
         
         // Log final memory usage
@@ -182,7 +220,6 @@
     {#if window.performance && window.performance.memory}
     <div>Limit: {formatBytes(window.performance.memory.jsHeapSizeLimit)}</div>
     {/if}
-    <button on:click={forceCleanup}>Force GC</button>
   </div>
   {/if}
   
@@ -253,15 +290,5 @@
     font-family: monospace;
     font-size: 12px;
     z-index: 100;
-  }
-  
-  .memory-stats button {
-    margin-top: 5px;
-    background: #ff9900;
-    border: none;
-    color: black;
-    padding: 3px 8px;
-    border-radius: 3px;
-    cursor: pointer;
   }
 </style> 
