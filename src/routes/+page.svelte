@@ -19,9 +19,9 @@
     {
       id: 'flocking',
       name: 'FLOCKING',
-      description: 'Bird flocking behavior simulation using WebGPU',
+      description: 'Simulation of collective motion in flocks using parallel compute shaders. Simple local rules generate complex global murmurations; cute emergent behavior in natural systems.',
       thumbnail: '/placeholder.png',
-      color: '#00ff00'
+      color: '#00bfff'
     },
     // {
     //   id: 'cube',
@@ -33,21 +33,21 @@
     {
       id: 'neuralnet',
       name: 'NEURAL NET',
-      description: 'Visual neural network simulation',
+      description: 'Interactive visualization of neural network training. Observe weight adjustments and data flow through connected layers as the network learns to recognize patterns.',
       thumbnail: '/placeholder.png',
-      color: '#0000ff'
+      color: '#ff0000'
     },
     {
       id: 'riemann',
       name: 'RIEMANN SURFACES',
-      description: '2D manifolds in 3D space',
+      description: 'Visualization of complex mathematical functions as 3D surfaces. Explore how multivalued functions unfold into single-valued representations in higher dimensions.',
       thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
     {
       id: 'gridcode',
-      name: 'τ-FUNCTION // GRID CODE',
-      description: 'Computational model of the grid code using a τ-function',
+      name: 'Θ-FUNCTION // GRID CODE',
+      description: 'Model of neural grid cells using theta functions. Visualize how the brain encodes spatial information through hexagonal firing patterns in the entorhinal cortex.',
       thumbnail: '/placeholder.png',
       color: '#ff9900'
     },
@@ -165,8 +165,58 @@
     <div class="preview-panel">
       {#if selectedExp}
         <div class="preview-content" style="--accent: {selectedExp.color};">
-          <div class="preview-image">
-            <img src={selectedExp.thumbnail} alt={selectedExp.name} />
+          <div class="preview-ascii">
+            {#if selectedExp.id === 'flocking'}
+              <pre class="ascii-art">
+  ◤     ◥      ◤     ◥      ◤     ◥
+  ╭⁀ˋ‿ˊ╮      ╭⁀ˋ‿ˊ╮      ╭⁀ˋ‿ˊ╮
+  |  •  |      |  •  |      |  •  |
+  ╰⁀ᵥ⁀╯      ╰⁀ᵥ⁀╯      ╰⁀ᵥ⁀╯
+  ◣     ◢      ◣     ◢      ◣     ◢
+  
+  FLOCKING
+              </pre>
+            {:else if selectedExp.id === 'neuralnet'}
+              <pre class="ascii-art">
+  ●───●───●───●───●
+ /│\\  │   │   │  /│\\
+● │ ●─┼───┼───┼─● │ ●
+ \\│/  │   │   │  \\│/
+  ●───●───●───●───●
+  
+  NEURAL NET
+              </pre>
+            {:else if selectedExp.id === 'riemann'}
+              <pre class="ascii-art">
+  .-.       .-.       .-.
+ /   \     /   \     /   \
+(     )---(     )---(     )
+ \   /     \   /     \   /
+  '-'       '-'       '-'
+  
+  RIEMANN
+              </pre>
+            {:else if selectedExp.id === 'gridcode'}
+              <pre class="ascii-art">
+⬡    ⬡    ⬡    ⬡    ⬡
+  ⬡    ⬡    ⬡    ⬡    ⬡
+⬡    ⬡    ⬡    ⬡    ⬡
+  ⬡    ⬡    ⬡    ⬡    ⬡
+⬡    ⬡    ⬡    ⬡    ⬡
+  
+  GRID CODE
+              </pre>
+            {:else}
+              <pre class="ascii-art">
+  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  █             █
+  █    WEBGPU   █
+  █             █
+  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  
+  EXPERIENCE
+              </pre>
+            {/if}
             <div class="scan-line"></div>
           </div>
           <div class="preview-info">
@@ -176,7 +226,15 @@
         </div>
       {:else}
         <div class="preview-placeholder">
-          <div class="placeholder-text">SELECT AN EXPERIENCE</div>
+          <pre class="ascii-art placeholder-ascii">
+
+
+
+[ select experience ]
+
+
+
+          </pre>
         </div>
       {/if}
     </div>
@@ -318,30 +376,57 @@
   
   .preview-panel {
     border: 1px solid #00ff00;
-    height: 100%;
-    min-height: 300px;
+    height: 350px;
     position: relative;
     overflow: hidden;
+    display: flex;
   }
   
   .preview-content {
     height: 100%;
+    width: 100%;
     display: flex;
     flex-direction: column;
   }
   
-  .preview-image {
+  .preview-ascii {
     flex: 1;
     position: relative;
     overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 220px;
+    padding: 20px;
+    text-align: center;
   }
   
-  .preview-image img {
+  .ascii-art {
+    font-family: 'Courier New', monospace;
+    color: var(--accent, #00ff00);
+    text-align: center;
+    line-height: 1.5;
+    margin: 0 auto;
+    font-size: 15px;
+    white-space: pre;
+    animation: pulse 3s infinite alternate;
+    letter-spacing: 0;
+    text-shadow: 0 0 5px var(--accent, #00ff00);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: grayscale(0.5) sepia(0.2) hue-rotate(90deg);
-    opacity: 0.8;
+  }
+  
+  .placeholder-ascii {
+    color: #00ff00;
+    opacity: 0.7;
+    animation: blink 1s step-end infinite;
+    font-size: 18px;
+    letter-spacing: 2px;
+    text-transform: lowercase;
   }
   
   .scan-line {
@@ -358,6 +443,9 @@
     padding: 1rem;
     background-color: #000;
     border-top: 1px solid var(--accent, #00ff00);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
   }
   
   .preview-info h2 {
@@ -366,9 +454,10 @@
   }
   
   .preview-info p {
-    margin: 0;
+    margin: 0 0 1rem 0;
     font-size: 0.9rem;
     opacity: 0.8;
+    flex: 1;
   }
   
   .preview-placeholder {
@@ -376,16 +465,8 @@
     justify-content: center;
     align-items: center;
     height: 100%;
-    background-color: #000;
-    border: 1px dashed #00ff00;
-  }
-  
-  .placeholder-text {
-    color: #00ff00;
-    opacity: 0.5;
-    font-size: 1.2rem;
-    letter-spacing: 2px;
-    animation: blink 1s step-end infinite;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
   }
   
   footer {
@@ -419,6 +500,11 @@
   @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 0.7; }
+    100% { opacity: 1; }
   }
   
   @media (max-width: 768px) {
