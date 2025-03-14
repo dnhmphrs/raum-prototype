@@ -100,10 +100,48 @@ class HomeBackgroundExperience extends Experience {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Load shader
+            // Load shader with better error handling
+            const shaderPath = '/shaders/home/MatrixShader.wgsl';
+            console.log(`Loading shader from: ${shaderPath}`);
+            
+            let shaderCode;
+            try {
+                const response = await fetch(shaderPath);
+                if (!response.ok) {
+                    console.error(`Failed to load shader: ${shaderPath} (Status: ${response.status})`);
+                    throw new Error(`Failed to load shader: ${shaderPath}`);
+                }
+                shaderCode = await response.text();
+                console.log(`Successfully loaded shader (${shaderCode.length} bytes)`);
+            } catch (error) {
+                console.error(`Error fetching shader: ${error.message}`);
+                // Fallback to a simple shader if the fetch fails
+                shaderCode = `
+                    struct VertexOutput {
+                        @builtin(position) position: vec4<f32>,
+                        @location(0) uv: vec2<f32>,
+                    };
+                    
+                    @vertex
+                    fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
+                        var output: VertexOutput;
+                        output.position = vec4<f32>(position, 1.0);
+                        output.uv = position.xy * 0.5 + 0.5;
+                        return output;
+                    }
+                    
+                    @fragment
+                    fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+                        return vec4<f32>(0.0, 0.1, 0.2, 1.0); // Simple blue background
+                    }
+                `;
+                console.log("Using fallback shader");
+            }
+            
+            // Create shader module
             const shaderModule = this.device.createShaderModule({
                 label: "Matrix Shader Module",
-                code: await fetch('/shaders/home/MatrixShader.wgsl').then(response => response.text())
+                code: shaderCode
             });
             
             // Create render pipeline
