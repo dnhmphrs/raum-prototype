@@ -1,5 +1,6 @@
 // Camera.js
 import { mat4, vec3 } from 'gl-matrix';
+import { registerResource, unregisterResource } from '../utils/MemoryManager.js';
 
 export default class Camera {
 	constructor(device, width, height) {
@@ -8,23 +9,52 @@ export default class Camera {
 		this.viewMatrix = mat4.create();
 		this.position = vec3.fromValues(0, 0, 0); // Positioned along the z-axis
 		this.aspect = width / height;
+		
+		// Resource tracking
+		this.resources = {
+			buffers: [],
+			others: []
+		};
+		
+		// Register with memory manager
+		registerResource(this, 'others');
 
 		// Initialize buffers
-		this.projectionBuffer = this.createBuffer(64);
-		this.viewBuffer = this.createBuffer(64);
-		this.modelBuffer = this.createBuffer(64); // Placeholder, can be updated later
+		this.projectionBuffer = this.createBuffer(64, 'Projection Buffer');
+		this.viewBuffer = this.createBuffer(64, 'View Buffer');
+		this.modelBuffer = this.createBuffer(64, 'Model Buffer'); // Placeholder, can be updated later
 
 		// Set initial projection and view matrices
 		this.updateProjection();
 		this.updateView();
 	}
+	
+	// Track a resource for automatic cleanup
+	trackResource(resource, type = 'others') {
+		if (!resource) return resource;
+		
+		// Add to appropriate resource list
+		if (this.resources[type]) {
+			this.resources[type].push(resource);
+		} else {
+			this.resources.others.push(resource);
+		}
+		
+		// Register with global memory manager
+		registerResource(resource, type);
+		
+		return resource;
+	}
 
-	createBuffer(size) {
-		return this.device.createBuffer({
+	createBuffer(size, label = 'Camera Buffer') {
+		const buffer = this.device.createBuffer({
 			size,
 			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-			label: 'Camera Buffer'
+			label
 		});
+		
+		// Track the buffer
+		return this.trackResource(buffer, 'buffers');
 	}
 
 	getBuffers() {
@@ -36,6 +66,11 @@ export default class Camera {
 	}
 
 	updateAspect(width, height) {
+		if (width <= 0 || height <= 0) {
+			console.warn(`Invalid aspect ratio dimensions: ${width}x${height}`);
+			return;
+		}
+		
 		this.aspect = width / height;
 		this.updateProjection();
 	}
@@ -53,25 +88,61 @@ export default class Camera {
 	}
 
 	updateBuffers() {
-		if (this.device) {
-			this.device.queue.writeBuffer(this.projectionBuffer, 0, this.projectionMatrix);
-			this.device.queue.writeBuffer(this.viewBuffer, 0, this.viewMatrix);
+		if (!this.device) {
+			console.warn("Cannot update camera buffers: device is null");
+			return;
+		}
+		
+		try {
+			if (this.projectionBuffer) {
+				this.device.queue.writeBuffer(this.projectionBuffer, 0, this.projectionMatrix);
+			}
+			
+			if (this.viewBuffer) {
+				this.device.queue.writeBuffer(this.viewBuffer, 0, this.viewMatrix);
+			}
+		} catch (error) {
+			console.error("Error updating camera buffers:", error);
 		}
 	}
 
 	cleanup() {
-		// Destroy buffers
-		if (this.projectionBuffer) {
-			this.projectionBuffer.destroy();
-			this.projectionBuffer = null;
+		console.log("Camera cleanup called");
+		
+		// Clean up all tracked resources
+		for (const type in this.resources) {
+			const resources = this.resources[type];
+			if (resources && resources.length > 0) {
+				console.log(`Cleaning up ${resources.length} camera ${type}`);
+				
+				// Clean up each resource
+				for (let i = resources.length - 1; i >= 0; i--) {
+					const resource = resources[i];
+					if (resource) {
+						// Unregister from global memory manager
+						unregisterResource(resource, type);
+						
+						// Explicitly nullify the resource
+						resources[i] = null;
+					}
+				}
+				
+				// Clear the array
+				this.resources[type] = [];
+			}
 		}
-		if (this.viewBuffer) {
-			this.viewBuffer.destroy();
-			this.viewBuffer = null;
-		}
-		if (this.modelBuffer) {
-			this.modelBuffer.destroy();
-			this.modelBuffer = null;
-		}
+		
+		// Explicitly nullify buffer references
+		this.projectionBuffer = null;
+		this.viewBuffer = null;
+		this.modelBuffer = null;
+		
+		// Clear device reference
+		this.device = null;
+		
+		// Unregister from memory manager
+		unregisterResource(this, 'others');
+		
+		console.log("Camera cleanup complete");
 	}
 }

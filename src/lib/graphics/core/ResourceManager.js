@@ -1,36 +1,97 @@
+import { registerResource, unregisterResource, cleanupResource } from '../utils/MemoryManager.js';
+
 class ResourceManager {
 	constructor(device, camera) {
 		this.device = device;
 		this.camera = camera;
 		this.buffers = {};
 		this.depthTexture = null;
+		this.depthTextureView = null;
+		this.experiences = {};
+		this.canvas = null;
+		
+		// Resource tracking
+		this.resources = {
+			buffers: [],
+			textures: [],
+			bindGroups: [],
+			others: []
+		};
+		
+		// Register with memory manager
+		registerResource(this, 'others');
+	}
+	
+	// Track a resource for automatic cleanup
+	trackResource(resource, type = 'others') {
+		if (!resource) return resource;
+		
+		// Add to appropriate resource list
+		if (this.resources[type]) {
+			this.resources[type].push(resource);
+		} else {
+			this.resources.others.push(resource);
+		}
+		
+		// Register with global memory manager
+		registerResource(resource, type);
+		
+		return resource;
 	}
 
 	initialize(width, height) {
-		this.buffers.viewportBuffer = this.createUniformBuffer(16);
-		this.buffers.mouseBuffer = this.createUniformBuffer(16);
+		// Store canvas dimensions
+		this.width = width;
+		this.height = height;
+		
+		// Create uniform buffers with tracking
+		this.buffers.viewportBuffer = this.createUniformBuffer(16, 'Viewport Buffer');
+		this.buffers.mouseBuffer = this.createUniformBuffer(16, 'Mouse Buffer');
 
-		this.camera.updateAspect(width, height);
+		// Update camera aspect ratio
+		if (this.camera) {
+			this.camera.updateAspect(width, height);
+		}
+		
+		// Initialize depth texture
 		this.initializeDepthTexture(width, height);
 	}
 
-	createUniformBuffer(size) {
-		return this.device.createBuffer({
+	createUniformBuffer(size, label = 'Uniform Buffer') {
+		const buffer = this.device.createBuffer({
 			size,
 			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-			label: 'Uniform Buffer'
+			label
 		});
+		
+		// Track the buffer
+		return this.trackResource(buffer, 'buffers');
 	}
 
 	initializeDepthTexture(width, height) {
+		// Clean up existing depth texture if it exists
 		if (this.depthTexture) {
-			this.depthTexture.destroy();
+			unregisterResource(this.depthTexture, 'textures');
+			this.depthTexture = null;
 		}
+		
+		if (this.depthTextureView) {
+			this.depthTextureView = null;
+		}
+		
+		// Create a new depth texture
 		this.depthTexture = this.device.createTexture({
 			size: { width, height, depthOrArrayLayers: 1 },
 			format: 'depth24plus',
-			usage: GPUTextureUsage.RENDER_ATTACHMENT
+			usage: GPUTextureUsage.RENDER_ATTACHMENT,
+			label: 'Depth Texture'
 		});
+		
+		// Track the texture
+		this.trackResource(this.depthTexture, 'textures');
+		
+		// Pre-create the view for faster access
+		this.depthTextureView = this.depthTexture.createView();
 	}
 
 	getViewportBuffer() {
@@ -45,8 +106,8 @@ class ResourceManager {
 		if (!this.depthTexture) {
 			console.warn("Depth texture is null, attempting to recreate");
 			// Try to get canvas dimensions
-			let width = 0;
-			let height = 0;
+			let width = this.width || 0;
+			let height = this.height || 0;
 			
 			if (this.canvas) {
 				width = this.canvas.width;
@@ -67,11 +128,15 @@ class ResourceManager {
 		}
 		
 		// Return null instead of throwing an error if depthTexture is still null
-		return this.depthTexture ? this.depthTexture.createView() : null;
+		return this.depthTextureView;
 	}
 
 	updateViewportSize(width, height) {
 		console.log(`ResourceManager updating viewport size: ${width}x${height}`);
+		
+		// Store dimensions
+		this.width = width;
+		this.height = height;
 		
 		// Update canvas dimensions
 		if (this.canvas) {
@@ -107,7 +172,7 @@ class ResourceManager {
 		try {
 			// Clean up existing depth texture if it exists
 			if (this.depthTexture) {
-				// No need to destroy WebGPU textures, they're automatically garbage collected
+				unregisterResource(this.depthTexture, 'textures');
 				this.depthTexture = null;
 				this.depthTextureView = null;
 			}
@@ -116,8 +181,12 @@ class ResourceManager {
 			this.depthTexture = this.device.createTexture({
 				size: { width, height, depthOrArrayLayers: 1 },
 				format: 'depth24plus',
-				usage: GPUTextureUsage.RENDER_ATTACHMENT
+				usage: GPUTextureUsage.RENDER_ATTACHMENT,
+				label: 'Depth Texture'
 			});
+			
+			// Track the texture
+			this.trackResource(this.depthTexture, 'textures');
 			
 			// Pre-create the view for faster access
 			this.depthTextureView = this.depthTexture.createView();
@@ -130,8 +199,21 @@ class ResourceManager {
 	}
 
 	updateMousePosition(x, y) {
-		const mouseData = new Float32Array([x, y]);
+		if (!this.buffers.mouseBuffer || !this.device) return;
+		
+		const mouseData = new Float32Array([x, y, 0, 0]); // Add padding for alignment
 		this.device.queue.writeBuffer(this.buffers.mouseBuffer, 0, mouseData);
+	}
+	
+	// Register an experience with the resource manager
+	registerExperience(key, experience) {
+		if (!experience) return;
+		
+		// Store the experience
+		this.experiences[key] = experience;
+		
+		// Return the experience for chaining
+		return experience;
 	}
 
 	cleanup() {
@@ -150,12 +232,35 @@ class ResourceManager {
 			this.experiences = {};
 		}
 		
+		// Clean up all tracked resources
+		for (const type in this.resources) {
+			const resources = this.resources[type];
+			if (resources && resources.length > 0) {
+				console.log(`Cleaning up ${resources.length} ${type}`);
+				
+				// Clean up each resource
+				for (let i = resources.length - 1; i >= 0; i--) {
+					const resource = resources[i];
+					if (resource) {
+						// Unregister from global memory manager
+						unregisterResource(resource, type);
+						
+						// Explicitly nullify the resource
+						resources[i] = null;
+					}
+				}
+				
+				// Clear the array
+				this.resources[type] = [];
+			}
+		}
+		
 		// Destroy buffers - WebGPU buffers need to be explicitly nullified
-		// to allow garbage collection
 		if (this.buffers) {
 			for (const key in this.buffers) {
 				if (this.buffers[key]) {
 					console.log(`Nullifying buffer: ${key}`);
+					unregisterResource(this.buffers[key], 'buffers');
 					this.buffers[key] = null;
 				}
 			}
@@ -165,6 +270,7 @@ class ResourceManager {
 		// Destroy depth texture - WebGPU textures need to be explicitly nullified
 		if (this.depthTexture) {
 			console.log("Nullifying depth texture");
+			unregisterResource(this.depthTexture, 'textures');
 			this.depthTexture = null;
 		}
 		
@@ -183,6 +289,9 @@ class ResourceManager {
 		if (this.canvas) {
 			this.canvas = null;
 		}
+		
+		// Unregister from memory manager
+		unregisterResource(this, 'others');
 		
 		console.log("ResourceManager cleanup complete");
 	}

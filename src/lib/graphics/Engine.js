@@ -1,17 +1,25 @@
-import { initializeWebGPU } from './core/WebGPUContext';
+import { initializeWebGPU, cleanupAllWebGPUContexts } from './core/WebGPUContext';
 import Camera from './camera/Camera';
 import CameraController from './camera/CameraController';
 import InteractionManager from './core/InteractionManager';
 import ResourceManager from './core/ResourceManager';
 import Experience from './experiences/Experience';
 import { vec3 } from 'gl-matrix';
-import { getMemoryStats, forceGarbageCollection, formatBytes } from './utils/MemoryManager.js';
+import { 
+	getMemoryStats, 
+	forceGarbageCollection, 
+	formatBytes, 
+	registerResource, 
+	unregisterResource,
+	cleanupAllResources
+} from './utils/MemoryManager.js';
 
 class Engine {
 	constructor(canvas) {
 		this.canvas = canvas;
 		this.device = null;
 		this.context = null;
+		this.webgpuContext = null;
 		this.resourceManager = null;
 		this.scene = null;
 		this.camera = null;
@@ -19,6 +27,15 @@ class Engine {
 		this.interactionManager = null;
 		this.currentExperience = null;
 		this.animationFrameId = null;
+		
+		// Resource tracking
+		this.resources = {
+			buffers: [],
+			textures: [],
+			bindGroups: [],
+			pipelines: [],
+			others: []
+		};
 		
 		// Memory management
 		this.memoryStats = {
@@ -31,90 +48,162 @@ class Engine {
 		// Auto cleanup interval (every 5 minutes)
 		this.autoCleanupInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
 		this.lastAutoCleanupTime = Date.now();
+		
+		// Register with memory manager
+		registerResource(this, 'others');
+	}
+	
+	// Track a resource for automatic cleanup
+	trackResource(resource, type = 'others') {
+		if (!resource) return resource;
+		
+		// Add to appropriate resource list
+		if (this.resources[type]) {
+			this.resources[type].push(resource);
+		} else {
+			this.resources.others.push(resource);
+		}
+		
+		// Register with global memory manager
+		registerResource(resource, type);
+		
+		return resource;
 	}
 
 	async start(SceneClass, cameraConfig = {}) {
-		// Reinitialize WebGPU context
-		const { device, context } = await initializeWebGPU(this.canvas);
-		this.device = device;
-		this.context = context;
-
-		// Initialize Camera and Controller with config
-		this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight);
+		console.log("Engine starting...");
 		
-		// Set camera position and fov from config if provided
-		if (cameraConfig) {
-			// Set position
-			if (cameraConfig.position) {
-				this.camera.position = vec3.fromValues(
-					cameraConfig.position.x,
-					cameraConfig.position.y,
-					cameraConfig.position.z
-				);
-				this.camera.updateView();
+		// Clean up any existing resources first
+		if (this.device || this.context) {
+			console.log("Cleaning up existing resources before starting");
+			this.cleanup();
+		}
+		
+		try {
+			// Reinitialize WebGPU context
+			this.webgpuContext = await initializeWebGPU(this.canvas);
+			
+			if (!this.webgpuContext) {
+				console.error("Failed to initialize WebGPU context");
+				return null;
 			}
 			
-			// Set field of view
-			if (cameraConfig.fov) {
-				this.camera.updateProjection(cameraConfig.fov);
+			this.device = this.webgpuContext.device;
+			this.context = this.webgpuContext.context;
+			
+			// Track the WebGPU context
+			this.trackResource(this.webgpuContext, 'others');
+	
+			// Initialize Camera and Controller with config
+			this.camera = new Camera(this.device, this.canvas.clientWidth, this.canvas.clientHeight);
+			this.trackResource(this.camera, 'others');
+			
+			// Set camera position and fov from config if provided
+			if (cameraConfig) {
+				// Set position
+				if (cameraConfig.position) {
+					this.camera.position = vec3.fromValues(
+						cameraConfig.position.x,
+						cameraConfig.position.y,
+						cameraConfig.position.z
+					);
+					this.camera.updateView();
+				}
+				
+				// Set field of view
+				if (cameraConfig.fov) {
+					this.camera.updateProjection(cameraConfig.fov);
+				}
 			}
-		}
-		
-		this.cameraController = new CameraController(this.camera, vec3.fromValues(0, 0, 0), cameraConfig);
-
-		// Initialize Shared Resource Manager
-		this.resourceManager = new ResourceManager(this.device, this.camera);
-		
-		// Make sure camera controller is available in the resource manager
-		this.resourceManager.cameraController = this.cameraController;
-		
-		this.resourceManager.initialize(this.canvas.width, this.canvas.height);
-
-		// Initialize Scene
-		this.scene = new SceneClass(this.device, this.resourceManager);
-		await this.scene.initialize();
-		
-		// Store the current experience for easier access
-		if (this.scene && this.scene.currentExperience) {
-			this.experience = this.scene.currentExperience;
-		} else if (this.resourceManager && this.resourceManager.experiences) {
-			// Try to find the experience in the resource manager
-			const experienceKeys = Object.keys(this.resourceManager.experiences);
-			if (experienceKeys.length > 0) {
-				this.experience = this.resourceManager.experiences[experienceKeys[0]];
+			
+			this.cameraController = new CameraController(this.camera, vec3.fromValues(0, 0, 0), cameraConfig);
+			this.trackResource(this.cameraController, 'others');
+	
+			// Initialize Shared Resource Manager
+			this.resourceManager = new ResourceManager(this.device, this.camera);
+			this.trackResource(this.resourceManager, 'others');
+			
+			// Make sure camera controller is available in the resource manager
+			this.resourceManager.cameraController = this.cameraController;
+			this.resourceManager.canvas = this.canvas;
+			
+			this.resourceManager.initialize(this.canvas.width, this.canvas.height);
+	
+			// Initialize Scene
+			this.scene = new SceneClass(this.device, this.resourceManager);
+			this.trackResource(this.scene, 'others');
+			
+			await this.scene.initialize();
+			
+			// Store the current experience for easier access
+			if (this.scene && this.scene.currentExperience) {
+				this.experience = this.scene.currentExperience;
+				this.trackResource(this.experience, 'others');
+			} else if (this.resourceManager && this.resourceManager.experiences) {
+				// Try to find the experience in the resource manager
+				const experienceKeys = Object.keys(this.resourceManager.experiences);
+				if (experienceKeys.length > 0) {
+					this.experience = this.resourceManager.experiences[experienceKeys[0]];
+					this.trackResource(this.experience, 'others');
+				}
 			}
+			
+			// If we're starting a specific experience directly (not a scene with multiple experiences)
+			if (!this.experience && SceneClass.prototype instanceof Experience) {
+				this.experience = this.scene;
+			}
+			
+			console.log("Engine started with experience:", this.experience);
+	
+			// Initialize Interaction Manager
+			this.interactionManager = new InteractionManager(this.canvas, this);
+			this.trackResource(this.interactionManager, 'others');
+			this.interactionManager.initialize();
+	
+			// Start rendering loop
+			this.render();
+			
+			return this.experience;
+		} catch (error) {
+			console.error("Error starting engine:", error);
+			this.cleanup();
+			return null;
 		}
-		
-		// If we're starting a specific experience directly (not a scene with multiple experiences)
-		if (!this.experience && SceneClass.prototype instanceof Experience) {
-			this.experience = this.scene;
-		}
-		
-		console.log("Engine started with experience:", this.experience);
-
-		// Initialize Interaction Manager
-		this.interactionManager = new InteractionManager(this.canvas, this);
-		this.interactionManager.initialize();
-
-		// Start rendering loop
-		this.render();
-		
-		return this.experience;
 	}
 
 	updateViewport(width, height) {
-		this.canvas.width = width;
-		this.canvas.height = height;
-
-		// Update ResourceManager with new viewport size
-		this.resourceManager.updateViewportSize(width, height);
-
-		// Update camera's aspect ratio
-		this.cameraController.updateAspect(width, height);
-
-		// Update the scene if it has an onResize method
-		if (this.scene && this.scene.onResize) {
-			this.scene.onResize(width, height);
+		if (!this.canvas || !this.device) {
+			console.warn("Cannot update viewport: canvas or device is null");
+			return;
+		}
+		
+		if (width <= 0 || height <= 0) {
+			console.warn(`Invalid viewport dimensions: ${width}x${height}`);
+			return;
+		}
+		
+		console.log(`Updating viewport to ${width}x${height}`);
+		
+		try {
+			this.canvas.width = width;
+			this.canvas.height = height;
+	
+			// Update ResourceManager with new viewport size
+			if (this.resourceManager) {
+				this.resourceManager.updateViewportSize(width, height);
+			}
+	
+			// Update camera's aspect ratio
+			if (this.cameraController) {
+				this.cameraController.updateAspect(width, height);
+			}
+	
+			// Update the scene if it has an onResize method
+			if (this.scene && this.scene.onResize) {
+				this.scene.onResize(width, height);
+			}
+		} catch (error) {
+			console.error("Error updating viewport:", error);
 		}
 	}
 
@@ -130,7 +219,9 @@ class Engine {
 		// Clean up experience
 		if (this.experience) {
 			console.log("Cleaning up experience");
-			this.experience.cleanup();
+			if (typeof this.experience.cleanup === 'function') {
+				this.experience.cleanup();
+			}
 			this.experience = null;
 		}
 		
@@ -169,17 +260,48 @@ class Engine {
 			this.cameraController = null;
 		}
 		
-		// Clean up resource manager last
+		// Clean up resource manager
 		if (this.resourceManager) {
 			console.log("Cleaning up resource manager");
 			this.resourceManager.cleanup();
 			this.resourceManager = null;
 		}
+		
+		// Clean up WebGPU context
+		if (this.webgpuContext) {
+			console.log("Cleaning up WebGPU context");
+			if (typeof this.webgpuContext.cleanup === 'function') {
+				this.webgpuContext.cleanup();
+			}
+			this.webgpuContext = null;
+		}
 
 		// Reset device and context
-		// Note: We don't destroy the device or context as they're managed by the browser
 		this.device = null;
 		this.context = null;
+		
+		// Clean up all tracked resources
+		for (const type in this.resources) {
+			const resources = this.resources[type];
+			if (resources && resources.length > 0) {
+				console.log(`Cleaning up ${resources.length} engine ${type}`);
+				
+				// Clean up each resource
+				for (let i = resources.length - 1; i >= 0; i--) {
+					const resource = resources[i];
+					if (resource) {
+						// Unregister from global memory manager
+						unregisterResource(resource, type);
+						
+						// Explicitly nullify the resource
+						resources[i] = null;
+					}
+				}
+				
+				// Clear the array
+				this.resources[type] = [];
+			}
+		}
 		
 		// Remove any global references that might be causing memory leaks
 		if (typeof window !== 'undefined') {
@@ -192,10 +314,13 @@ class Engine {
 			}
 		}
 		
+		// Unregister from memory manager
+		unregisterResource(this, 'others');
+		
 		console.log("Engine cleanup complete");
 	}
 
-	render() {
+	render = () => {
 		// Check if we have a valid device and context
 		if (!this.device || !this.context) {
 			console.error("Cannot render: WebGPU device or context is null");
@@ -230,7 +355,7 @@ class Engine {
 		}
 
 		// Request the next frame
-		this.animationFrameId = requestAnimationFrame(this.render.bind(this));
+		this.animationFrameId = requestAnimationFrame(this.render);
 	}
 
 	handleResize() {
@@ -247,12 +372,16 @@ class Engine {
 				console.log(`Canvas resized to ${width}x${height}`);
 				
 				// Update context configuration if needed
-				if (this.context) {
-					this.context.configure({
-						device: this.device,
-						format: navigator.gpu.getPreferredCanvasFormat(),
-						alphaMode: 'premultiplied'
-					});
+				if (this.context && this.device) {
+					try {
+						this.context.configure({
+							device: this.device,
+							format: navigator.gpu.getPreferredCanvasFormat(),
+							alphaMode: 'premultiplied'
+						});
+					} catch (error) {
+						console.error("Error reconfiguring context:", error);
+					}
 				}
 				
 				// Update viewport if needed
@@ -300,6 +429,20 @@ class Engine {
 	// Helper method to format bytes to human-readable format
 	formatBytes(bytes) {
 		return formatBytes(bytes);
+	}
+	
+	// Static method to clean up all WebGPU resources
+	static cleanupAll() {
+		console.log("Cleaning up all WebGPU resources");
+		
+		// Clean up all WebGPU contexts
+		cleanupAllWebGPUContexts();
+		
+		// Clean up all tracked resources
+		cleanupAllResources();
+		
+		// Force garbage collection
+		forceGarbageCollection();
 	}
 }
 
