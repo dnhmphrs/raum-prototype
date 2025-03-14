@@ -65,7 +65,6 @@
   let canvas;
   let engine;
   let backgroundLoaded = false;
-  let webgpuSupported = true;
   
   onMount(async () => {
     mounted = true;
@@ -85,9 +84,6 @@
       };
       typeWriter();
     }
-    
-    // Check WebGPU support
-    webgpuSupported = !!navigator.gpu;
     
     // Initialize WebGPU background
     if (canvas && navigator.gpu) {
@@ -128,13 +124,6 @@
 </div>
 
 <div class="container {mounted && backgroundLoaded ? 'loaded' : ''}">
-  {#if !webgpuSupported && mounted}
-    <div class="webgpu-warning">
-      <p>⚠️ Your browser doesn't support WebGPU, which is required for these experiences.</p>
-      <p>Please try using Chrome 113+, Edge 113+, or another browser with WebGPU enabled.</p>
-    </div>
-  {/if}
-  
   <header>
     <div class="terminal">
       <div class="terminal-header">
@@ -179,11 +168,11 @@
           <div class="preview-ascii">
             {#if selectedExp.id === 'flocking'}
               <pre class="ascii-art">
-  ◤     ◥      ◤     ◥      ◤     ◥
-  ╭⁀ˋ‿ˊ╮      ╭⁀ˋ‿ˊ╮      ╭⁀ˋ‿ˊ╮
-  |  •  |      |  •  |      |  •  |
-  ╰⁀ᵥ⁀╯      ╰⁀ᵥ⁀╯      ╰⁀ᵥ⁀╯
-  ◣     ◢      ◣     ◢      ◣     ◢
+  /^v^\
+          /^v^\                      /^v^\
+                       /^v^\
+       
+       /^v^\
   
   FLOCKING
               </pre>
@@ -542,15 +531,6 @@
   .background-canvas canvas {
     width: 100%;
     height: 100%;
-  }
-  
-  .webgpu-warning {
-    background-color: rgba(255, 100, 0, 0.2);
-    border: 1px solid #ff6600;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    text-align: center;
-    color: #ff6600;
   }
 </style>
 

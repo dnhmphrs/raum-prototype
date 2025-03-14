@@ -1,6 +1,3 @@
-// We need to disable prerendering for WebGPU content
-// as it requires browser APIs that aren't available during build
-export const prerender = false;
-
-// Enable SSR for better SEO
-export const ssr = true;
+// since there's no dynamic data here, we can prerender
+// it so that it gets served as a static asset in production
+export const prerender = true;
