@@ -1,14 +1,7 @@
 <script>
-    import { onMount, onDestroy } from 'svelte';
-    import Engine from '$lib/graphics/Engine.js';
+    import ExperienceWrapper from '$lib/components/ExperienceWrapper.svelte';
     import GridCodeExperience from '$lib/graphics/experiences/GridCode/GridCodeExperience.js';
     import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
-    
-    let canvas;
-    let engine;
-    let experience;
-    let isLoading = true; // Loading state
-    let loadingMessage = "Initializing WebGPU..."; // Dynamic loading message
     
     // KP shader parameters
     let kpScaleIndex = 2; // Default scale index (middle scale)
@@ -23,40 +16,6 @@
         { value: 4, label: 'Module 5' },
         { value: 5, label: 'Module 6' }
     ];
-    
-    // Memory monitoring
-    let memoryMonitorInterval;
-    let memoryUsage = { current: 0, peak: 0 };
-    
-    // Function to monitor memory usage
-    function startMemoryMonitoring() {
-        if (typeof window.performance !== 'undefined' && window.performance.memory) {
-            memoryMonitorInterval = setInterval(() => {
-                const currentUsage = window.performance.memory.usedJSHeapSize;
-                memoryUsage.current = currentUsage;
-                memoryUsage.peak = Math.max(memoryUsage.peak, currentUsage);
-                
-                // Log if memory usage is growing significantly
-                if (currentUsage > 0.9 * window.performance.memory.jsHeapSizeLimit) {
-                    console.warn("Memory usage is approaching the limit!", formatBytes(currentUsage));
-                    
-                    // Try to force garbage collection
-                    if (engine && typeof engine.performGarbageCollection === 'function') {
-                        engine.performGarbageCollection();
-                    }
-                }
-            }, 5000); // Check every 5 seconds
-        }
-    }
-    
-    // Helper function to format bytes
-    function formatBytes(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
     
     // Function to stop event propagation
     function stopPropagation(event) {
@@ -90,229 +49,125 @@
     }
     
     // Function to update KP scale
-    function updateKPScale(scaleIndex) {
+    function updateKPScale(scaleIndex, experience) {
         console.log(`Updating KP scale to: ${scaleIndex}`);
         kpScaleIndex = scaleIndex;
         
-        // Try multiple ways to find the experience
         if (experience) {
             experience.updateKPScale(scaleIndex);
-        } else if (engine && engine.scene && engine.scene.currentExperience) {
-            engine.scene.currentExperience.updateKPScale(scaleIndex);
         } else if (window.gridCodeExperience) {
             window.gridCodeExperience.updateKPScale(scaleIndex);
         }
     }
     
     // Function to update KP distortion
-    function updateKPDistortion(distortion) {
+    function updateKPDistortion(distortion, experience) {
         console.log(`Updating KP distortion to: ${distortion}`);
         kpDistortion = distortion;
         
-        // Try multiple ways to find the experience
         if (experience) {
             experience.updateKPDistortion(distortion);
-        } else if (engine && engine.scene && engine.scene.currentExperience) {
-            engine.scene.currentExperience.updateKPDistortion(distortion);
         } else if (window.gridCodeExperience) {
             window.gridCodeExperience.updateKPDistortion(distortion);
         }
     }
     
-    onMount(async () => {
-        if (canvas && navigator.gpu) {
-            // Start memory monitoring
-            startMemoryMonitoring();
-            
-            // Initialize the engine with the canvas
-            loadingMessage = "Initializing graphics engine...";
-            engine = new Engine(canvas);
-            
-            // Get the Grid Code camera config
-            const cameraConfig = getCameraConfig('GridCode');
-            
-            // Start the Grid Code experience with the camera config
-            loadingMessage = "Loading Grid Code experience...";
-            const result = await engine.start(GridCodeExperience, cameraConfig);
-            
-            // Try to get the experience reference in multiple ways
-            if (engine.experience) {
-                experience = engine.experience;
-            } else if (engine.scene && engine.scene.currentExperience) {
-                experience = engine.scene.currentExperience;
-            } else if (window.gridCodeExperience) {
-                experience = window.gridCodeExperience;
-            }
-            
-            console.log("Experience initialized:", experience);
-            
-            // Initialize KP parameters
-            if (experience) {
-                experience.updateKPScale(kpScaleIndex);
-                experience.updateKPDistortion(kpDistortion);
-            }
-            
-            // Update loading message to indicate we're finalizing
-            loadingMessage = "Finalizing...";
-            
-            // Hide loading screen immediately after the next frame renders
-            // This ensures the experience is visible and ready
-            requestAnimationFrame(() => {
-                isLoading = false;
-            });
-            
-            // Handle window resize
-            const handleResize = () => {
-                if (engine) {
-                    engine.handleResize();
-                }
-            };
-            
-            window.addEventListener('resize', handleResize);
-            
-            return () => {
-                window.removeEventListener('resize', handleResize);
-                console.log("Component being destroyed, cleaning up resources");
-                
-                // Stop memory monitoring
-                if (memoryMonitorInterval) {
-                    clearInterval(memoryMonitorInterval);
-                    memoryMonitorInterval = null;
-                }
-                
-                // Log final memory usage
-                if (typeof window.performance !== 'undefined' && window.performance.memory) {
-                    console.log("Final memory usage:", formatBytes(window.performance.memory.usedJSHeapSize));
-                    console.log("Peak memory usage:", formatBytes(memoryUsage.peak));
-                }
-                
-                // First remove global references
-                if (window.gridCodeExperience) {
-                    window.gridCodeExperience = null;
-                }
-                
-                // Then stop the engine which will trigger all cleanup
-                if (engine) {
-                    console.log("Stopping engine");
-                    engine.stop();
-                    engine = null;
-                }
-                
-                // Clear experience reference
-                if (experience) {
-                    experience = null;
-                }
-                
-                // Force garbage collection if available
-                if (window.gc) {
-                    window.gc();
-                }
-            };
-        } else if (!navigator.gpu) {
-            loadingMessage = "WebGPU is not supported in your browser";
-            setTimeout(() => {
-                alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
-            }, 1000);
+    // Handle experience ready event
+    function handleExperienceReady(event) {
+        const { experience } = event.detail;
+        
+        // Initialize KP parameters
+        if (experience) {
+            experience.updateKPScale(kpScaleIndex);
+            experience.updateKPDistortion(kpDistortion);
         }
-    });
+    }
 </script>
 
 <svelte:head>
     <title>Θ-Function // Grid Code</title>
 </svelte:head>
 
-<div class="experience-container">
-    <canvas bind:this={canvas} class="webgpu-canvas"></canvas>
-    
-    <a href="/" class="back-button">⏎ Back</a>
-    
-    <!-- Loading overlay -->
-    {#if isLoading}
-    <div class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">{loadingMessage}</div>
-    </div>
-    {/if}
-    
-    <!-- Control panel with proper wheel event handling -->
+<ExperienceWrapper 
+    experienceClass={GridCodeExperience} 
+    cameraConfig={getCameraConfig('GridCode')}
+    showMemoryStats={true}
+    on:ready={handleExperienceReady}
+>
     <div 
-        class="control-panel"
-        on:mousedown={stopPropagation}
-        on:mouseup={stopPropagation}
-        on:mousemove={stopPropagation}
-        on:wheel={handleControlPanelWheel}
+        slot="default"
+        let:experience
+        let:isLoading
     >
-        <h2>Riemann Θ-FUNCTION // MEC GRID CODE</h2>
-        <p>Computational model of the MEC grid code using the Riemannn Θ-function</p>
+        <a href="/" class="back-button">⏎ Back</a>
         
-        <div class="controls">
-            <h3>Parameters</h3>
+        <!-- Control panel with proper wheel event handling -->
+        {#if !isLoading}
+        <div 
+            class="control-panel"
+            on:mousedown={stopPropagation}
+            on:mouseup={stopPropagation}
+            on:mousemove={stopPropagation}
+            on:wheel={handleControlPanelWheel}
+        >
+            <h2>Riemann Θ-FUNCTION // MEC GRID CODE</h2>
+            <p>Computational model of the MEC grid code using the Riemannn Θ-function</p>
             
-            <div class="control-group">
-                <label for="kp-scale">Module:</label>
-                <select 
-                    id="kp-scale" 
-                    bind:value={kpScaleIndex} 
-                    on:change={() => updateKPScale(kpScaleIndex)}
-                >
-                    {#each scaleOptions as option}
-                        <option value={option.value}>{option.label}</option>
-                    {/each}
-                </select>
+            <div class="controls">
+                <h3>Parameters</h3>
+                
+                <div class="control-group">
+                    <label for="kp-scale">Module:</label>
+                    <select 
+                        id="kp-scale" 
+                        bind:value={kpScaleIndex} 
+                        on:change={() => updateKPScale(kpScaleIndex, experience)}
+                    >
+                        {#each scaleOptions as option}
+                            <option value={option.value}>{option.label}</option>
+                        {/each}
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="kp-distortion">Distortion: {kpDistortion.toFixed(2)}</label>
+                    <input 
+                        type="range" 
+                        id="kp-distortion" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        bind:value={kpDistortion} 
+                        on:input={() => updateKPDistortion(kpDistortion, experience)}
+                    />
+                </div>
             </div>
             
-            <div class="control-group">
-                <label for="kp-distortion">Distortion: {kpDistortion.toFixed(2)}</label>
-                <input 
-                    type="range" 
-                    id="kp-distortion" 
-                    min="0" 
-                    max="1" 
-                    step="0.01" 
-                    bind:value={kpDistortion} 
-                    on:input={() => updateKPDistortion(kpDistortion)}
-                />
-            </div>
-        </div>
-        
-        <div class="theta">
-            <p>
-                Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns.
-                They may provide a mathematical model of the mammalian grid code - with harmonic scaling ratios.
-            </p>
-          </div>
-          <div class="tau">
-            <p>
-                Future: τ-functions extend Θ-functions by adding non-linear interactions among the Fourier modes.
-                This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena. As a start, we can model the grid code simply with shallow water waves (there are complexities [Sato, 1981]), but the real maths will take a year or so to figure out and I will need Türkü.
-                Ultimately, the τ-function will allow us to model the grid code in complex envrionments [Carptener et al. 2015].
-            </p>
-        </div>
-            <div class="psychosis">
+            <div class="theta">
                 <p>
-                    As a final note, an impaired grid code has been implicated in schizophrenia [Convertino et al. 2023].
-                    In pyschosis, we may expect that the regular hexagonal grids dissapear somewhat (impaired fronto-tempporal connectivity [Friston and Frith, 1995] leading to a noisy projection from mPFC). The MEC grid code will instead look chaotic: <i>a raging sea.</i>
+                    Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns.
+                    They may provide a mathematical model of the mammalian grid code - with harmonic scaling ratios.
                 </p>
-          </div>
-          
+              </div>
+              <div class="tau">
+                <p>
+                    Future: τ-functions extend Θ-functions by adding non-linear interactions among the Fourier modes.
+                    This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena. As a start, we can model the grid code simply with shallow water waves (there are complexities [Sato, 1981]), but the real maths will take a year or so to figure out and I will need Türkü.
+                    Ultimately, the τ-function will allow us to model the grid code in complex envrionments [Carptener et al. 2015].
+                </p>
+            </div>
+                <div class="psychosis">
+                    <p>
+                        As a final note, an impaired grid code has been implicated in schizophrenia [Convertino et al. 2023].
+                        In pyschosis, we may expect that the regular hexagonal grids dissapear somewhat (impaired fronto-tempporal connectivity [Friston and Frith, 1995] leading to a noisy projection from mPFC). The MEC grid code will instead look chaotic: <i>a raging sea.</i>
+                    </p>
+              </div>
+        </div>
+        {/if}
     </div>
-</div>
+</ExperienceWrapper>
 
 <style>
-    .experience-container {
-        width: 100%;
-        height: 100vh;
-        position: relative;
-        overflow: hidden;
-        background-color: #000;
-    }
-    
-    .webgpu-canvas {
-        width: 100%;
-        height: 100%;
-        display: block;
-    }
-    
     .back-button {
         position: absolute;
         top: 20px;
@@ -330,42 +185,6 @@
     
     .back-button:hover {
         background-color: rgba(0, 0, 0, 0.8);
-    }
-    
-    /* Loading overlay styles */
-    .loading-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-    
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 3px solid rgba(255, 153, 0, 0.3);
-        border-radius: 50%;
-        border-top-color: #ff9900;
-        animation: spin 1s ease-in-out infinite;
-        margin-bottom: 20px;
-    }
-    
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-    
-    .loading-text {
-        color: #ff9900;
-        font-family: 'Courier New', monospace;
-        font-size: 16px;
-        text-align: center;
     }
     
     .control-panel {

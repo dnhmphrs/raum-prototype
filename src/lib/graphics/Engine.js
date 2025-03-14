@@ -5,6 +5,7 @@ import InteractionManager from './core/InteractionManager';
 import ResourceManager from './core/ResourceManager';
 import Experience from './experiences/Experience';
 import { vec3 } from 'gl-matrix';
+import { getMemoryStats, forceGarbageCollection, formatBytes } from './utils/MemoryManager.js';
 
 class Engine {
 	constructor(canvas) {
@@ -288,31 +289,17 @@ class Engine {
 		this.memoryStats.lastCleanupTime = Date.now();
 		this.memoryStats.cleanupCount++;
 		
-		// Log memory usage if available
-		if (window.performance && window.performance.memory) {
-			const memoryInfo = window.performance.memory;
-			console.log("Memory usage:", {
-				totalJSHeapSize: this.formatBytes(memoryInfo.totalJSHeapSize),
-				usedJSHeapSize: this.formatBytes(memoryInfo.usedJSHeapSize),
-				jsHeapSizeLimit: this.formatBytes(memoryInfo.jsHeapSizeLimit)
-			});
-		}
+		// Use the MemoryManager to get and log memory stats
+		const memoryStats = getMemoryStats();
+		console.log("Memory usage:", memoryStats);
 		
-		// Force garbage collection if available
-		if (typeof window !== 'undefined' && window.gc) {
-			window.gc();
-		}
+		// Force garbage collection
+		forceGarbageCollection();
 	}
 	
 	// Helper method to format bytes to human-readable format
 	formatBytes(bytes) {
-		if (bytes === 0) return '0 Bytes';
-		
-		const k = 1024;
-		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+		return formatBytes(bytes);
 	}
 }
 

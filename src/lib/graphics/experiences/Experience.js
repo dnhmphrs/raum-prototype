@@ -1,9 +1,14 @@
+import { registerResource, unregisterResource, cleanupResource } from '../utils/MemoryManager.js';
+
 class Experience {
 	constructor(device, resourceManager) {
 		this.device = device;
 		this.resourceManager = resourceManager;
 		this.objects = [];
 		this.pipelines = [];
+		
+		// Register this experience with the memory manager
+		registerResource(this, 'experiences');
 	}
 
 	addObject(object) {
@@ -44,6 +49,9 @@ class Experience {
 		// Clear device and resource manager references
 		this.device = null;
 		this.resourceManager = null;
+		
+		// Unregister this experience from the memory manager
+		unregisterResource(this, 'experiences');
 		
 		console.log("Base Experience cleanup complete");
 	}
