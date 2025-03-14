@@ -35,6 +35,13 @@
         event.stopPropagation();
     }
     
+    // Function to handle wheel events in the control panel
+    function handleControlPanelWheel(event) {
+        // Don't stop propagation, just let the natural scrolling happen
+        // But prevent the event from affecting the canvas/scene
+        event.stopPropagation();
+    }
+    
     // Function to update KP scale
     function updateKPScale(scaleIndex) {
         console.log(`Updating KP scale to: ${scaleIndex}`);
@@ -144,10 +151,10 @@
         on:mousedown={stopPropagation}
         on:mouseup={stopPropagation}
         on:mousemove={stopPropagation}
-        on:wheel={preventDefaultAndStopPropagation}
+        on:wheel={handleControlPanelWheel}
     >
-        <h2>Θ-FUNCTION // GRIDS</h2>
-        <p>Computational model of the grid code using Θ-function</p>
+        <h2>Θ-FUNCTION //<br>MEC GRID CODE</h2>
+        <p>Computational model of the grid code using the Riemannn Θ-function</p>
         
         <div class="controls">
             <h3>Parameters</h3>
@@ -279,6 +286,25 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
         backdrop-filter: blur(5px);
         width: 300px;
+        max-height: calc(100vh - 60px);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #ff9900 rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Custom scrollbar styling */
+    .control-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .control-panel::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+    }
+    
+    .control-panel::-webkit-scrollbar-thumb {
+        background-color: #ff9900;
+        border-radius: 3px;
     }
     
     .control-panel h2 {
@@ -340,5 +366,11 @@
     .highlight {
         color: #ff9900;
         font-weight: bold;
+    }
+    
+    .theta, .tau {
+        margin-top: 15px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 </style> 
