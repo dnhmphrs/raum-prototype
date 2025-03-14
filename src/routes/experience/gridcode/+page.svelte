@@ -168,7 +168,7 @@
         on:wheel={handleControlPanelWheel}
     >
         <h2>Riemann Θ-FUNCTION // MEC GRID CODE</h2>
-        <p>Computational model of the grid code using the Riemannn Θ-function</p>
+        <p>Computational model of the MEC grid code using the Riemannn Θ-function</p>
         
         <div class="controls">
             <h3>Parameters</h3>
