@@ -1,14 +1,12 @@
 // FlockingPipeline.js
 
 import Pipeline from '../../pipelines/Pipeline';
-import PredatorCamera from '../../camera/PredatorCamera'; // Import the new PredatorCamera class
 import { vec3 } from 'gl-matrix';
 
 export default class FlockingPipeline extends Pipeline {
     constructor(device, camera, viewportBuffer, mouseBuffer, birdCount, canvasWidth, canvasHeight) {
         super(device);
         this.camera = camera;
-        this.predatorCamera = new PredatorCamera(device); // Initialize the predator camera
         this.viewportBuffer = viewportBuffer;
         this.mouseBuffer = mouseBuffer;
         this.birdCount = birdCount;
@@ -131,9 +129,6 @@ export default class FlockingPipeline extends Pipeline {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             label: 'Time Buffer'
         });
-
-        // Initialize predator camera projection
-        this.predatorCamera.updateProjection();
 
         // IMPORTANT: Load all shader files from static directory FIRST
         try {
@@ -565,51 +560,12 @@ export default class FlockingPipeline extends Pipeline {
         huntingPass.end();
     }
 
-    render(commandEncoder, passDescriptor, birds, predator, textureView, depthView, showPredatorView = false) {
+    render(commandEncoder, passDescriptor, birds, predator, textureView, depthView) {
         // Update time for background shader
         this.updateTimeBuffer();
 
         // Execute compute passes
         this.runComputePasses(commandEncoder);
-
-        // Track positions in JavaScript
-        let predatorPosition = vec3.create();
-        let targetPosition = vec3.create();
-
-        // Create staging buffers and a separate encoder for position reading
-        {
-            const positionEncoder = this.device.createCommandEncoder();
-            const stagingGuidingLineBuffer = this.device.createBuffer({
-                size: 32, // 2 vec4s (source and target)
-                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-                label: 'Staging Guiding Line Buffer'
-            });
-
-            // Copy the entire guiding line buffer (contains both positions)
-            positionEncoder.copyBufferToBuffer(
-                this.guidingLineBuffer, 0,
-                stagingGuidingLineBuffer, 0, 32
-            );
-
-            // Submit position copying commands
-            this.device.queue.submit([positionEncoder.finish()]);
-
-            // Read positions
-            stagingGuidingLineBuffer.mapAsync(GPUMapMode.READ).then(() => {
-                const positions = new Float32Array(stagingGuidingLineBuffer.getMappedRange());
-                
-                // First vec4 is predator position, second vec4 is target position
-                const predatorPosition = vec3.fromValues(positions[0], positions[1], positions[2]);
-                const targetPosition = vec3.fromValues(positions[4], positions[5], positions[6]);
-
-                // Update camera
-                this.predatorCamera.updateFromPositionAndTarget(predatorPosition, targetPosition);
-
-                // Cleanup staging buffer
-                stagingGuidingLineBuffer.unmap();
-                stagingGuidingLineBuffer.destroy();
-            });
-        }
 
         // Begin main render pass
         const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
@@ -770,13 +726,6 @@ export default class FlockingPipeline extends Pipeline {
             }
         });
 
-        // Cleanup predator camera
-        if (this.predatorCamera) {
-            console.log("Cleaning up predator camera");
-            this.predatorCamera.cleanup();
-            this.predatorCamera = null;
-        }
-        
         // Clear references to external resources
         this.camera = null;
         this.viewportBuffer = null;
@@ -792,10 +741,6 @@ export default class FlockingPipeline extends Pipeline {
         // Update stored dimensions
         this.canvasWidth = Math.max(1, width);
         this.canvasHeight = Math.max(1, height);
-        
-        // Update predator camera aspect ratio
-        this.predatorCamera.aspect = 1; // Keep it square for the PIP view
-        this.predatorCamera.updateProjection();
     }
 
     updateTimeBuffer() {

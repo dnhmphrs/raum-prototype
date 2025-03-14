@@ -10,7 +10,7 @@ class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
-        this.birdCount = 8192; // Adjusted for performance
+        this.birdCount = 4096; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
         
         // Performance tracking variables
@@ -41,8 +41,7 @@ class FlockingExperience extends Experience {
             resourceManager.getMouseBuffer(),
             this.birdCount,
             this.canvas ? this.canvas.width : 800,  // Default to 800 if canvas not available
-            this.canvas ? this.canvas.height : 600,  // Default to 600 if canvas not available
-            this.canvas
+            this.canvas ? this.canvas.height : 600  // Default to 600 if canvas not available
         );
 
         this.addBirds();
@@ -81,8 +80,7 @@ class FlockingExperience extends Experience {
             initialVelocities.push([velX, velY, velZ]);
 
             // Random wing phases
-            // const wingPhase = 0;
-            // initialPhases.push(wingPhase);
+            initialPhases.push(0); // Initialize with 0 phase
         }
 
         // Initialize position and velocity buffers in the pipeline
@@ -138,7 +136,7 @@ class FlockingExperience extends Experience {
         // If performance is consistently poor, switch to low performance mode
         if (avgFrameTime > 50.0 && !this.pipeline.lowPerformanceMode) { // 50ms = ~20fps
             console.log("Switching to low performance mode");
-            this.tePerformanceMode(true);
+            this.pipeline.updatePerformanceMode(true);
         } else if (avgFrameTime < 30.0 && this.pipeline.lowPerformanceMode) { // 30ms = ~33fps
             // If performance improves, switch back to high quality
             console.log("Switching to high performance mode");
