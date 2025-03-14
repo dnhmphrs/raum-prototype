@@ -1,5 +1,38 @@
 import Experience from '../Experience.js';
 import { createFullScreenQuad } from '../../utils/geometryUtils.js';
+// Import the shader directly with a fallback mechanism
+import matrixShader from './MatrixShader.wgsl';
+
+// Simple fallback shader in case the imported one fails
+const FALLBACK_SHADER = `
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+};
+
+@group(0) @binding(0) var<uniform> time: f32;
+@group(0) @binding(1) var<uniform> resolution: vec2<f32>;
+@group(0) @binding(2) var<uniform> mouse: vec2<f32>;
+
+@vertex
+fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
+    var output: VertexOutput;
+    output.position = vec4<f32>(position, 1.0);
+    output.uv = position.xy * 0.5 + 0.5;
+    return output;
+}
+
+@fragment
+fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+    // Simple gradient background
+    var color = vec3<f32>(uv.x * 0.1, uv.y * 0.1, 0.1);
+    
+    // Add time-based animation
+    color.g += sin(time) * 0.1 + 0.1;
+    
+    return vec4<f32>(color, 1.0);
+}
+`;
 
 class HomeBackgroundExperience extends Experience {
     constructor(device, resourceManager) {
@@ -100,117 +133,11 @@ class HomeBackgroundExperience extends Experience {
                 bindGroupLayouts: [this.bindGroupLayout]
             });
             
-            // Define a fallback shader in case the external one fails to load
-            const fallbackShaderCode = `
-                struct VertexOutput {
-                    @builtin(position) position: vec4f,
-                    @location(0) uv: vec2f,
-                };
-
-                struct Uniforms {
-                    time: f32,
-                };
-
-                struct Resolution {
-                    width: f32,
-                    height: f32,
-                };
-
-                struct Mouse {
-                    x: f32,
-                    y: f32,
-                };
-
-                @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-                @group(0) @binding(1) var<uniform> resolution: Resolution;
-                @group(0) @binding(2) var<uniform> mouse: Mouse;
-
-                @vertex
-                fn vertexMain(@location(0) position: vec3f) -> VertexOutput {
-                    var output: VertexOutput;
-                    output.position = vec4f(position, 1.0);
-                    output.uv = position.xy * 0.5 + 0.5;
-                    return output;
-                }
-
-                @fragment
-                fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
-                    // Simple gradient background with time animation
-                    let uv = input.uv;
-                    let time = uniforms.time * 0.1;
-                    
-                    // Create a simple animated gradient
-                    let color = vec3f(
-                        0.5 + 0.5 * sin(time + uv.x * 3.0),
-                        0.5 + 0.5 * sin(time * 1.1 + uv.y * 3.0),
-                        0.5 + 0.5 * sin(time * 1.2 + (uv.x + uv.y) * 3.0)
-                    );
-                    
-                    // Add mouse interaction
-                    let mouseDistance = distance(uv, vec2f(mouse.x, mouse.y));
-                    let mouseGlow = 0.1 / (mouseDistance + 0.1);
-                    
-                    color = mix(color, vec3f(0.1, 0.8, 1.0), mouseGlow * 0.5);
-                    
-                    return vec4f(color, 1.0);
-                }
-            `;
-            
-            // Load shader with error handling and fallback
-            let shaderCode;
-            try {
-                // Try to load the shader from multiple possible locations
-                const possiblePaths = [
-                    '/shaders/home/MatrixShader.wgsl',
-                    '/_app/immutable/assets/MatrixShader.wgsl',
-                    '/static/shaders/home/MatrixShader.wgsl'
-                ];
-                
-                let response = null;
-                let loadError = null;
-                
-                // Try each path until one works
-                for (const path of possiblePaths) {
-                    try {
-                        console.log(`Trying to load shader from: ${path}`);
-                        response = await fetch(path, {
-                            cache: 'no-store',
-                            headers: {
-                                'Cache-Control': 'no-cache'
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            console.log(`Successfully loaded shader from: ${path}`);
-                            break;
-                        } else {
-                            console.warn(`Failed to load shader from ${path}: ${response.status} ${response.statusText}`);
-                        }
-                    } catch (err) {
-                        loadError = err;
-                        console.warn(`Error loading shader from ${path}:`, err);
-                    }
-                }
-                
-                // If we have a valid response, use it
-                if (response && response.ok) {
-                    shaderCode = await response.text();
-                    console.log("External shader loaded successfully");
-                } else {
-                    // If all paths failed, try loading from the src directory (bundled with the app)
-                    try {
-                        // Import the shader directly (this will be handled by the bundler)
-                        const shaderModule = await import('../../shaders/home/MatrixShader.wgsl?raw');
-                        shaderCode = shaderModule.default;
-                        console.log("Shader loaded from bundled source");
-                    } catch (importError) {
-                        console.warn("Failed to import bundled shader:", importError);
-                        throw new Error("Could not load shader from any location");
-                    }
-                }
-            } catch (error) {
-                console.warn("All shader loading attempts failed, using fallback:", error);
-                shaderCode = fallbackShaderCode;
+            // Use the imported shader with fallback
+            let shaderCode = matrixShader;
+            if (!shaderCode || shaderCode.trim() === '') {
+                console.warn("Matrix shader not found, using fallback shader");
+                shaderCode = FALLBACK_SHADER;
             }
             
             const shaderModule = this.device.createShaderModule({

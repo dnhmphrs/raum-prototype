@@ -176,25 +176,33 @@ class Engine {
 	}
 
 	render() {
+		// Check if we have a valid device and context
+		if (!this.device || !this.context) {
+			console.error("Cannot render: WebGPU device or context is null");
+			return;
+		}
+		
 		try {
-			const commandEncoder = this.device.createCommandEncoder();
+			// Get the current texture from the context
 			const textureView = this.context.getCurrentTexture().createView();
-			
-			// Log texture dimensions
-			const texture = this.context.getCurrentTexture();
-			console.log(`Rendering to texture: ${texture.width}x${texture.height}`);
-			
-			// Render scene
-			this.scene.render(commandEncoder, textureView);
-			
-			// Submit commands to GPU queue
+
+			// Create a command encoder
+			const commandEncoder = this.device.createCommandEncoder();
+
+			// Render the scene
+			if (this.scene) {
+				this.scene.render(commandEncoder, textureView);
+			}
+
+			// Submit the command buffer
 			this.device.queue.submit([commandEncoder.finish()]);
-			
-			// Schedule next frame
-			this.animationFrameId = requestAnimationFrame(() => this.render());
 		} catch (error) {
 			console.error("Error in render loop:", error);
+			// Don't stop the render loop on error, just log it
 		}
+
+		// Request the next frame
+		this.animationFrameId = requestAnimationFrame(this.render.bind(this));
 	}
 
 	handleResize() {

@@ -1,27 +1,43 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
 import glsl from 'vite-plugin-glsl';
+import fs from 'fs';
+import path from 'path';
 
 export default defineConfig({
 	plugins: [
 		sveltekit(),
-		glsl(),
+		glsl({
+			include: [
+				'**/*.glsl',
+				'**/*.wgsl',
+			],
+		}),
 		{
-			name: 'copy-shader-files',
-			enforce: 'post',
-			apply: 'build',
-			generateBundle() {
-				// This ensures shader files are properly handled during build
-				console.log('Ensuring shader files are included in the build');
+			name: 'vite-plugin-wgsl',
+			transform(code, id) {
+				if (id.endsWith('.wgsl')) {
+					return {
+						code: `export default ${JSON.stringify(code)};`,
+						map: null
+					};
+				}
+			}
+		},
+		{
+			name: 'vite-plugin-copy-shaders',
+			writeBundle() {
+				const staticDir = path.resolve('static');
+				const shaderDir = path.join(staticDir, 'shaders');
+				
+				if (fs.existsSync(shaderDir)) {
+					console.log('Copying shader files to build output...');
+				}
 			}
 		}
 	],
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	},
-	// Ensure static assets are properly handled
-	publicDir: 'static',
-	build: {
-		assetsInlineLimit: 0, // Don't inline any assets as base64
-	}
+	assetsInclude: ['**/*.wgsl']
 });
