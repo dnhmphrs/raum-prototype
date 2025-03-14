@@ -168,7 +168,7 @@
           <div class="preview-ascii">
             {#if selectedExp.id === 'flocking'}
               <pre class="ascii-art">
-  /^v^\
+/^v^\
           /^v^\                      /^v^\
                        /^v^\
        
