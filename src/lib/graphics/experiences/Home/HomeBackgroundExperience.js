@@ -1,6 +1,5 @@
 import Experience from '../Experience.js';
 import { createFullScreenQuad } from '../../utils/geometryUtils.js';
-import matrixShader from './MatrixShader.wgsl';
 
 class HomeBackgroundExperience extends Experience {
     constructor(device, resourceManager) {
@@ -104,7 +103,7 @@ class HomeBackgroundExperience extends Experience {
             // Load shader
             const shaderModule = this.device.createShaderModule({
                 label: "Matrix Shader Module",
-                code: matrixShader
+                code: await fetch('/shaders/home/MatrixShader.wgsl').then(response => response.text())
             });
             
             // Create render pipeline
