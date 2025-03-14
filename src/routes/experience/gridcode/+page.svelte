@@ -202,16 +202,23 @@
         
         <div class="theta">
             <p>
-                Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns.
-                They provide a mathematical model of the mammalian grid code - with harmonic scaling ratios.
+                Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns;
+                with optimal packing, they form hexaognal grids in 2D spaces.
+                They may provide a mathematical model of the mammalian grid code - with harmonic scaling ratios.
             </p>
           </div>
           <div class="tau">
             <p>
-                τ-functions extend Θ-functions by incorporating non-linear interactions among the Fourier modes.
-                This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena - we can model them as shallow water waves, as a start. But the real maths will take a year or so to figure out.
-                Ultimately, the τ-function will allow us to model the grid code in complex envrionments, such as Carptener et al. (2015).
+                Future: τ-functions extend Θ-functions by adding non-linear interactions among the Fourier modes.
+                This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena. As a start, watere can model the grid code as shallow water waves, but the real maths will take a year or so to figure out and I will need Türkü.
+                Ultimately, the τ-function will allow us to model the grid code in complex envrionments [Carptener et al. 2015].
             </p>
+        </div>
+            <div class="psychosis">
+                <p>
+                    As a final note, an impaired grid code has been implicated in schizophrenia [Convertino et al. 2023].
+                    In pyschosis, we may expect the regualr hexagonal grids to dissapear. The MEC grid code will instead look like a chaotic mess: <i>a raging sea.</i>
+                </p>
           </div>
           
     </div>
