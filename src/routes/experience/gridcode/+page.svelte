@@ -220,7 +220,7 @@
             <div class="psychosis">
                 <p>
                     As a final note, an impaired grid code has been implicated in schizophrenia [Convertino et al. 2023].
-                    In pyschosis, we may expect the regualr hexagonal grids to dissapear. The MEC grid code will instead look like a chaotic mess: <i>a raging sea.</i>
+                    In pyschosis, we may expect the regualr hexagonal grids to dissapear. The MEC grid code will instead look chaotic: <i>a raging sea.</i>
                 </p>
           </div>
           
