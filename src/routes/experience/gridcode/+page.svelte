@@ -206,8 +206,7 @@
         
         <div class="theta">
             <p>
-                Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns;
-                with optimal packing, they form hexaognal grids in 2D spaces.
+                Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns.
                 They may provide a mathematical model of the mammalian grid code - with harmonic scaling ratios.
             </p>
           </div>
