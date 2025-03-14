@@ -85,26 +85,26 @@
       typeWriter();
     }
     
-    // Initialize WebGPU background
-    if (canvas && navigator.gpu) {
-      try {
-        // Initialize the engine with the canvas
-        engine = new Engine(canvas);
+  //   // Initialize WebGPU background
+  //   if (canvas && navigator.gpu) {
+  //     try {
+  //       // Initialize the engine with the canvas
+  //       engine = new Engine(canvas);
         
-        // Start the background experience
-        await engine.start(HomeBackgroundExperience);
+  //       // Start the background experience
+  //       await engine.start(HomeBackgroundExperience);
         
-        backgroundLoaded = true;
-        console.log("Background shader initialized");
-      } catch (error) {
-        console.error("Error initializing background shader:", error);
-        backgroundLoaded = true; // Still mark as loaded to avoid blocking UI
-      }
-    } else {
-      // No WebGPU support, just mark as loaded
-      backgroundLoaded = true;
-    }
-  });
+  //       backgroundLoaded = true;
+  //       console.log("Background shader initialized");
+  //     } catch (error) {
+  //       console.error("Error initializing background shader:", error);
+  //       backgroundLoaded = true; // Still mark as loaded to avoid blocking UI
+  //     }
+  //   } else {
+  //     // No WebGPU support, just mark as loaded
+  //     backgroundLoaded = true;
+  //   }
+  // });
   
   onDestroy(() => {
     // Clean up engine when component is destroyed
