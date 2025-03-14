@@ -167,7 +167,7 @@
         on:mousemove={stopPropagation}
         on:wheel={handleControlPanelWheel}
     >
-        <h2>Θ-FUNCTION //<br>MEC GRID CODE</h2>
+        <h2>Riemann Θ-FUNCTION // MEC GRID CODE</h2>
         <p>Computational model of the grid code using the Riemannn Θ-function</p>
         
         <div class="controls">
@@ -209,8 +209,8 @@
           <div class="tau">
             <p>
                 τ-functions extend Θ-functions by incorporating non-linear interactions among the Fourier modes.
-                This allows the model to capture the subtle irregularities and complexities of real-life phenomena - such as shallow water waves,
-                They will allow us to model the grid code in complex envrionments, such as Carptener et al. (2015).
+                This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena - we can model them as shallow water waves, as a start. But the real maths will take a year or so to figure out.
+                Ultimately, the τ-function will allow us to model the grid code in complex envrionments, such as Carptener et al. (2015).
             </p>
           </div>
           
