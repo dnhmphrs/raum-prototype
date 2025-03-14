@@ -152,7 +152,7 @@
               <div class="tau">
                 <p>
                     Future: τ-functions extend Θ-functions by adding non-linear interactions among the Fourier modes.
-                    This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena. As a start, we can model the grid code with shallow water waves (there are <i>big</i> complexities; see [Sato, 1981] and a whole literature that I am yet to learn), but the real maths for the first steps will take a year or so to figure out and I will need Türkü.
+                    This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena. As a start, we can model the grid code with shallow water waves (there are <i>big</i> complexities; see [Sato, 1981] and a whole literature that I am yet to learn), but the maths for the first steps will take a year or so to figure out - with the correct help from Leipzig/Dresden.
                     Ultimately, the τ-function will allow us to model the grid code in complex envrionments, e.g. [Carptener et al. 2015].
                 </p>
             </div>
