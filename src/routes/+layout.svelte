@@ -5,12 +5,16 @@
 	import { page } from '$app/stores';
 	import { webVitals } from '$lib/vitals';
 
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { screenType, isIframe, screenSize } from '$lib/store/store';
 	import { getDeviceType, getScreenSize } from '$lib/functions/utils';
+	import MemoryStats from '$lib/components/MemoryStats.svelte';
 
 	export let data;
 	let Geometry;
+	
+	// Memory stats
+	let showMemoryStats = true;
 
 	$: if (browser && data?.analyticsId) {
 		webVitals({
@@ -87,6 +91,11 @@
 	
 	{#if shouldLoadGraphics}
 		<svelte:component this={Geometry} />
+	{/if}
+	
+	<!-- Memory stats display -->
+	{#if showMemoryStats && browser}
+		<MemoryStats />
 	{/if}
 </div>
 

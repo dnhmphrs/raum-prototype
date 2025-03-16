@@ -489,7 +489,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .company-link {
-    color: #ff0000;
+    color: #00ff00;
     text-decoration: none;
     position: relative;
     transition: all 0.3s ease;

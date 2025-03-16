@@ -29,36 +29,10 @@
   let isLoading = true;
   let loadingMessage = "Initializing WebGPU...";
   let loadingProgress = -1; // -1 means indeterminate
-  let memoryMonitorInterval;
-  let memoryUsage = { current: 0, peak: 0 };
   let currentPath;
   
   // Event dispatcher
   const dispatch = createEventDispatcher();
-  
-  // Function to monitor memory usage
-  function startMemoryMonitoring() {
-    if (typeof window.performance !== 'undefined' && window.performance.memory) {
-      memoryMonitorInterval = setInterval(() => {
-        const currentUsage = window.performance.memory.usedJSHeapSize;
-        memoryUsage.current = currentUsage;
-        memoryUsage.peak = Math.max(memoryUsage.peak, currentUsage);
-        
-        // Dispatch memory stats event
-        dispatch('memoryUpdate', { 
-          current: formatBytes(currentUsage),
-          peak: formatBytes(memoryUsage.peak),
-          limit: formatBytes(window.performance.memory.jsHeapSizeLimit),
-          stats: getMemoryStats()
-        });
-        
-        // Log if memory usage is growing significantly
-        if (currentUsage > memoryUsage.limit * 0.8) {
-          console.warn("Memory usage is approaching the limit!", formatBytes(currentUsage));
-        }
-      }, 5000); // Check every 5 seconds
-    }
-  }
   
   // Function to handle loading state updates from the experience
   function handleLoadingUpdate(event) {
@@ -112,9 +86,6 @@
     window.addEventListener('experience-loading-update', handleLoadingUpdate);
     
     if (canvas && navigator.gpu) {
-      // Start memory monitoring
-      startMemoryMonitoring();
-      
       // Initialize the engine with the canvas
       loadingMessage = "Initializing graphics engine...";
       loadingProgress = 30;
@@ -153,12 +124,6 @@
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('experience-loading-update', handleLoadingUpdate);
-        
-        // Stop memory monitoring
-        if (memoryMonitorInterval) {
-          clearInterval(memoryMonitorInterval);
-          memoryMonitorInterval = null;
-        }
         
         // First remove any global references
         if (window.currentExperience) {
@@ -240,17 +205,6 @@
     progress={loadingProgress}
   />
   
-  <!-- Memory stats display (if enabled) -->
-  {#if showMemoryStats && !isLoading}
-  <div class="memory-stats">
-    <div>Current: {formatBytes(memoryUsage.current)}</div>
-    <div>Peak: {formatBytes(memoryUsage.peak)}</div>
-    {#if window.performance && window.performance.memory}
-    <div>Limit: {formatBytes(window.performance.memory.jsHeapSizeLimit)}</div>
-    {/if}
-  </div>
-  {/if}
-  
   <!-- Slot for experience-specific UI -->
   <slot {engine} {experience} {isLoading}></slot>
 </div>
@@ -268,18 +222,5 @@
     width: 100%;
     height: 100%;
     display: block;
-  }
-  
-  .memory-stats {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    padding: 5px 10px;
-    border-radius: 4px;
-    z-index: 100;
   }
 </style> 
