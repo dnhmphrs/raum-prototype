@@ -4,6 +4,9 @@
   
   // Video capture state
   let showCapturePopup = false;
+  let showVideoPlayer = false;
+  let videoPlayerUrl = '';
+  let videoPlayerDuration = 0;
   let captureDuration = 5; // Default 5 seconds
   let mediaRecorder = null;
   let recordedChunks = [];
@@ -330,45 +333,49 @@
       // Create a blob from the recorded chunks
       const blob = new Blob(recordedChunks, { type: mimeType });
       
+      // Include duration in the filename to help users know the actual duration
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const quality = captureQuality.toUpperCase();
+      const durationStr = `${captureDuration}s`;
+      const filename = `raum-capture-${width}x${height}-${quality}-${durationStr}-${timestamp}.webm`;
+      
       // Create a download link
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      
-      // Include resolution and quality in filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const quality = captureQuality.toUpperCase();
-      a.download = `raum-capture-${width}x${height}-${quality}-${timestamp}.webm`;
+      a.download = filename;
       
       // Add to document, trigger download, and clean up
       document.body.appendChild(a);
       a.click();
       
-      // Clean up resources immediately
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        // Stop the recording timer
-        if (recordingTimer) {
-          clearInterval(recordingTimer);
-          recordingTimer = null;
-        }
-        
-        // Stop the stream tracks
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-        
-        // Reset state and clear memory
-        recordedChunks = [];
-        totalRecordedSize = 0;
-        isRecording = false;
-        recordingProgress = 0;
-        mediaRecorder = null;
-        processingChunks = false;
-      }, 100);
+      // Show the video player with the correct duration
+      videoPlayerUrl = url;
+      videoPlayerDuration = captureDuration;
+      showVideoPlayer = true;
+      
+      // Clean up resources when the component is destroyed
+      // We'll keep the URL for the video player
+      
+      // Stop the recording timer
+      if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+      }
+      
+      // Stop the stream tracks
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      
+      // Reset recording state but keep the blob for the player
+      isRecording = false;
+      recordingProgress = 0;
+      mediaRecorder = null;
+      processingChunks = false;
+      
+      // We'll keep recordedChunks and totalRecordedSize until the player is closed
     } catch (error) {
       console.error('Error finalizing recording:', error);
       // Reset state on error
@@ -379,6 +386,19 @@
       mediaRecorder = null;
       processingChunks = false;
     }
+  }
+  
+  // Function to close the video player
+  function closeVideoPlayer() {
+    if (videoPlayerUrl) {
+      URL.revokeObjectURL(videoPlayerUrl);
+      videoPlayerUrl = '';
+    }
+    showVideoPlayer = false;
+    
+    // Now clean up the remaining resources
+    recordedChunks = [];
+    totalRecordedSize = 0;
   }
   
   // Function to cancel an ongoing recording
@@ -497,6 +517,11 @@
     // Stop any ongoing recording
     cancelRecording();
     
+    // Close the video player if open
+    if (showVideoPlayer) {
+      closeVideoPlayer();
+    }
+    
     // Clear any large objects to help garbage collection
     recordedChunks = [];
     totalRecordedSize = 0;
@@ -597,6 +622,31 @@
         </div>
         <div class="capture-actions">
           <button class="primary-btn" on:click={startCapture}>Start Capture</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+  
+  <!-- Video player popup -->
+  {#if showVideoPlayer}
+    <div class="video-player-popup">
+      <div class="video-player-content">
+        <div class="popup-header">
+          <h3>Recording Preview ({videoPlayerDuration}s)</h3>
+          <button class="close-btn" on:click={closeVideoPlayer}>×</button>
+        </div>
+        <div class="video-container">
+          <video 
+            src={videoPlayerUrl} 
+            controls 
+            autoplay
+            controlsList="nodownload"
+            on:loadedmetadata={(e) => e.target.duration = videoPlayerDuration}
+          ></video>
+          <div class="video-info">
+            <p>Note: The actual video duration is {videoPlayerDuration} seconds.</p>
+            <p>Some video players may show an incorrect duration.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -797,5 +847,47 @@
   
   .primary-btn:hover {
     background-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  .video-player-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+  }
+  
+  .video-player-content {
+    background-color: rgba(20, 20, 20, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    width: 80%;
+    max-width: 800px;
+    color: white;
+  }
+  
+  .video-container {
+    margin-top: 16px;
+  }
+  
+  .video-container video {
+    width: 100%;
+    background-color: black;
+  }
+  
+  .video-info {
+    margin-top: 12px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .video-info p {
+    margin: 4px 0;
   }
 </style> 
