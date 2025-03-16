@@ -3,7 +3,6 @@
     import GridCodeExperience from '$lib/graphics/experiences/GridCode/GridCodeExperience.js';
     import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
     import { getExperienceColor } from '$lib/store/experienceStore.js';
-    import MemoryStats from '$lib/components/MemoryStats.svelte';
     
     // Get the accent color for use in the control panel
     const accentColor = getExperienceColor('gridcode');
@@ -177,9 +176,7 @@
             
         </div>
         {/if}
-        
-        <!-- Memory stats display -->
-        <MemoryStats />
+
     </div>
 </ExperienceWrapper>
 

@@ -6,14 +6,12 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { page } from '$app/stores';
   import Engine from '$lib/graphics/Engine.js';
-  import { getMemoryStats, formatBytes } from '$lib/graphics/utils/MemoryManager.js';
   import LoadingOverlay from './LoadingOverlay.svelte';
   import { getExperienceColor } from '$lib/store/experienceStore.js';
   
   // Props
   export let experienceClass; // The experience class to instantiate
   export let cameraConfig = {}; // Camera configuration
-  export let showMemoryStats = false; // Whether to show memory stats
   export let accentColor = null; // Optional override for accent color
   
   // Get experience ID from class name
