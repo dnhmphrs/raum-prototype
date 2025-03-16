@@ -69,8 +69,8 @@ class GridCodePipeline {
             bindGroupLayouts: [this.bindGroupLayout]
         });
         
-        // Initialize KP shader - use the original shader from Riemann
-        await this.initializeShader('/shaders/riemann/KPShader.wgsl');
+        // Initialize KP shader - use the shader from the static folder
+        await this.initializeShader('/shaders/gridcode/KPShader.wgsl');
         
         this.isInitialized = true;
         return true;

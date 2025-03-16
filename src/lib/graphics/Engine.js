@@ -45,10 +45,6 @@ class Engine {
 			cleanupCount: 0
 		};
 		
-		// Auto cleanup interval (every 5 minutes)
-		this.autoCleanupInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
-		this.lastAutoCleanupTime = Date.now();
-		
 		// Register with memory manager
 		registerResource(this, 'others');
 	}
@@ -298,13 +294,6 @@ class Engine {
 		if (!this.device || !this.context) {
 			console.warn("WebGPU device or context is null, stopping render loop");
 			return;
-		}
-		
-		// Check if auto cleanup is needed
-		const now = Date.now();
-		if (now - this.lastAutoCleanupTime > this.autoCleanupInterval) {
-			this.performGarbageCollection();
-			this.lastAutoCleanupTime = now;
 		}
 		
 		try {

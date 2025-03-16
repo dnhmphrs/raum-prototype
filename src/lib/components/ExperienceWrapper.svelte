@@ -12,7 +12,6 @@
   export let experienceClass; // The experience class to instantiate
   export let cameraConfig = {}; // Camera configuration
   export let showMemoryStats = false; // Whether to show memory stats
-  export let autoCleanupInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
   
   // Internal state
   let canvas;
@@ -21,7 +20,6 @@
   let isLoading = true;
   let loadingMessage = "Initializing WebGPU...";
   let memoryMonitorInterval;
-  let autoCleanupIntervalId;
   let memoryUsage = { current: 0, peak: 0 };
   let currentPath;
   
@@ -50,17 +48,6 @@
         }
       }, 5000); // Check every 5 seconds
     }
-  }
-  
-  // Function to start automatic cleanup
-  function startAutoCleanup() {
-    if (autoCleanupIntervalId) {
-      clearInterval(autoCleanupIntervalId);
-    }
-    
-    autoCleanupIntervalId = setInterval(() => {
-      forceCleanup();
-    }, autoCleanupInterval);
   }
   
   // Watch for route changes to trigger cleanup
@@ -96,15 +83,9 @@
       loadingMessage = "Initializing graphics engine...";
       engine = new Engine(canvas);
       
-      // Configure auto cleanup interval
-      engine.autoCleanupInterval = autoCleanupInterval;
-      
       // Start the experience with the camera config
       loadingMessage = `Loading ${experienceClass.name} experience...`;
       experience = await engine.start(experienceClass, cameraConfig);
-      
-      // Start automatic cleanup
-      startAutoCleanup();
       
       // Dispatch the experience ready event
       dispatch('ready', { engine, experience });
@@ -134,12 +115,6 @@
         if (memoryMonitorInterval) {
           clearInterval(memoryMonitorInterval);
           memoryMonitorInterval = null;
-        }
-        
-        // Stop auto cleanup
-        if (autoCleanupIntervalId) {
-          clearInterval(autoCleanupIntervalId);
-          autoCleanupIntervalId = null;
         }
         
         // First remove any global references
