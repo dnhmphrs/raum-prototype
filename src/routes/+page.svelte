@@ -459,7 +459,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     margin-top: 2rem;
     text-align: center;
     font-size: 0.8rem;
-    opacity: 0.7;
+    opacity: 0.8;
     letter-spacing: 1px;
   }
   
