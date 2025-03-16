@@ -26,12 +26,6 @@
         event.stopPropagation();
     }
     
-    // Function to prevent default and stop propagation
-    function preventDefaultAndStopPropagation(event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    
     // Function to handle wheel events in the control panel
     function handleControlPanelWheel(event) {
         // This function ensures that wheel events in the control panel

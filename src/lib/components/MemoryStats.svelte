@@ -1,14 +1,19 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { getMemoryStats, formatBytes } from '$lib/graphics/utils/MemoryManager.js';
+  import { page } from '$app/stores';
+  import VideoRecorder from './VideoRecorder.svelte';
   
   // Props
-  export let showResourceCounts = true;
+  export let showResourceCounts = false;
   
   // Memory usage state
   let memoryUsage = { current: 0, peak: 0 };
   let memoryMonitorInterval;
   let resourceCounts = { buffers: 0, textures: 0, total: 0 };
+  
+  // Check if we're on the homepage
+  $: isHomepage = $page && $page.url.pathname === '/';
   
   // Function to monitor memory usage
   function startMemoryMonitoring() {
@@ -46,6 +51,7 @@
   });
 </script>
 
+{#if !isHomepage}
 <div class="memory-stats">
   <div>Current: {formatBytes(memoryUsage.current)}</div>
   <div>Peak: {formatBytes(memoryUsage.peak)}</div>
@@ -61,7 +67,11 @@
       <div>Total: {resourceCounts.total}</div>
     </div>
   {/if}
+  
+  <!-- Video recorder component -->
+  <VideoRecorder />
 </div>
+{/if}
 
 <style>
   .memory-stats {

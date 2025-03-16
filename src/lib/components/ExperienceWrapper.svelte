@@ -113,7 +113,11 @@
       // Handle window resize
       const handleResize = () => {
         if (engine) {
-          engine.handleResize();
+          try {
+            engine.handleResize();
+          } catch (error) {
+            console.warn("Error during resize:", error);
+          }
         }
       };
       
