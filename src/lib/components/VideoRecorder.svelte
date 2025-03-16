@@ -4,9 +4,6 @@
   
   // Video capture state
   let showCapturePopup = false;
-  let showVideoPlayer = false;
-  let videoPlayerUrl = '';
-  let videoPlayerDuration = 0;
   let captureDuration = 5; // Default 5 seconds
   let mediaRecorder = null;
   let recordedChunks = [];
@@ -15,58 +12,38 @@
   let recordingTimer = null;
   let recordingStartTime = 0;
   let processingChunks = false;
-  let maxChunkSize = 20 * 1024 * 1024; // 20MB max chunk size (reduced from 50MB)
-  let maxTotalSize = 200 * 1024 * 1024; // 200MB max total size (reduced from 500MB)
+  let maxChunkSize = 50 * 1024 * 1024; // 50MB max chunk size
+  let maxTotalSize = 500 * 1024 * 1024; // 500MB max total size
   let totalRecordedSize = 0;
   let memoryWarning = false;
-  let chunkProcessingInterval = null;
-  let crashDetectionInterval = null;
   
   // Quality presets for different recording modes
   const qualityPresets = {
     low: {
-      fps: 20, // Reduced from 24
-      bitrate: 5000000, // 5 Mbps (reduced from 8 Mbps)
-      fallbackBitrate: 3000000, // 3 Mbps (reduced from 5 Mbps)
+      fps: 24,
+      bitrate: 8000000, // 8 Mbps
+      fallbackBitrate: 5000000, // 5 Mbps
       lossless: false,
-      dataInterval: 200 // More frequent chunks (reduced from 250ms)
+      dataInterval: 250 // More frequent chunks for better memory management
     },
     medium: {
       fps: 30,
-      bitrate: 12000000, // 12 Mbps (reduced from 20 Mbps)
-      fallbackBitrate: 8000000, // 8 Mbps (reduced from 12 Mbps)
-      lossless: false, // Changed from true to false
-      dataInterval: 300 // More frequent chunks (reduced from 500ms)
+      bitrate: 20000000, // 20 Mbps
+      fallbackBitrate: 12000000, // 12 Mbps
+      lossless: true,
+      dataInterval: 500
     },
     high: {
       fps: 60,
-      bitrate: 25000000, // 25 Mbps (reduced from 40 Mbps)
-      fallbackBitrate: 15000000, // 15 Mbps (reduced from 25 Mbps)
+      bitrate: 40000000, // 40 Mbps (lossless)
+      fallbackBitrate: 25000000, // 25 Mbps
       lossless: true,
-      dataInterval: 400 // More frequent chunks (reduced from 500ms)
+      dataInterval: 500
     }
   };
   
   // Default to medium quality
   let captureQuality = 'medium';
-  
-  // Function to set up crash detection
-  function setupCrashDetection() {
-    if (crashDetectionInterval) {
-      clearInterval(crashDetectionInterval);
-    }
-    
-    // Check every second if the canvas is still available
-    crashDetectionInterval = setInterval(() => {
-      if (isRecording) {
-        const canvas = findCanvas();
-        if (!canvas || !document.body.contains(canvas)) {
-          console.warn('Canvas no longer available, experience may have crashed. Saving recording...');
-          stopRecording();
-        }
-      }
-    }, 1000);
-  }
   
   // Function to toggle capture popup
   function toggleCapturePopup() {
@@ -144,6 +121,9 @@
   // Function to update the recording progress display
   function updateRecordingProgress() {
     const elapsed = (Date.now() - recordingStartTime) / 1000;
+    
+    // Calculate progress based on the requested duration, not the actual buffered duration
+    // This ensures the progress bar reaches 100% at the requested duration
     recordingProgress = Math.min(100, (elapsed / captureDuration) * 100);
     
     // Show memory warning if we're using more than 60% of total allowed size
@@ -167,8 +147,11 @@
       // Get quality settings
       const quality = qualityPresets[captureQuality];
       
+      // Add a small buffer to ensure we capture the full requested duration
+      const actualDuration = captureDuration + 0.5; // Add 0.5 seconds buffer
+      
       console.log(`Capturing canvas: ${width}x${height} at ${quality.fps} FPS (${captureQuality} quality)`);
-      console.log(`Total duration: ${captureDuration}s`);
+      console.log(`Requested duration: ${captureDuration}s, Actual duration: ${actualDuration}s`);
       
       // For all quality levels, try to use the canvas directly without scaling
       let stream;
@@ -261,27 +244,16 @@
         checkMemoryPressure();
       }, 100);
       
-      // Set up periodic chunk processing to prevent memory buildup
-      chunkProcessingInterval = setInterval(() => {
-        if (recordedChunks.length > 3 && !processingChunks) {
-          console.log('Periodic chunk processing to prevent memory buildup');
-          processLargeChunks();
-        }
-      }, 2000); // Process chunks every 2 seconds
-      
-      // Schedule the stop after the specified duration
+      // Schedule the stop after the specified duration (with buffer)
       setTimeout(() => {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
           console.log('Stopping recording after duration');
           stopRecording();
         }
-      }, captureDuration * 1000);
+      }, actualDuration * 1000);
       
       // Close the popup
       showCapturePopup = false;
-      
-      // Set up crash detection
-      setupCrashDetection();
     } catch (error) {
       console.error('Error starting capture:', error);
       isRecording = false;
@@ -296,18 +268,6 @@
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.requestData();
         mediaRecorder.stop();
-      }
-      
-      // Clear the chunk processing interval
-      if (chunkProcessingInterval) {
-        clearInterval(chunkProcessingInterval);
-        chunkProcessingInterval = null;
-      }
-      
-      // Clear the crash detection interval
-      if (crashDetectionInterval) {
-        clearInterval(crashDetectionInterval);
-        crashDetectionInterval = null;
       }
     } catch (error) {
       console.error('Error stopping recorder:', error);
@@ -376,49 +336,45 @@
       // Create a blob from the recorded chunks
       const blob = new Blob(recordedChunks, { type: mimeType });
       
-      // Include duration in the filename to help users know the actual duration
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const quality = captureQuality.toUpperCase();
-      const durationStr = `${captureDuration}s`;
-      const filename = `raum-capture-${width}x${height}-${quality}-${durationStr}-${timestamp}.webm`;
-      
       // Create a download link
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = filename;
+      
+      // Include resolution, quality, and duration in filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const quality = captureQuality.toUpperCase();
+      a.download = `raum-capture-${width}x${height}-${quality}-${captureDuration}s-${timestamp}.webm`;
       
       // Add to document, trigger download, and clean up
       document.body.appendChild(a);
       a.click();
       
-      // Show the video player with the correct duration
-      videoPlayerUrl = url;
-      videoPlayerDuration = captureDuration;
-      showVideoPlayer = true;
-      
-      // Clean up resources when the component is destroyed
-      // We'll keep the URL for the video player
-      
-      // Stop the recording timer
-      if (recordingTimer) {
-        clearInterval(recordingTimer);
-        recordingTimer = null;
-      }
-      
-      // Stop the stream tracks
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      
-      // Reset recording state but keep the blob for the player
-      isRecording = false;
-      recordingProgress = 0;
-      mediaRecorder = null;
-      processingChunks = false;
-      
-      // We'll keep recordedChunks and totalRecordedSize until the player is closed
+      // Clean up resources immediately
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Stop the recording timer
+        if (recordingTimer) {
+          clearInterval(recordingTimer);
+          recordingTimer = null;
+        }
+        
+        // Stop the stream tracks
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Reset state and clear memory
+        recordedChunks = [];
+        totalRecordedSize = 0;
+        isRecording = false;
+        recordingProgress = 0;
+        mediaRecorder = null;
+        processingChunks = false;
+      }, 100);
     } catch (error) {
       console.error('Error finalizing recording:', error);
       // Reset state on error
@@ -429,19 +385,6 @@
       mediaRecorder = null;
       processingChunks = false;
     }
-  }
-  
-  // Function to close the video player
-  function closeVideoPlayer() {
-    if (videoPlayerUrl) {
-      URL.revokeObjectURL(videoPlayerUrl);
-      videoPlayerUrl = '';
-    }
-    showVideoPlayer = false;
-    
-    // Now clean up the remaining resources
-    recordedChunks = [];
-    totalRecordedSize = 0;
   }
   
   // Function to cancel an ongoing recording
@@ -457,11 +400,6 @@
     if (recordingTimer) {
       clearInterval(recordingTimer);
       recordingTimer = null;
-    }
-    
-    if (chunkProcessingInterval) {
-      clearInterval(chunkProcessingInterval);
-      chunkProcessingInterval = null;
     }
     
     // Clean up any stream tracks
@@ -488,35 +426,26 @@
   
   // Function to optimize canvas for recording
   function optimizeCanvasForRecording(canvas, quality) {
-    // For low and medium quality, we can use a smaller canvas to reduce memory usage
-    if ((captureQuality === 'low' || captureQuality === 'medium') && canvas.width > 1280) {
-      console.log(`Using optimized canvas for ${captureQuality} quality recording`);
+    // For low quality, we can use a smaller canvas to reduce memory usage
+    if (captureQuality === 'low' && canvas.width > 1280) {
+      console.log('Using optimized canvas for low quality recording');
       
       // Create a smaller canvas for recording
       const optimizedCanvas = document.createElement('canvas');
       const aspectRatio = canvas.width / canvas.height;
       
-      // Target resolution based on quality
-      if (captureQuality === 'low') {
-        // Target 720p for low quality
-        optimizedCanvas.height = 720;
-      } else {
-        // Target 1080p for medium quality
-        optimizedCanvas.height = 1080;
-      }
-      
-      optimizedCanvas.width = Math.round(optimizedCanvas.height * aspectRatio);
+      // Target 720p for low quality
+      optimizedCanvas.height = 720;
+      optimizedCanvas.width = Math.round(720 * aspectRatio);
       
       const ctx = optimizedCanvas.getContext('2d');
-      
-      // Use lower quality settings for better performance
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = captureQuality === 'low' ? 'low' : 'medium';
       
       // Set up a render loop to copy and scale down from the original canvas
       const renderLoop = () => {
         if (!isRecording) return;
         
+        // Use low quality settings for better performance
+        ctx.imageSmoothingQuality = 'medium';
         ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 
                      0, 0, optimizedCanvas.width, optimizedCanvas.height);
         
@@ -527,13 +456,7 @@
       return optimizedCanvas.captureStream(quality.fps);
     }
     
-    // For high quality, use the original canvas but still limit FPS if it's very large
-    if (captureQuality === 'high' && (canvas.width > 2560 || canvas.height > 1440)) {
-      console.log('Canvas is very large, limiting FPS for high quality to prevent crashes');
-      return canvas.captureStream(Math.min(quality.fps, 30)); // Limit to 30fps for very large canvases
-    }
-    
-    // Otherwise use the original canvas
+    // For medium/high quality, use the original canvas
     return canvas.captureStream(quality.fps);
   }
   
@@ -551,14 +474,14 @@
       }
       
       // Critical memory pressure - stop recording immediately
-      if (memoryPercentage > 75) { // Reduced from 85%
+      if (memoryPercentage > 85) {
         console.error(`Critical memory pressure detected (${memoryPercentage.toFixed(1)}%), stopping recording`);
         stopRecording();
         return true;
       }
       
       // High memory pressure - process chunks to free memory
-      if (memoryPercentage > 60 && !processingChunks && recordedChunks.length > 1) { // Reduced from 70%
+      if (memoryPercentage > 70 && !processingChunks && recordedChunks.length > 1) {
         console.warn(`High memory pressure detected (${memoryPercentage.toFixed(1)}%), processing chunks`);
         processLargeChunks();
         return true;
@@ -566,16 +489,9 @@
     }
     
     // Check if we're exceeding our self-imposed size limit
-    if (totalRecordedSize > maxTotalSize * 0.8) { // Reduced from 0.9
+    if (totalRecordedSize > maxTotalSize * 0.9) {
       console.warn(`Approaching size limit (${formatBytes(totalRecordedSize)}), stopping recording`);
       stopRecording();
-      return true;
-    }
-    
-    // Check if we have too many chunks
-    if (recordedChunks.length > 20 && !processingChunks) { // Added check for too many chunks
-      console.warn(`Too many chunks (${recordedChunks.length}), processing to prevent memory fragmentation`);
-      processLargeChunks();
       return true;
     }
     
@@ -586,11 +502,6 @@
   function cleanupResources() {
     // Stop any ongoing recording
     cancelRecording();
-    
-    // Close the video player if open
-    if (showVideoPlayer) {
-      closeVideoPlayer();
-    }
     
     // Clear any large objects to help garbage collection
     recordedChunks = [];
@@ -604,12 +515,6 @@
       } catch (e) {
         // Ignore if not available
       }
-    }
-    
-    // Clear crash detection interval
-    if (crashDetectionInterval) {
-      clearInterval(crashDetectionInterval);
-      crashDetectionInterval = null;
     }
   }
   
@@ -651,11 +556,6 @@
           <button class="close-btn" on:click={toggleCapturePopup}>×</button>
         </div>
         <div class="capture-form">
-          <!-- Warning message about potential issues -->
-          <div class="warning-message">
-            Note: This feature is still experimental. Video recording may crash with longer durations. If the experience crashes, recording will attempt to save automatically.
-          </div>
-          
           <label for="duration">Duration (seconds)</label>
           <input 
             type="number" 
@@ -671,7 +571,7 @@
             <button 
               class="quality-btn {captureQuality === 'low' ? 'active' : ''}" 
               on:click={() => captureQuality = 'low'}
-              title="Optimized for stability (20 FPS)"
+              title="Optimized for stability (24 FPS)"
             >
               Low
             </button>
@@ -693,11 +593,11 @@
           
           <div class="quality-help">
             {#if captureQuality === 'low'}
-              Optimized for stability (20 FPS). Best for longer recordings (30-60s).
+              Optimized for stability (24 FPS). Best for longer recordings.
             {:else if captureQuality === 'medium'}
-              Balanced quality (30 FPS). Good for medium-length recordings (15-30s).
+              Balanced quality (30 FPS). Good for most recordings.
             {:else if captureQuality === 'high'}
-              Maximum quality (60 FPS). Best for short recordings (5-15s).
+              Maximum quality (60 FPS). Best for short recordings.
             {/if}
           </div>
         </div>
@@ -707,50 +607,11 @@
       </div>
     </div>
   {/if}
-  
-  <!-- Video player popup -->
-  {#if showVideoPlayer}
-    <div class="video-player-popup">
-      <div class="video-player-content">
-        <div class="popup-header">
-          <h3>Recording Preview ({videoPlayerDuration}s)</h3>
-          <button class="close-btn" on:click={closeVideoPlayer}>×</button>
-        </div>
-        <div class="video-container">
-          <video 
-            src={videoPlayerUrl} 
-            controls 
-            autoplay
-            controlsList="nodownload"
-            on:loadedmetadata={(e) => e.target.duration = videoPlayerDuration}
-          >
-            <track kind="captions" label="English" srclang="en" src="" default />
-          </video>
-          <div class="video-info">
-            <p>Note: The actual video duration is {videoPlayerDuration} seconds.</p>
-            <p>Some video players may show an incorrect duration.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
 </div>
 
 <style>
   .video-recorder {
     width: 100%;
-  }
-  
-  .warning-message {
-    font-size: 11px;
-    color: rgba(255, 180, 0, 0.8);
-    margin-top: 5px;
-    margin-bottom: 10px;
-    padding: 5px;
-    border: 1px solid rgba(255, 180, 0, 0.3);
-    border-radius: 3px;
-    background-color: rgba(255, 180, 0, 0.1);
-    text-align: center;
   }
   
   .capture-controls {
@@ -942,47 +803,5 @@
   
   .primary-btn:hover {
     background-color: rgba(255, 255, 255, 0.15);
-  }
-  
-  .video-player-popup {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    backdrop-filter: blur(5px);
-  }
-  
-  .video-player-content {
-    background-color: rgba(20, 20, 20, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 16px;
-    width: 80%;
-    max-width: 800px;
-    color: white;
-  }
-  
-  .video-container {
-    margin-top: 16px;
-  }
-  
-  .video-container video {
-    width: 100%;
-    background-color: black;
-  }
-  
-  .video-info {
-    margin-top: 12px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-  }
-  
-  .video-info p {
-    margin: 4px 0;
   }
 </style> 
