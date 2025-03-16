@@ -3,6 +3,7 @@
     import GridCodeExperience from '$lib/graphics/experiences/GridCode/GridCodeExperience.js';
     import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
     import { getExperienceColor } from '$lib/store/experienceStore.js';
+    import { browser } from '$app/environment';
     
     // Get the accent color for use in the control panel
     const accentColor = getExperienceColor('gridcode');
@@ -58,7 +59,7 @@
         
         if (experience) {
             experience.updateKPScale(scaleIndex);
-        } else if (window.gridCodeExperience) {
+        } else if (browser && window.gridCodeExperience) {
             window.gridCodeExperience.updateKPScale(scaleIndex);
         }
     }
@@ -69,7 +70,7 @@
         
         if (experience) {
             experience.updateKPDistortion(distortion);
-        } else if (window.gridCodeExperience) {
+        } else if (browser && window.gridCodeExperience) {
             window.gridCodeExperience.updateKPDistortion(distortion);
         }
     }
