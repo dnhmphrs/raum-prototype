@@ -1,12 +1,3 @@
-<!-- <script>
-</script>
-
-<style>
-	img {
-		object-fit: contain;
-	}
-</style> -->
-
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
@@ -18,42 +9,36 @@
       id: 'flocking',
       name: 'FLOCKING',
       description: 'Simulation of collective motion in flocks using parallel compute shaders. Simple local rules generate complex global murmurations; cute emergent behavior in natural systems.',
-      thumbnail: '/placeholder.png',
       color: '#00bfff'
     },
     // {
     //   id: 'cube',
     //   name: 'CUBE',
     //   description: 'Interactive 3D cube visualization',
-    //   thumbnail: '/placeholder.png',
     //   color: '#ff0000'
     // },
     {
       id: 'neuralnet',
       name: 'NEURAL NET',
       description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
-      thumbnail: '/placeholder.png',
       color: '#ff0000'
     },
     {
       id: 'riemann',
       name: 'RIEMANN SURFACES',
       description: 'Visualization of complex mathematical functions as 3D surfaces. Early steps to figuring out what Riemann was on about in his 1851 thesis.',
-      thumbnail: '/placeholder.png',
       color: '#ffff00'
     },
     {
       id: 'gridcode',
       name: 'Θ-FUNCTION // GRID CODE',
       description: 'Model of medial entorhinal grid cells using the Riemann theta functions. Visualising how the brain encodes spatial information in a structured form..',
-      thumbnail: '/placeholder.png',
       color: '#ff9900'
     },
     // {
     //   id: 'lorentz',
     //   name: 'LORENTZ',
     //   description: 'Lorentz attractor visualization',
-    //   thumbnail: '/placeholder.png',
     //   color: '#00ffff'
     // }
   ];
@@ -240,7 +225,9 @@ o---o---o---o   o---o---o---o   o---o---o---o
   </main>
   
   <footer>
-    <div class="footer-text">[2025] AUFBAU WEBGPU EXPERIMENTS // SYSTEM V1.0</div>
+    <div class="footer-text">
+      [2025] <a href="https://aufbau.io" class="company-link">AUFBAU</a> WEBGPU EXPERIMENTS // SYSTEM V1.0
+    </div>
   </footer>
 </div>
 
@@ -530,6 +517,35 @@ o---o---o---o   o---o---o---o   o---o---o---o
   .background-canvas canvas {
     width: 100%;
     height: 100%;
+  }
+  
+  .company-link {
+    color: #00ff00;
+    text-decoration: none;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+  
+  .company-link:hover {
+    color: #fff;
+    text-shadow: 0 0 8px #00ff00;
+  }
+  
+  .company-link::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    bottom: -2px;
+    left: 0;
+    background-color: #00ff00;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+  
+  .company-link:hover::after {
+    transform: scaleX(1);
   }
 </style>
 

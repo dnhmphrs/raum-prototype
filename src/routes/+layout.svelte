@@ -8,13 +8,9 @@
 	import { onMount } from 'svelte';
 	import { screenType, isIframe, screenSize } from '$lib/store/store';
 	import { getDeviceType, getScreenSize } from '$lib/functions/utils';
-	import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
 
 	export let data;
 	let Geometry;
-	let canvas;
-	let engine;
-	let mounted = false;
 
 	$: if (browser && data?.analyticsId) {
 		webVitals({
@@ -63,7 +59,7 @@
 <svelte:head>
 	<title>AUFBAU // WEBGPU</title>
 	<meta name="description" content="" />
-	<meta name="keywords" content="" />
+	<meta name="keywords" content="webgpu developer web developer 3d developer webgpu developer graphics developer website developer" />
 	<meta name="author" content="AUFBAU" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
