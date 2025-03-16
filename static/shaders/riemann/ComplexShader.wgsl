@@ -14,19 +14,16 @@ struct TimeUniform {
 @group(0) @binding(1) var<uniform> view: mat4x4<f32>;
 @group(0) @binding(2) var<uniform> timeUniform: TimeUniform;
 
-// Function to generate color based on "height" with more vibrant colors
-fn heightColor(height: f32, time: f32) -> vec3<f32> {
+// Function to generate color based on height only (no time variation)
+fn heightColor(height: f32) -> vec3<f32> {
     // Map height to a [0, 1] range for coloring logic
     let normalizedHeight = clamp((height + 1.5) * 0.4, 0.0, 1.0);
     
-    // Time-based color cycling
-    let colorPhase = time * 0.1;
-    
-    // Create vibrant color palette that shifts over time
-    let color1 = vec3<f32>(0.8 * sin(colorPhase) + 0.2, 0.2, 0.8 * cos(colorPhase) + 0.2); // Dynamic purple
+    // Fixed vibrant color palette
+    let color1 = vec3<f32>(0.5, 0.0, 0.8); // Purple
     let color2 = vec3<f32>(0.1, 0.3, 0.9); // Deep blue
-    let color3 = vec3<f32>(0.0, 0.8 * sin(colorPhase + 1.5) + 0.2, 0.8); // Dynamic cyan
-    let color4 = vec3<f32>(0.8 * cos(colorPhase + 3.0) + 0.2, 0.8, 0.1); // Dynamic yellow-green
+    let color3 = vec3<f32>(0.0, 0.8, 0.8); // Cyan
+    let color4 = vec3<f32>(0.0, 0.8, 0.2); // Green
 
     var finalColor: vec3<f32>;
     if (normalizedHeight < 0.33) {
@@ -40,7 +37,7 @@ fn heightColor(height: f32, time: f32) -> vec3<f32> {
     return finalColor;
 }
 
-// A dramatically changing surface function
+// A dramatically changing surface function with improved stability
 fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
     // Convert to polar coordinates
     let r = sqrt(x * x + y * y);
@@ -57,8 +54,12 @@ fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
     let dist1 = sqrt(pow(x - peak1X, 2.0) + pow(y - peak1Y, 2.0));
     let dist2 = sqrt(pow(x - peak2X, 2.0) + pow(y - peak2Y, 2.0));
     
-    let peak1 = 1.5 * exp(-dist1 * 1.2);
-    let peak2 = 1.2 * exp(-dist2 * 1.2);
+    // Add small epsilon to avoid division by zero
+    let safeD1 = max(dist1, 0.01);
+    let safeD2 = max(dist2, 0.01);
+    
+    let peak1 = 1.5 * exp(-safeD1 * 1.2);
+    let peak2 = 1.2 * exp(-safeD2 * 1.2);
     
     // 2. Ripples with changing frequency
     let rippleFreq = 5.0 + 3.0 * sin(time * 0.2);
@@ -77,8 +78,8 @@ fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
     let blend2 = 0.5 + 0.5 * sin(time * 0.15 + 2.0);
     let blend3 = 0.5 + 0.5 * sin(time * 0.15 + 4.0);
     
-    // Normalize blending
-    let blendSum = blend1 + blend2 + blend3;
+    // Normalize blending with safety check
+    let blendSum = max(blend1 + blend2 + blend3, 0.001);
     let norm1 = blend1 / blendSum;
     let norm2 = blend2 / blendSum;
     let norm3 = blend3 / blendSum;
@@ -107,14 +108,23 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     // Transform position with view and projection
     output.position = projection * view * vec4<f32>(modifiedPosition, 1.0);
 
-    // Approximate normal via partial derivatives
+    // Approximate normal via partial derivatives with safety checks
     let epsilon = 0.01;
     let dx = surfaceFunction(position.x + epsilon, position.y, time) - height;
     let dy = surfaceFunction(position.x, position.y + epsilon, time) - height;
-    output.normal = normalize(vec3<f32>(-dx / epsilon, -dy / epsilon, 1.0));
+    
+    // Ensure normal is valid (avoid zero-length normals)
+    var normal = vec3<f32>(-dx / epsilon, -dy / epsilon, 1.0);
+    let len = length(normal);
+    if (len < 0.001) {
+        normal = vec3<f32>(0.0, 0.0, 1.0); // Default normal if calculation breaks down
+    } else {
+        normal = normal / len; // Normalize
+    }
+    output.normal = normal;
 
-    // Generate color from height with time influence
-    output.color = heightColor(height, time);
+    // Generate color from height only (no time influence)
+    output.color = heightColor(height);
 
     return output;
 }

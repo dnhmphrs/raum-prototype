@@ -41,11 +41,11 @@
 			return;
 		}
 		
-		// Only load graphics component when needed
-		if (shouldLoadGraphics) {
-			const module = await import('$lib/graphics/main.svelte');
-			Geometry = module.default;
-		}
+		// // Only load graphics component when needed
+		// if (shouldLoadGraphics) {
+		// 	const module = await import('$lib/graphics/main.svelte');
+		// 	Geometry = module.default;
+		// }
 
 		handleScreen();
 		window.addEventListener('resize', () => handleScreen());
