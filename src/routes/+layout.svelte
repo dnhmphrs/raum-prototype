@@ -67,8 +67,6 @@
 	<meta name="author" content="AUFBAU" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-	<!-- <link rel="preload" href="/notcrowded2.png" as="image" type="image/png" crossorigin="anonymous" /> -->
-
 	<!-- <link
 		rel="preload"
 		href="/fonts/NB-Architekt-Pro-Light.woff"
@@ -84,16 +82,6 @@
 		type="font/woff"
 		crossorigin="anonymous"
 	/> -->
-
-	<!-- <link
-	rel="preload"
-	href="/fonts/Dahlia-Medium.woff2"
-	as="font"
-	type="font/woff2"
-	crossorigin="anonymous"
-/> -->
-
-	<!-- <link rel="preload" href="/notcrowded2.png" as="image" type="image/png" fetchpriority="high" /> -->
 </svelte:head>
 
 <div class="app">

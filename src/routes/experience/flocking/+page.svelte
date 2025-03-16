@@ -7,11 +7,6 @@
   let canvas;
   let engine;
   let mounted = false;
-  let imageLoaded = false;
-  let showImage = false; // Control whether to show the image
-  
-  // Replace the external image URL with a local one
-  const imageUrl = '/notcrowded2.png'; // Use a local path instead of the external URL
   
   onMount(async () => {
     if (!navigator.gpu) {
@@ -78,12 +73,6 @@
   {#if !mounted}
     <div class="loading">
       <p>Loading Flocking Simulation...</p>
-    </div>
-  {/if}
-  
-  {#if showImage && imageLoaded}
-    <div class="image-overlay">
-      <img src={imageUrl} alt="Not Crowded" />
     </div>
   {/if}
   

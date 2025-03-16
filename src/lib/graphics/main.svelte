@@ -10,8 +10,6 @@
   let canvas;
   let engine;
   let currentExperience = 'Bird'; // Default experience
-  let showButtons = false;
-  let showImage = true;
 
   const experiences = {
     Bird: { class: BirdExperience, configKey: 'Flocking' },
@@ -34,40 +32,9 @@
   onMount(() => {
     startExperience(currentExperience);
   });
-
-  const toggleButtons = () => {
-    showButtons = !showButtons;
-  };
 </script>
 
 <canvas bind:this={canvas} class="geometry"></canvas>
-
-<!-- Image overlay -->
-{#if showImage}
-  <div class="image-overlay">
-    <img src="/notcrowded2.png" alt="Not Crowded" />
-  </div>
-{/if}
-
-<!-- Toggle Visibility Button -->
-<button class="toggle-visibility-button" on:click={toggleButtons}>
-  {#if showButtons}Hide Buttons{:else}Show Buttons{/if}
-</button>
-
-<!-- Experience Buttons -->
-{#if showButtons}
-  <div class="button-container">
-    {#each Object.keys(experiences) as experience}
-      <button
-        class="toggle-button"
-        on:click={() => startExperience(experience)}
-        class:active={currentExperience === experience}
-      >
-        {experience} Experience
-      </button>
-    {/each}
-  </div>
-{/if}
 
 <style>
   .geometry {
