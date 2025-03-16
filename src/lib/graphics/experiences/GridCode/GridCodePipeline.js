@@ -9,6 +9,7 @@ class GridCodePipeline {
         this.isInitialized = false;
         this.shaderModule = null;
         this.renderPipeline = null;
+        this.bindGroup = null;
         
         // Create KP shader parameters buffer with default values
         this.kpParamsBuffer = this.device.createBuffer({
@@ -134,6 +135,37 @@ class GridCodePipeline {
         return true;
     }
     
+    // Create or update the bind group with current buffers
+    updateBindGroup(projectionBuffer, viewBuffer, uniformBuffer) {
+        if (!this.device || !this.bindGroupLayout) return;
+        
+        // Clean up previous bind group if it exists
+        this.bindGroup = null;
+        
+        // Create new bind group
+        this.bindGroup = this.device.createBindGroup({
+            layout: this.bindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: { buffer: projectionBuffer }
+                },
+                {
+                    binding: 1,
+                    resource: { buffer: viewBuffer }
+                },
+                {
+                    binding: 2,
+                    resource: { buffer: uniformBuffer }
+                },
+                {
+                    binding: 3,
+                    resource: { buffer: this.kpParamsBuffer }
+                }
+            ]
+        });
+    }
+    
     render(commandEncoder, textureView, depthTextureView, vertexBuffer, indexBuffer, uniformBuffer, indexCount) {
         if (!this.isInitialized || !this.renderPipeline) {
             return;
@@ -160,40 +192,29 @@ class GridCodePipeline {
             
             // Get camera buffers
             if (!this.resourceManager || !this.resourceManager.camera) {
+                renderPass.end();
                 return;
             }
             
             const { projectionBuffer, viewBuffer } = this.resourceManager.camera.getBuffers();
             if (!projectionBuffer || !viewBuffer) {
+                renderPass.end();
                 return;
             }
             
-            // Create bind group
-            const bindGroup = this.device.createBindGroup({
-                layout: this.bindGroupLayout,
-                entries: [
-                    {
-                        binding: 0,
-                        resource: { buffer: projectionBuffer }
-                    },
-                    {
-                        binding: 1,
-                        resource: { buffer: viewBuffer }
-                    },
-                    {
-                        binding: 2,
-                        resource: { buffer: uniformBuffer }
-                    },
-                    {
-                        binding: 3,
-                        resource: { buffer: this.kpParamsBuffer }
-                    }
-                ]
-            });
+            // Create or update bind group if needed
+            if (!this.bindGroup) {
+                this.updateBindGroup(projectionBuffer, viewBuffer, uniformBuffer);
+            }
+            
+            if (!this.bindGroup) {
+                renderPass.end();
+                return;
+            }
             
             // Set pipeline and bind group
             renderPass.setPipeline(this.renderPipeline);
-            renderPass.setBindGroup(0, bindGroup);
+            renderPass.setBindGroup(0, this.bindGroup);
             
             // Set vertex and index buffers
             renderPass.setVertexBuffer(0, vertexBuffer);
@@ -229,6 +250,10 @@ class GridCodePipeline {
         
         if (this.kpParamsBuffer) {
             this.kpParamsBuffer = null;
+        }
+        
+        if (this.bindGroup) {
+            this.bindGroup = null;
         }
         
         // Clear device and resource manager references

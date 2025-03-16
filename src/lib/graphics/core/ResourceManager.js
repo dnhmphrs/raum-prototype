@@ -166,6 +166,14 @@ class ResourceManager {
 		}
 		
 		try {
+			// Check if we already have a depth texture with the same dimensions
+			if (this.depthTexture && 
+				this.depthTexture.width === width && 
+				this.depthTexture.height === height) {
+				// No need to recreate the texture
+				return;
+			}
+			
 			// Clean up existing depth texture if it exists
 			if (this.depthTexture) {
 				unregisterResource(this.depthTexture, 'textures');

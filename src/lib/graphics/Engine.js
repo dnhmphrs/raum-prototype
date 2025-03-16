@@ -150,6 +150,9 @@ class Engine {
 			this.interactionManager = new InteractionManager(this.canvas, this);
 			this.trackResource(this.interactionManager, 'others');
 			this.interactionManager.initialize();
+
+			// Set up periodic garbage collection (every 60 seconds)
+			this.setupPeriodicGarbageCollection(60000);
 	
 			// Start rendering loop
 			this.render();
@@ -200,7 +203,11 @@ class Engine {
 		// Clean up experience
 		if (this.experience) {
 			if (typeof this.experience.cleanup === 'function') {
-				this.experience.cleanup();
+				try {
+					this.experience.cleanup();
+				} catch (error) {
+					console.error("Error cleaning up experience:", error);
+				}
 			}
 			this.experience = null;
 		}
@@ -208,7 +215,11 @@ class Engine {
 		// Clean up scene if different from experience
 		if (this.scene && this.scene !== this.experience) {
 			if (typeof this.scene.cleanup === 'function') {
-				this.scene.cleanup();
+				try {
+					this.scene.cleanup();
+				} catch (error) {
+					console.error("Error cleaning up scene:", error);
+				}
 			}
 			this.scene = null;
 		}
@@ -216,7 +227,11 @@ class Engine {
 		// Cleanup interaction manager
 		if (this.interactionManager) {
 			if (typeof this.interactionManager.destroy === 'function') {
-				this.interactionManager.destroy();
+				try {
+					this.interactionManager.destroy();
+				} catch (error) {
+					console.error("Error cleaning up interaction manager:", error);
+				}
 			}
 			this.interactionManager = null;
 		}
@@ -224,28 +239,44 @@ class Engine {
 		// Cleanup camera and controller
 		if (this.camera) {
 			if (typeof this.camera.cleanup === 'function') {
-				this.camera.cleanup();
+				try {
+					this.camera.cleanup();
+				} catch (error) {
+					console.error("Error cleaning up camera:", error);
+				}
 			}
 			this.camera = null;
 		}
 		
 		if (this.cameraController) {
 			if (typeof this.cameraController.cleanup === 'function') {
-				this.cameraController.cleanup();
+				try {
+					this.cameraController.cleanup();
+				} catch (error) {
+					console.error("Error cleaning up camera controller:", error);
+				}
 			}
 			this.cameraController = null;
 		}
 		
 		// Clean up resource manager
 		if (this.resourceManager) {
-			this.resourceManager.cleanup();
+			try {
+				this.resourceManager.cleanup();
+			} catch (error) {
+				console.error("Error cleaning up resource manager:", error);
+			}
 			this.resourceManager = null;
 		}
 		
 		// Clean up WebGPU context
 		if (this.webgpuContext) {
 			if (typeof this.webgpuContext.cleanup === 'function') {
-				this.webgpuContext.cleanup();
+				try {
+					this.webgpuContext.cleanup();
+				} catch (error) {
+					console.error("Error cleaning up WebGPU context:", error);
+				}
 			}
 			this.webgpuContext = null;
 		}
@@ -410,6 +441,30 @@ class Engine {
 		
 		// Force garbage collection
 		forceGarbageCollection();
+	}
+
+	// Add a method to set up periodic garbage collection
+	setupPeriodicGarbageCollection(intervalMs = 60000) {
+		// Clear any existing interval
+		if (this._gcIntervalId) {
+			clearInterval(this._gcIntervalId);
+			this._gcIntervalId = null;
+		}
+		
+		// Set up new interval for garbage collection
+		this._gcIntervalId = setInterval(() => {
+			this.performGarbageCollection();
+		}, intervalMs);
+		
+		return this._gcIntervalId;
+	}
+
+	// Add a method to stop periodic garbage collection
+	stopPeriodicGarbageCollection() {
+		if (this._gcIntervalId) {
+			clearInterval(this._gcIntervalId);
+			this._gcIntervalId = null;
+		}
 	}
 }
 

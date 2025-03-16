@@ -49,9 +49,15 @@ class GridCodeExperience extends Experience {
             label: 'Grid Code Uniforms Buffer'
         });
         
-        // Expose this experience globally
+        // Store a reference to this for cleanup
+        this._globalRef = null;
+        
+        // Expose this experience globally, but with a weak reference pattern
         if (typeof window !== 'undefined') {
+            // Store the previous value to restore it on cleanup if needed
+            this._previousGlobalRef = window.gridCodeExperience;
             window.gridCodeExperience = this;
+            this._globalRef = window.gridCodeExperience;
         }
     }
     
@@ -279,8 +285,12 @@ class GridCodeExperience extends Experience {
         
         // Remove global reference
         if (typeof window !== 'undefined' && window.gridCodeExperience === this) {
-            window.gridCodeExperience = null;
+            window.gridCodeExperience = this._previousGlobalRef;
         }
+        
+        // Clear references
+        this._globalRef = null;
+        this._previousGlobalRef = null;
         
         // Clear device and resource manager references
         this.device = null;

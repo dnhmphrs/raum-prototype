@@ -235,32 +235,15 @@ export function forceGarbageCollection() {
             window.gc();
         }
         
-        // Try to force garbage collection by allocating a large array and then releasing it
-        try {
-            const largeArray = new Array(10000000).fill(0);
-            setTimeout(() => {
-                largeArray.length = 0;
-            }, 50);
-        } catch (e) {
-            // Ignore any errors
-        }
-        
-        // For Chrome, try this trick to release more memory
+        // Instead of trying to force GC with large arrays (which can cause more problems),
+        // we'll just log memory stats and let the browser's GC do its job
         if (window.performance && window.performance.memory) {
-            try {
-                // Create and destroy many small objects to trigger GC
-                for (let i = 0; i < 10; i++) {
-                    setTimeout(() => {
-                        let arr = [];
-                        for (let j = 0; j < 1000; j++) {
-                            arr.push({});
-                        }
-                        arr = null;
-                    }, i * 20);
-                }
-            } catch (e) {
-                // Ignore errors
-            }
+            const memoryInfo = window.performance.memory;
+            console.log('Memory before cleanup:', {
+                usedJSHeapSize: formatBytes(memoryInfo.usedJSHeapSize),
+                totalJSHeapSize: formatBytes(memoryInfo.totalJSHeapSize),
+                jsHeapSizeLimit: formatBytes(memoryInfo.jsHeapSizeLimit)
+            });
         }
     }
 }
