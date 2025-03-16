@@ -143,23 +143,32 @@
             
             <div class="theta">
                 <p>
-                    Θ-functions are built from structured sums of Fourier modes that naturally produce regular, periodic patterns.
-                    They may provide a mathematical model of the mammalian grid code - with harmonic scaling ratios.
-                </p>
-              </div>
-              <div class="tau">
-                <p>
-                    Future: τ-functions extend Θ-functions by adding non-linear interactions among the Fourier modes.
-                    This will allow us the model how how the grid code captures the subtle complexities of real-life phenomena. As a start, we can model the grid code with shallow water waves (there are <i>big</i> complexities; see [Sato, 1981] and a whole literature that I am yet to learn), but the maths for the first steps will take a year or so to figure out - with the correct help from Leipzig/Dresden.
-                    Ultimately, the τ-function will allow us to model the grid code in complex envrionments, e.g. [Carptener et al. 2015].
+                    Θ-functions are built from structured sums of Fourier modes that generate regular, periodic patterns.
+                    They might serve as a mathematical model of the mammalian grid code, with harmonic scaling ratios between grid modules.
                 </p>
             </div>
-                <div class="psychosis">
-                    <p>
-                        As a final note, an impaired grid code has been implicated in schizophrenia [Convertino et al. 2023].
-                        In pyschosis, we may expect the regular hexagonal grid patterns to become less stable (impaired fronto-tempporal connectivity [Friston and Frith, 1995] due to a 'noisy' projection from mPFC to the MEC [conjecture]). The MEC grid code will instead look chaotic: <i>a raging sea.</i>
-                    </p>
-              </div>
+            
+            <div class="tau">
+                <p>
+                    Future: τ-functions [Sato, 1981] extend Θ-functions by introducing non-linear interactions among these Fourier modes.
+                    τ-functions naturally model the dynamics of shallow wave waves.
+                    This will allow us to model more realistic grid codes - fill the environment with water!.
+                    The maths may take about a year to get clear, hopefully with guidance from Leipzig/Dresden.
+                    τ-functions should allow us to model the grid code in more complex environments, e.g. [Carpenter et al. 2015].
+                </p>
+            </div>
+            
+            <div class="psychosis">
+                <p>
+                    Finally, an impaired grid code has been linked to schizophrenia [Convertino et al. 2023].
+                    Grid cells have been suggested to implement an error-correction mechanism [Fiete, 2011], so in psychosis,
+                    disruptions in fronto-temporal theta coordination or increased 'noise' in the projection from mPFC to MEC
+                    may undermine the stability of otherwise regular hexagonal patterns. These disruptions could align in part
+                    with the framework proposed by Friston and Frith [1995], though this remains partially conjectural.
+                </p>
+            </div>
+            
+            
         </div>
         {/if}
     </div>

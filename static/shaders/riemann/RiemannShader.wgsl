@@ -16,8 +16,12 @@ struct TimeUniform {
 
 // Function to generate color based on height
 fn heightColor(height: f32, time: f32) -> vec3<f32> {
-    // Normalize height to [0, 1] range
-    // For flat surface, this will be 0.5 (middle of range)
+    // For flat surface, use a simple grid pattern instead of height-based coloring
+    if (abs(height) < 0.001) {
+        return vec3<f32>(0.2, 0.4, 0.8); // Consistent blue for flat surface
+    }
+    
+    // Normalize height to [0, 1] range for non-flat surfaces
     let normalizedHeight = (height + 1.0) * 0.5;
     
     // Create a gradient from blue (low) to cyan (high)
@@ -79,26 +83,28 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     // Transform position with view and projection matrices
     output.position = projection * view * vec4<f32>(position, 1.0);
     
-    // Calculate normal (approximate)
-    var normal = vec3<f32>(0.0, 0.0, 1.0);
-    
-    // Better normal approximation based on position
-    if (abs(position.z) > 0.01) {
+    // For flat surface (z near zero), use a true flat normal
+    if (abs(position.z) < 0.001) {
+        output.normal = vec3<f32>(0.0, 0.0, 1.0);
+    } else {
         // For non-flat surfaces, estimate normal based on z gradient
-        normal = normalize(vec3<f32>(
+        output.normal = normalize(vec3<f32>(
             -position.z * sign(position.x) * 2.0,
             -position.z * sign(position.y) * 2.0,
             1.0
         ));
     }
     
-    output.normal = normal;
-    
     // Choose coloring based on surface type
     let time = timeUniform.time;
     
-    // For flat surface and torus, use height-based coloring
-    output.color = heightColor(position.z, time);
+    // For flat surface, use a solid color without grid lines
+    if (abs(position.z) < 0.001) {
+        output.color = vec3<f32>(0.2, 0.4, 0.8); // Solid blue for flat surface
+    } else {
+        // For non-flat surfaces, use height-based coloring
+        output.color = heightColor(position.z, time);
+    }
     
     return output;
 }
@@ -109,7 +115,13 @@ fn fragmentMain(
     @location(1) normal: vec3<f32>,
     @location(2) worldPos: vec3<f32>
 ) -> @location(0) vec4<f32> {
-    // Enhanced lighting with fixed view direction
+    // For flat surface, use minimal lighting to keep it looking flat
+    if (abs(worldPos.z) < 0.001) {
+        // Just add a slight ambient lighting
+        return vec4<f32>(color * 1.0, 1.0);
+    }
+    
+    // Enhanced lighting with fixed view direction for non-flat surfaces
     let light_dir = normalize(vec3<f32>(0.5, 0.5, 1.0));
     let diffuse = max(dot(normal, light_dir), 0.0);
     let ambient = 0.3;

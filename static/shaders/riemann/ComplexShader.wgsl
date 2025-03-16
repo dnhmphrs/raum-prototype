@@ -39,17 +39,29 @@ fn heightColor(height: f32) -> vec3<f32> {
 
 // A dramatically changing surface function with improved stability
 fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
-    // Convert to polar coordinates
+    // Convert to polar coordinates with safety for origin
     let r = sqrt(x * x + y * y);
-    let theta = atan2(y, x);
+    
+    // Special handling for points very close to origin to avoid discontinuities
+    let originThreshold = 0.05;
+    let originFactor = smoothstep(0.0, originThreshold, r);
+    
+    // Safe theta calculation that avoids undefined behavior at origin
+    var theta: f32;
+    if (r < 0.001) {
+        // At origin, use a default angle that changes with time to avoid artifacts
+        theta = time * 0.5;
+    } else {
+        theta = atan2(y, x);
+    }
     
     // Create multiple time-based effects
     
     // 1. Moving peaks that travel across the surface
-    let peak1X = sin(time * 0.3) * 1.6;
-    let peak1Y = cos(time * 0.4) * 1.6;
-    let peak2X = sin(time * 0.5 + 2.0) * 1.6;
-    let peak2Y = cos(time * 0.2 + 1.0) * 1.6;
+    let peak1X = sin(time * 0.3) * 1.0;
+    let peak1Y = cos(time * 0.4) * 1.0;
+    let peak2X = sin(time * 0.5 + 2.0) * 1.0;
+    let peak2Y = cos(time * 0.2 + 1.0) * 1.0;
     
     let dist1 = sqrt(pow(x - peak1X, 2.0) + pow(y - peak1Y, 2.0));
     let dist2 = sqrt(pow(x - peak2X, 2.0) + pow(y - peak2Y, 2.0));
@@ -61,14 +73,15 @@ fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
     let peak1 = 1.5 * exp(-safeD1 * 1.2);
     let peak2 = 1.2 * exp(-safeD2 * 1.2);
     
-    // 2. Ripples with changing frequency
+    // 2. Ripples with changing frequency - fade out near origin
     let rippleFreq = 5.0 + 3.0 * sin(time * 0.2);
-    let ripple = 0.4 * sin(r * rippleFreq - time * 2.0);
+    let ripple = 0.4 * sin(r * rippleFreq - time * 2.0) * originFactor;
     
-    // 3. Spiral waves that rotate
+    // 3. Spiral waves that rotate - fade out near origin
     let spiralFreq = 3.0 + sin(time * 0.3);
     let spiralPhase = time * 1.5;
-    let spiral = 0.5 * sin(theta * spiralFreq + r * 4.0 + spiralPhase) * exp(-r * 0.8);
+    // Apply originFactor to spiral effect to smoothly fade it near origin
+    let spiral = 0.5 * sin(theta * spiralFreq + r * 4.0 + spiralPhase) * exp(-r * 0.8) * originFactor;
     
     // 4. Pulsing effect
     let pulse = 0.3 * sin(time * 0.7) + 1.0;
@@ -84,8 +97,12 @@ fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
     let norm2 = blend2 / blendSum;
     let norm3 = blend3 / blendSum;
     
-    // Combine effects with dramatic time-based changes
-    return pulse * (norm1 * (peak1 + peak2) + norm2 * ripple + norm3 * spiral);
+    // Near the origin, gradually transition to a simpler, more stable function
+    let originHeight = sin(time * 0.7) * 0.5; // Simple oscillation at origin
+    let mainEffect = pulse * (norm1 * (peak1 + peak2) + norm2 * ripple + norm3 * spiral);
+    
+    // Blend between the origin-specific height and the main effect based on distance from origin
+    return mix(originHeight, mainEffect, originFactor);
 }
 
 @vertex
@@ -108,16 +125,22 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     // Transform position with view and projection
     output.position = projection * view * vec4<f32>(modifiedPosition, 1.0);
 
-    // Approximate normal via partial derivatives with safety checks
-    let epsilon = 0.01;
+    // Approximate normal via partial derivatives with improved safety checks
+    // Use adaptive epsilon based on distance from origin for better normal calculation
+    let distFromOrigin = sqrt(position.x * position.x + position.y * position.y);
+    let epsilon = max(0.01, distFromOrigin * 0.05); // Adaptive epsilon
+    
     let dx = surfaceFunction(position.x + epsilon, position.y, time) - height;
     let dy = surfaceFunction(position.x, position.y + epsilon, time) - height;
     
     // Ensure normal is valid (avoid zero-length normals)
     var normal = vec3<f32>(-dx / epsilon, -dy / epsilon, 1.0);
     let len = length(normal);
-    if (len < 0.001) {
-        normal = vec3<f32>(0.0, 0.0, 1.0); // Default normal if calculation breaks down
+    
+    // More robust normal handling
+    if (len < 0.001 || distFromOrigin < 0.01) {
+        // At or very near origin, use a stable upward-pointing normal
+        normal = vec3<f32>(0.0, 0.0, 1.0);
     } else {
         normal = normal / len; // Normalize
     }
