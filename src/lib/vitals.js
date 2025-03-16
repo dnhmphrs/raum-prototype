@@ -27,10 +27,6 @@ function sendToAnalytics(metric, options) {
 		speed: getConnectionSpeed()
 	};
 
-	if (options.debug) {
-		console.log('[Web Vitals]', metric.name, JSON.stringify(body, null, 2));
-	}
-
 	const blob = new Blob([new URLSearchParams(body).toString()], {
 		// This content type is necessary for `sendBeacon`
 		type: 'application/x-www-form-urlencoded'
@@ -51,7 +47,7 @@ function sendToAnalytics(metric, options) {
  */
 export function webVitals(options) {
 	try {
-		console.log(`[Web Vitals] for page ${options.path}`);
+
 		onFID((metric) => sendToAnalytics(metric, options));
 		onTTFB((metric) => sendToAnalytics(metric, options));
 		onLCP((metric) => sendToAnalytics(metric, options));

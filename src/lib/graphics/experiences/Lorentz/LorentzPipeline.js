@@ -39,14 +39,10 @@ export default class LorentzPipeline extends Pipeline {
         // Shader code
         this.lorentzShaderCode = null;
         this.lorentzComputeShaderCode = null;
-        
-        console.log("LorentzPipeline constructor completed");
     }
 
     async initialize() {
         try {
-            console.log("Loading shader files...");
-            
             // Fetch the shader files from the static directory
             try {
                 // Fetch compute shader
@@ -55,7 +51,6 @@ export default class LorentzPipeline extends Pipeline {
                     throw new Error(`Failed to load compute shader: ${computeResponse.statusText}`);
                 }
                 this.lorentzComputeShaderCode = await computeResponse.text();
-                console.log("Lorentz compute shader loaded from static directory");
                 
                 // Fetch render shader
                 const renderResponse = await fetch('/shaders/lorentz/lorentzShader.wgsl');
@@ -63,14 +58,11 @@ export default class LorentzPipeline extends Pipeline {
                     throw new Error(`Failed to load render shader: ${renderResponse.statusText}`);
                 }
                 this.lorentzShaderCode = await renderResponse.text();
-                console.log("Lorentz render shader loaded from static directory");
             } catch (error) {
-                console.error("Error loading Lorentz shaders:", error);
                 throw error;
             }
             
-            console.log("Creating compute shader module...");
-            // Create compute shader
+            // Create compute shader module
             const computeModule = this.device.createShaderModule({
                 label: 'Lorentz compute shader',
                 code: this.lorentzComputeShaderCode
@@ -161,10 +153,8 @@ export default class LorentzPipeline extends Pipeline {
             // Initial parameter update
             this.updateParams({});
             
-            console.log("LorentzPipeline initialization complete");
             return true;
         } catch (error) {
-            console.error("Error initializing LorentzPipeline:", error);
             throw error;
         }
     }
@@ -198,18 +188,12 @@ export default class LorentzPipeline extends Pipeline {
 
     render(commandEncoder, passDescriptor, params = {}) {
         try {
-            console.log("Rendering Lorentz with params:", params);
-            
             // Check if we have a valid passDescriptor
             if (!passDescriptor || !passDescriptor.colorAttachments || 
                 !passDescriptor.colorAttachments[0] || 
                 !passDescriptor.colorAttachments[0].view) {
-                console.error("Invalid passDescriptor:", passDescriptor);
                 return;
             }
-            
-            // Log the texture view
-            console.log("Texture view:", passDescriptor.colorAttachments[0].view);
             
             // Update parameters
             this.updateParams(params);
@@ -228,10 +212,7 @@ export default class LorentzPipeline extends Pipeline {
             renderPass.setVertexBuffer(0, this.verticesBuffer);
             renderPass.draw(this.numPoints);
             renderPass.end();
-            
-            console.log("Render completed successfully");
         } catch (error) {
-            console.error("Error in LorentzPipeline render:", error);
         }
     }
     

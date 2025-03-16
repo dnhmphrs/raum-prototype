@@ -14,9 +14,7 @@ export default class RenderPipeline2D extends Pipeline {
 			const response = await fetch('/shaders/poincare/zeta.wgsl');
 			if (response.ok) {
 				this.shaderCode = await response.text();
-				console.log("Poincare zeta shader loaded from static directory");
 			} else {
-				console.error("Failed to load Poincare zeta shader from static directory");
 				return false;
 			}
 		} catch (error) {

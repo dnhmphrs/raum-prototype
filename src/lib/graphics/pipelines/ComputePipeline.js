@@ -9,9 +9,79 @@ export default class ComputePipeline {
 	}
 
 	async initialize() {
-		this.createBuffers();
-		await this.createPipeline();
-		this.createBindGroup();
+		try {
+			// Load shader code
+			const shaderCode = await this.loadShader();
+			if (!shaderCode) {
+				return false;
+			}
+			
+			// Create shader module
+			const shaderModule = this.device.createShaderModule({
+				label: "Compute Shader",
+				code: shaderCode
+			});
+			
+			// Create pipeline layout
+			const bindGroupLayout = this.device.createBindGroupLayout({
+				entries: [
+					{
+						binding: 0,
+						visibility: GPUShaderStage.COMPUTE,
+						buffer: {
+							type: "storage"
+						}
+					},
+					{
+						binding: 1,
+						visibility: GPUShaderStage.COMPUTE,
+						buffer: {
+							type: "storage"
+						}
+					}
+				]
+			});
+			
+			const pipelineLayout = this.device.createPipelineLayout({
+				bindGroupLayouts: [bindGroupLayout]
+			});
+			
+			// Create compute pipeline
+			this.pipeline = this.device.createComputePipeline({
+				layout: pipelineLayout,
+				compute: {
+					module: shaderModule,
+					entryPoint: "main"
+				}
+			});
+			
+			// Create bind group
+			this.bindGroup = this.createBindGroup();
+			if (!this.bindGroup) {
+				return false;
+			}
+			
+			return true;
+		} catch (error) {
+			console.error("Error initializing compute pipeline:", error);
+			return false;
+		}
+	}
+
+	async loadShader() {
+		try {
+			const response = await fetch('/shaders/compute.wgsl');
+			if (response.ok) {
+				const shader = await response.text();
+				return shader;
+			} else {
+				console.error("Failed to load compute shader from static directory");
+				return null;
+			}
+		} catch (error) {
+			console.error("Error loading compute shader:", error);
+			return null;
+		}
 	}
 
 	createBuffers() {
@@ -30,53 +100,26 @@ export default class ComputePipeline {
 		});
 	}
 
-	async createPipeline() {
-		// Fetch the shader from the static directory
-		try {
-			const response = await fetch('/shaders/compute/compute.wgsl');
-			if (response.ok) {
-				this.shaderCode = await response.text();
-				console.log("Compute shader loaded from static directory");
-			} else {
-				console.error("Failed to load compute shader from static directory");
-				return false;
-			}
-		} catch (error) {
-			console.error("Error loading compute shader:", error);
-			return false;
+	createBindGroup() {
+		if (!this.pipeline || !this.storageBuffer || !this.readBuffer) {
+			console.error('Pipeline or buffers not initialized for bind group creation.');
+			return null;
 		}
 		
-		// Create the shader module
-		const shaderModule = this.device.createShaderModule({
-			label: 'Compute Shader Module',
-			code: this.shaderCode
-		});
-
-		// Create the compute pipeline
-		this.pipeline = await this.device.createComputePipelineAsync({
-			label: 'Compute Pipeline',
-			layout: 'auto',
-			compute: {
-				module: shaderModule,
-				entryPoint: 'compute_main'
-			}
-		});
-	}
-
-	createBindGroup() {
-		if (!this.pipeline || !this.storageBuffer) {
-			console.error('Pipeline or buffers not initialized for bind group creation.');
-			return;
-		}
-
-		// Create the bind group for the pipeline
-		this.bindGroup = this.device.createBindGroup({
-			label: 'Compute Bind Group',
+		return this.device.createBindGroup({
 			layout: this.pipeline.getBindGroupLayout(0),
 			entries: [
 				{
 					binding: 0,
-					resource: { buffer: this.storageBuffer }
+					resource: {
+						buffer: this.storageBuffer
+					}
+				},
+				{
+					binding: 1,
+					resource: {
+						buffer: this.readBuffer
+					}
 				}
 			]
 		});
@@ -112,11 +155,52 @@ export default class ComputePipeline {
 		// Map and read the buffer (optional, for CPU-side usage)
 		await this.readBuffer.mapAsync(GPUMapMode.READ);
 		const mappedData = new Float32Array(this.readBuffer.getMappedRange());
-		console.log('Compute output:', mappedData.slice(0, 10));
 		this.readBuffer.unmap();
 	}
 
+	async readBuffer() {
+		try {
+			// Create a staging buffer for reading
+			const stagingBuffer = this.device.createBuffer({
+				size: this.outputBuffer.size,
+				usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+			});
+			
+			// Create command encoder
+			const commandEncoder = this.device.createCommandEncoder();
+			
+			// Copy output buffer to staging buffer
+			commandEncoder.copyBufferToBuffer(
+				this.outputBuffer,
+				0,
+				stagingBuffer,
+				0,
+				stagingBuffer.size
+			);
+			
+			// Submit commands
+			this.device.queue.submit([commandEncoder.finish()]);
+			
+			// Map the staging buffer for reading
+			await stagingBuffer.mapAsync(GPUMapMode.READ);
+			const mappedData = new Float32Array(stagingBuffer.getMappedRange());
+			
+			// Get the data
+			const data = mappedData.slice();
+			
+			// Unmap and destroy staging buffer
+			stagingBuffer.unmap();
+			stagingBuffer.destroy();
+			
+			return data;
+		} catch (error) {
+			console.error("Error reading compute buffer:", error);
+			return null;
+		}
+	}
+
 	cleanup() {
+		// Clean up buffers
 		// Since GPU pipelines don't have a destroy method, we can nullify references
 		this.pipeline = null;
 		this.bindGroup = null;

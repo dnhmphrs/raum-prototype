@@ -106,14 +106,11 @@ export default class Camera {
 		}
 	}
 
-	cleanup() {
-		console.log("Camera cleanup called");
-		
+	cleanup() {		
 		// Clean up all tracked resources
 		for (const type in this.resources) {
 			const resources = this.resources[type];
 			if (resources && resources.length > 0) {
-				console.log(`Cleaning up ${resources.length} camera ${type}`);
 				
 				// Clean up each resource
 				for (let i = resources.length - 1; i >= 0; i--) {
@@ -142,7 +139,6 @@ export default class Camera {
 		
 		// Unregister from memory manager
 		unregisterResource(this, 'others');
-		
-		console.log("Camera cleanup complete");
+	
 	}
 }

@@ -38,7 +38,6 @@
     img.onload = () => {
       imageLoaded = true;
       showImage = true; // Show image after loading
-      console.log("Image loaded successfully");
     };
     img.onerror = (e) => {
       console.error("Error loading image:", e);

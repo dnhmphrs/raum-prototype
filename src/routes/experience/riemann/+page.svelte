@@ -35,7 +35,6 @@
     
     // Function to change the manifold
     function changeManifold(manifoldType) {
-        console.log(`Changing manifold to: ${manifoldType}`);
         selectedManifold = manifoldTypes.find(m => m.id === manifoldType);
         
         // Show loading indicator while changing surface
@@ -44,13 +43,10 @@
         
         // Try multiple ways to find the experience
         if (experience) {
-            console.log("Using local experience reference");
             experience.updateSurface(manifoldType);
         } else if (engine && engine.scene && engine.scene.currentExperience) {
-            console.log("Using engine.scene.currentExperience");
             engine.scene.currentExperience.updateSurface(manifoldType);
         } else if (window.riemannExperience) {
-            console.log("Using global window.riemannExperience");
             window.riemannExperience.updateSurface(manifoldType);
         } else {
             console.error("Experience not initialized yet");
@@ -84,8 +80,6 @@
             } else if (window.riemannExperience) {
                 experience = window.riemannExperience;
             }
-            
-            console.log("Experience initialized:", experience);
             
             // Set initial surface to ripple
             if (experience) {

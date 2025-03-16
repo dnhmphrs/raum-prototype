@@ -71,11 +71,8 @@ class Engine {
 	}
 
 	async start(SceneClass, cameraConfig = {}) {
-		console.log("Engine starting...");
-		
 		// Clean up any existing resources first
 		if (this.device || this.context) {
-			console.log("Cleaning up existing resources before starting");
 			this.cleanup();
 		}
 		
@@ -84,7 +81,6 @@ class Engine {
 			this.webgpuContext = await initializeWebGPU(this.canvas);
 			
 			if (!this.webgpuContext) {
-				console.error("Failed to initialize WebGPU context");
 				return null;
 			}
 			
@@ -153,8 +149,6 @@ class Engine {
 				this.experience = this.scene;
 			}
 			
-			console.log("Engine started with experience:", this.experience);
-	
 			// Initialize Interaction Manager
 			this.interactionManager = new InteractionManager(this.canvas, this);
 			this.trackResource(this.interactionManager, 'others');
@@ -165,7 +159,6 @@ class Engine {
 			
 			return this.experience;
 		} catch (error) {
-			console.error("Error starting engine:", error);
 			this.cleanup();
 			return null;
 		}
@@ -173,43 +166,33 @@ class Engine {
 
 	updateViewport(width, height) {
 		if (!this.canvas || !this.device) {
-			console.warn("Cannot update viewport: canvas or device is null");
 			return;
 		}
 		
 		if (width <= 0 || height <= 0) {
-			console.warn(`Invalid viewport dimensions: ${width}x${height}`);
 			return;
 		}
 		
-		console.log(`Updating viewport to ${width}x${height}`);
-		
-		try {
-			this.canvas.width = width;
-			this.canvas.height = height;
+		this.canvas.width = width;
+		this.canvas.height = height;
 	
-			// Update ResourceManager with new viewport size
-			if (this.resourceManager) {
-				this.resourceManager.updateViewportSize(width, height);
-			}
-	
-			// Update camera's aspect ratio
-			if (this.cameraController) {
-				this.cameraController.updateAspect(width, height);
-			}
-	
-			// Update the scene if it has an onResize method
-			if (this.scene && this.scene.onResize) {
-				this.scene.onResize(width, height);
-			}
-		} catch (error) {
-			console.error("Error updating viewport:", error);
+		// Update ResourceManager with new viewport size
+		if (this.resourceManager) {
+			this.resourceManager.updateViewportSize(width, height);
+		}
+
+		// Update camera's aspect ratio
+		if (this.cameraController) {
+			this.cameraController.updateAspect(width, height);
+		}
+
+		// Update the scene if it has an onResize method
+		if (this.scene && this.scene.onResize) {
+			this.scene.onResize(width, height);
 		}
 	}
 
 	cleanup() {
-		console.log("Engine cleanup called");
-		
 		// Stop animation frame if it's running
 		if (this.animationFrameId) {
 			cancelAnimationFrame(this.animationFrameId);
@@ -218,7 +201,6 @@ class Engine {
 		
 		// Clean up experience
 		if (this.experience) {
-			console.log("Cleaning up experience");
 			if (typeof this.experience.cleanup === 'function') {
 				this.experience.cleanup();
 			}
@@ -227,7 +209,6 @@ class Engine {
 		
 		// Clean up scene if different from experience
 		if (this.scene && this.scene !== this.experience) {
-			console.log("Cleaning up scene");
 			if (typeof this.scene.cleanup === 'function') {
 				this.scene.cleanup();
 			}
@@ -236,7 +217,6 @@ class Engine {
 		
 		// Cleanup interaction manager
 		if (this.interactionManager) {
-			console.log("Cleaning up interaction manager");
 			if (typeof this.interactionManager.destroy === 'function') {
 				this.interactionManager.destroy();
 			}
@@ -245,7 +225,6 @@ class Engine {
 
 		// Cleanup camera and controller
 		if (this.camera) {
-			console.log("Cleaning up camera");
 			if (typeof this.camera.cleanup === 'function') {
 				this.camera.cleanup();
 			}
@@ -253,7 +232,6 @@ class Engine {
 		}
 		
 		if (this.cameraController) {
-			console.log("Cleaning up camera controller");
 			if (typeof this.cameraController.cleanup === 'function') {
 				this.cameraController.cleanup();
 			}
@@ -262,14 +240,12 @@ class Engine {
 		
 		// Clean up resource manager
 		if (this.resourceManager) {
-			console.log("Cleaning up resource manager");
 			this.resourceManager.cleanup();
 			this.resourceManager = null;
 		}
 		
 		// Clean up WebGPU context
 		if (this.webgpuContext) {
-			console.log("Cleaning up WebGPU context");
 			if (typeof this.webgpuContext.cleanup === 'function') {
 				this.webgpuContext.cleanup();
 			}
@@ -284,9 +260,6 @@ class Engine {
 		for (const type in this.resources) {
 			const resources = this.resources[type];
 			if (resources && resources.length > 0) {
-				console.log(`Cleaning up ${resources.length} engine ${type}`);
-				
-				// Clean up each resource
 				for (let i = resources.length - 1; i >= 0; i--) {
 					const resource = resources[i];
 					if (resource) {
@@ -316,21 +289,17 @@ class Engine {
 		
 		// Unregister from memory manager
 		unregisterResource(this, 'others');
-		
-		console.log("Engine cleanup complete");
 	}
 
 	render = () => {
 		// Check if we have a valid device and context
 		if (!this.device || !this.context) {
-			console.error("Cannot render: WebGPU device or context is null");
 			return;
 		}
 		
 		// Check if auto cleanup is needed
 		const now = Date.now();
 		if (now - this.lastAutoCleanupTime > this.autoCleanupInterval) {
-			console.log("Performing auto cleanup");
 			this.performGarbageCollection();
 			this.lastAutoCleanupTime = now;
 		}
@@ -350,7 +319,6 @@ class Engine {
 			// Submit the command buffer
 			this.device.queue.submit([commandEncoder.finish()]);
 		} catch (error) {
-			console.error("Error in render loop:", error);
 			// Don't stop the render loop on error, just log it
 		}
 
@@ -359,8 +327,6 @@ class Engine {
 	}
 
 	handleResize() {
-		console.log("Engine handleResize called");
-		
 		// Update canvas size
 		if (this.canvas) {
 			const width = this.canvas.clientWidth;
@@ -369,7 +335,6 @@ class Engine {
 			if (width > 0 && height > 0) {
 				this.canvas.width = width;
 				this.canvas.height = height;
-				console.log(`Canvas resized to ${width}x${height}`);
 				
 				// Update context configuration if needed
 				if (this.context && this.device) {
@@ -380,7 +345,7 @@ class Engine {
 							alphaMode: 'premultiplied'
 						});
 					} catch (error) {
-						console.error("Error reconfiguring context:", error);
+						// Error reconfiguring context
 					}
 				}
 				
@@ -399,28 +364,24 @@ class Engine {
 					this.scene.handleResize(width, height);
 				}
 			} else {
-				console.warn(`Invalid canvas dimensions: ${width}x${height}`);
+				// Invalid canvas dimensions
 			}
 		}
 	}
 
 	// Add a stop method that calls cleanup for compatibility
 	stop() {
-		console.log("Engine stop called");
 		this.cleanup();
 	}
 
 	// Add a method to force garbage collection and memory cleanup
 	performGarbageCollection() {
-		console.log("Forcing garbage collection");
-		
 		// Update memory stats
 		this.memoryStats.lastCleanupTime = Date.now();
 		this.memoryStats.cleanupCount++;
 		
 		// Use the MemoryManager to get and log memory stats
 		const memoryStats = getMemoryStats();
-		console.log("Memory usage:", memoryStats);
 		
 		// Force garbage collection
 		forceGarbageCollection();
@@ -433,8 +394,6 @@ class Engine {
 	
 	// Static method to clean up all WebGPU resources
 	static cleanupAll() {
-		console.log("Cleaning up all WebGPU resources");
-		
 		// Clean up all WebGPU contexts
 		cleanupAllWebGPUContexts();
 		

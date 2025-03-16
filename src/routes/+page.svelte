@@ -78,7 +78,6 @@
         await engine.start(HomeBackgroundExperience);
         
         backgroundLoaded = true;
-        console.log("Background shader initialized");
       } catch (error) {
         console.error("Error initializing background shader:", error);
         backgroundLoaded = true; // Still mark as loaded to avoid blocking UI

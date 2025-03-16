@@ -132,15 +132,12 @@ export default class FlockingPipeline extends Pipeline {
 
         // IMPORTANT: Load all shader files from static directory FIRST
         try {
-            console.log("Loading shader files from static directory...");
-            
             // Load bird shader
             const birdResponse = await fetch('/shaders/flocking/birdShader.wgsl');
             if (!birdResponse.ok) {
                 throw new Error(`Failed to load bird shader: ${birdResponse.statusText}`);
             }
             this.birdShaderCode = await birdResponse.text();
-            console.log("Bird shader loaded from static directory");
             
             // Load predator shader
             const predatorResponse = await fetch('/shaders/flocking/predatorShader.wgsl');
@@ -148,7 +145,6 @@ export default class FlockingPipeline extends Pipeline {
                 throw new Error(`Failed to load predator shader: ${predatorResponse.statusText}`);
             }
             this.predatorShaderCode = await predatorResponse.text();
-            console.log("Predator shader loaded from static directory");
             
             // Load flocking shader
             const flockingResponse = await fetch('/shaders/flocking/flockingShader.wgsl');
@@ -156,7 +152,6 @@ export default class FlockingPipeline extends Pipeline {
                 throw new Error(`Failed to load flocking shader: ${flockingResponse.statusText}`);
             }
             this.flockingShaderCode = await flockingResponse.text();
-            console.log("Flocking shader loaded from static directory");
             
             // Load hunting shader
             const huntingResponse = await fetch('/shaders/flocking/huntingShader.wgsl');
@@ -164,7 +159,6 @@ export default class FlockingPipeline extends Pipeline {
                 throw new Error(`Failed to load hunting shader: ${huntingResponse.statusText}`);
             }
             this.huntingShaderCode = await huntingResponse.text();
-            console.log("Hunting shader loaded from static directory");
             
             // Load background shader
             const backgroundResponse = await fetch('/shaders/flocking/backgroundShader.wgsl');
@@ -172,7 +166,6 @@ export default class FlockingPipeline extends Pipeline {
                 throw new Error(`Failed to load background shader: ${backgroundResponse.statusText}`);
             }
             this.backgroundShaderCode = await backgroundResponse.text();
-            console.log("Background shader loaded from static directory");
             
             // Load guiding line shader
             const guidingLineResponse = await fetch('/shaders/flocking/guidingLineShader.wgsl');
@@ -180,11 +173,8 @@ export default class FlockingPipeline extends Pipeline {
                 throw new Error(`Failed to load guiding line shader: ${guidingLineResponse.statusText}`);
             }
             this.guidingLineShaderCode = await guidingLineResponse.text();
-            console.log("Guiding line shader loaded from static directory");
             
             // Now that all shaders are loaded, initialize the pipelines
-            console.log("All shaders loaded, initializing pipelines...");
-            
             // Initialize compute pipelines
             await this.initializeFlockingComputePipeline();
             await this.initializeHuntingComputePipeline();
@@ -194,10 +184,8 @@ export default class FlockingPipeline extends Pipeline {
             const { projectionBuffer, viewBuffer } = this.camera.getBuffers();
             await this.initializeRenderPipelines(format, projectionBuffer, viewBuffer);
             
-            console.log("All pipelines initialized successfully");
             return true;
         } catch (error) {
-            console.error("Error in FlockingPipeline initialization:", error);
             return false;
         }
     }
@@ -683,8 +671,6 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     cleanup() {
-        console.log("Cleaning up FlockingPipeline");
-        
         // Destroy all buffers
         const buffers = [
             'phaseBuffer', 'positionBuffer', 'velocityBuffer', 
@@ -694,7 +680,6 @@ export default class FlockingPipeline extends Pipeline {
         
         buffers.forEach(bufferName => {
             if (this[bufferName]) {
-                console.log(`Destroying ${bufferName}`);
                 this[bufferName] = null;
             }
         });
@@ -708,7 +693,6 @@ export default class FlockingPipeline extends Pipeline {
         
         bindGroups.forEach(groupName => {
             if (this[groupName]) {
-                console.log(`Nullifying ${groupName}`);
                 this[groupName] = null;
             }
         });
@@ -721,7 +705,6 @@ export default class FlockingPipeline extends Pipeline {
         
         pipelines.forEach(pipelineName => {
             if (this[pipelineName]) {
-                console.log(`Nullifying ${pipelineName}`);
                 this[pipelineName] = null;
             }
         });
@@ -730,8 +713,6 @@ export default class FlockingPipeline extends Pipeline {
         this.camera = null;
         this.viewportBuffer = null;
         this.mouseBuffer = null;
-        
-        console.log("FlockingPipeline cleanup complete");
         
         // Call parent cleanup
         super.cleanup();
@@ -747,20 +728,15 @@ export default class FlockingPipeline extends Pipeline {
         // Get current time in seconds
         const currentTime = performance.now() / 100;
         
-        // Create multiple time loops with co-prime durations (all prime numbers)
-        const primaryLoopDuration = 157.0;    // Prime number
-        const secondaryLoopDuration = 101.0;  // Different prime number
-        const tertiaryLoopDuration = 73.0;    // Third prime number
-        
         // Calculate looped times
-        const primaryTime = currentTime % primaryLoopDuration;
-        const secondaryTime = currentTime % secondaryLoopDuration;
-        const tertiaryTime = currentTime % tertiaryLoopDuration;
+        const primaryTime = currentTime % 157.0;
+        const secondaryTime = currentTime % 101.0;
+        const tertiaryTime = currentTime % 73.0;
         
         // Combine the three time values with different influences
         const combinedTime = primaryTime + 
-                             (Math.sin(secondaryTime / secondaryLoopDuration * Math.PI * 2) * 10.0) +
-                             (Math.cos(tertiaryTime / tertiaryLoopDuration * Math.PI * 4) * 5.0);
+                             (Math.sin(secondaryTime / 101.0 * Math.PI * 2) * 10.0) +
+                             (Math.cos(tertiaryTime / 73.0 * Math.PI * 4) * 5.0);
         
         // Write the combined time to the time buffer
         this.device.queue.writeBuffer(this.timeBuffer, 0, new Float32Array([combinedTime]));

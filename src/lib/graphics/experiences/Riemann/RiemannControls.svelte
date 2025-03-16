@@ -2,8 +2,6 @@
 <!-- We've simplified the Riemann experience to just render a flat grid with no UI controls. -->
 
 <script>
-  // This component has been intentionally disabled
-  console.log("DISABLED RiemannControls component loaded");
 </script>
 
 <div class="disabled-notice">

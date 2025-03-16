@@ -135,11 +135,9 @@ class FlockingExperience extends Experience {
 
         // If performance is consistently poor, switch to low performance mode
         if (avgFrameTime > 50.0 && !this.pipeline.lowPerformanceMode) { // 50ms = ~20fps
-            console.log("Switching to low performance mode");
             this.pipeline.updatePerformanceMode(true);
         } else if (avgFrameTime < 30.0 && this.pipeline.lowPerformanceMode) { // 30ms = ~33fps
             // If performance improves, switch back to high quality
-            console.log("Switching to high performance mode");
             this.pipeline.updatePerformanceMode(false);
         }
     }
@@ -203,8 +201,6 @@ class FlockingExperience extends Experience {
 
         // Update the target index in the pipeline
         this.pipeline.updateTargetIndex(newTargetIndex);
-
-        // console.log(`Predator target changed to bird index: ${newTargetIndex}`);
     }
 
     handleVisibilityChange() {
@@ -215,21 +211,17 @@ class FlockingExperience extends Experience {
     }
 
     cleanup() {
-        console.log("Cleaning up FlockingExperience");
-        
         // Remove event listeners
         document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
         
         // Cleanup pipeline
         if (this.pipeline) {
-            console.log("Cleaning up FlockingPipeline");
             this.pipeline.cleanup();
             this.pipeline = null;
         }
 
         // Cleanup birds
         if (this.birds && this.birds.length > 0) {
-            console.log(`Cleaning up ${this.birds.length} birds`);
             this.birds.forEach((bird) => {
                 if (bird && typeof bird.cleanup === 'function') {
                     bird.cleanup();
@@ -240,7 +232,6 @@ class FlockingExperience extends Experience {
 
         // Cleanup predator
         if (this.predator) {
-            console.log("Cleaning up predator");
             if (typeof this.predator.cleanup === 'function') {
                 this.predator.cleanup();
             }
@@ -249,7 +240,6 @@ class FlockingExperience extends Experience {
         
         // Cleanup guiding line
         if (this.guidingLine) {
-            console.log("Cleaning up guiding line");
             if (typeof this.guidingLine.cleanup === 'function') {
                 this.guidingLine.cleanup();
             }
@@ -263,8 +253,6 @@ class FlockingExperience extends Experience {
         
         // Call parent cleanup to handle common resources
         super.cleanup();
-        
-        console.log("FlockingExperience cleanup complete");
     }
 
     onResize(width, height) {

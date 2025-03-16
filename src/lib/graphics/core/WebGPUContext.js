@@ -61,7 +61,6 @@ export async function initializeWebGPU(canvas) {
 			
 			// Cleanup method for this context
 			cleanup: function() {
-				console.log('Cleaning up WebGPU context');
 				
 				// Remove from active contexts
 				activeContexts.delete(this);
@@ -87,7 +86,7 @@ export async function initializeWebGPU(canvas) {
 				// Unregister from memory manager
 				unregisterResource(this, 'others');
 				
-				console.log('WebGPU context cleanup complete');
+				('WebGPU context cleanup complete');
 			}
 		};
 		
@@ -105,9 +104,7 @@ export async function initializeWebGPU(canvas) {
 }
 
 // Utility function to clean up all active WebGPU contexts
-export function cleanupAllWebGPUContexts() {
-	console.log(`Cleaning up ${activeContexts.size} WebGPU contexts`);
-	
+export function cleanupAllWebGPUContexts() {	
 	// Create a copy of the set to avoid modification during iteration
 	const contextsToCleanup = [...activeContexts];
 	

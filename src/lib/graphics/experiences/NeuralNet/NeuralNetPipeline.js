@@ -37,10 +37,6 @@ export default class NeuralNetPipeline extends Pipeline {
 			const response = await fetch('/shaders/neuralnet/neuronShader.wgsl');
 			if (response.ok) {
 				this.shaderCode = await response.text();
-				console.log("Neuron shader loaded from static directory");
-			} else {
-				console.error("Failed to load neuron shader from static directory");
-				return;
 			}
 		} catch (error) {
 			console.error("Error loading neuron shader:", error);

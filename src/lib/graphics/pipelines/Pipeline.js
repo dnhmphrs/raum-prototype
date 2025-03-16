@@ -82,38 +82,31 @@ class Pipeline {
 	}
 
 	cleanup() {
-		console.log(`Cleaning up pipeline resources: ${this.constructor.name}`);
-		
-		// Clean up all tracked resources
+		// Clean up resources
 		for (const type in this.resources) {
 			const resources = this.resources[type];
 			if (resources && resources.length > 0) {
-				console.log(`Cleaning up ${resources.length} ${type}`);
-				
-				// Clean up each resource
-				for (let i = resources.length - 1; i >= 0; i--) {
-					const resource = resources[i];
+				for (const resource of resources) {
 					if (resource) {
-						// Unregister from global memory manager
-						unregisterResource(resource, type);
-						
-						// Explicitly nullify the resource
-						resources[i] = null;
+						// Call destroy method if available
+						resource.destroy?.();
+						// Clear reference
+						resource = null;
 					}
 				}
-				
-				// Clear the array
-				this.resources[type] = [];
+				// Clear array
+				resources.length = 0;
 			}
 		}
 		
-		// Clear references
-		this.pipeline = null;
-		this.bindGroup = null;
+		// Clear resources object
+		this.resources = {};
+		
+		// Clear device reference
 		this.device = null;
 		
-		// Unregister this pipeline
-		unregisterResource(this, 'pipelines');
+		// Clear resource manager reference
+		this.resourceManager = null;
 	}
 }
 

@@ -28,9 +28,7 @@ class InteractionManager {
 		this.handleResize();
 	}
 
-	destroy() {
-		console.log("Destroying InteractionManager");
-		
+	destroy() {		
 		// Remove event listeners using the same bound methods
 		window.removeEventListener('resize', this.handleResize);
 		window.removeEventListener('mousemove', this.handleMouseMove);
@@ -56,8 +54,7 @@ class InteractionManager {
 		} catch (e) {
 			console.error("Error resetting store values:", e);
 		}
-		
-		console.log("InteractionManager destroyed");
+	
 	}
 
 	handleResize() {

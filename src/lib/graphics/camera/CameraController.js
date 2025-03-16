@@ -107,9 +107,7 @@ export default class CameraController {
 		this.camera.updateAspect(width, height);
 	}
 	
-	cleanup() {
-		console.log("Cleaning up CameraController");
-		
+	cleanup() {		
 		// Clear references to camera
 		this.camera = null;
 		
@@ -121,8 +119,7 @@ export default class CameraController {
 		
 		// Clear target reference
 		this.target = null;
-		
-		console.log("CameraController cleanup complete");
+	
 	}
 }
 

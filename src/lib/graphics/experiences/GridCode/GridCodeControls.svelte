@@ -3,7 +3,6 @@
 
 <script>
   // This component has been intentionally disabled
-  console.log("DISABLED RiemannControls component loaded");
 </script>
 
 <div class="disabled-notice">

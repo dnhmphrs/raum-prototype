@@ -57,12 +57,13 @@ fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
 class HomeBackgroundExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
-        console.log("Creating Home Background Experience");
         
         // Store device and resource manager
         this.device = device;
         this.resourceManager = resourceManager;
         
+        // Initialize loading state
+        this.isLoading = true;
         // Create a full-screen quad
         const { vertices, indices } = createFullScreenQuad();
         
@@ -123,190 +124,135 @@ class HomeBackgroundExperience extends Experience {
         }
     }
     
+    async loadShader() {
+        // Fetch the shader from the static directory instead of using the imported one
+        let shaderCode = FALLBACK_SHADER;
+        try {
+            const response = await fetch('/shaders/home/MatrixShader.wgsl');
+            if (response.ok) {
+                shaderCode = await response.text();
+            } else {
+                console.warn("Matrix shader not found in static directory, using fallback shader");
+            }
+        } catch (error) {
+            console.error("Error loading Matrix shader:", error);
+            console.warn("Using fallback shader");
+        }
+        return shaderCode;
+    }
+    
     async initialize() {
-        console.log("Initializing Home Background Experience");
+        this.updateLoadingState(true, "Initializing pipeline...", 10);
         
         try {
-            // Create bind group layout with separate bindings
-            this.bindGroupLayout = this.device.createBindGroupLayout({
-                entries: [
-                    {
-                        binding: 0,
-                        visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
-                        buffer: { type: 'uniform' } // Time
-                    },
-                    {
-                        binding: 1,
-                        visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
-                        buffer: { type: 'uniform' } // Resolution
-                    },
-                    {
-                        binding: 2,
-                        visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
-                        buffer: { type: 'uniform' } // Mouse
-                    }
-                ]
-            });
+            // Create the pipeline
+            this.pipeline = new HomeBackgroundPipeline(this.device, this.resourceManager);
             
-            // Create pipeline layout
-            this.pipelineLayout = this.device.createPipelineLayout({
-                bindGroupLayouts: [this.bindGroupLayout]
-            });
-            
-            // Fetch the shader from the static directory instead of using the imported one
-            let shaderCode = FALLBACK_SHADER;
-            try {
-                const response = await fetch('/shaders/home/MatrixShader.wgsl');
-                if (response.ok) {
-                    shaderCode = await response.text();
-                    console.log("Matrix shader loaded from static directory");
-                } else {
-                    console.warn("Matrix shader not found in static directory, using fallback shader");
-                }
-            } catch (error) {
-                console.error("Error loading Matrix shader:", error);
-                console.warn("Using fallback shader");
+            // Initialize the pipeline
+            const success = await this.pipeline.initialize();
+            if (!success) {
+                this.updateLoadingState(true, "Failed to initialize pipeline", 100);
+                return false;
             }
             
-            const shaderModule = this.device.createShaderModule({
-                label: "Matrix Shader Module",
-                code: shaderCode
-            });
+            this.updateLoadingState(true, "Pipeline initialized", 50);
             
-            // Create render pipeline
-            this.pipeline = this.device.createRenderPipeline({
-                layout: this.pipelineLayout,
-                vertex: {
-                    module: shaderModule,
-                    entryPoint: 'vertexMain',
-                    buffers: [
-                        {
-                            arrayStride: 3 * 4, // 3 floats, 4 bytes each
-                            attributes: [
-                                {
-                                    // position
-                                    shaderLocation: 0,
-                                    offset: 0,
-                                    format: 'float32x3'
-                                }
-                            ]
-                        }
-                    ]
-                },
-                fragment: {
-                    module: shaderModule,
-                    entryPoint: 'fragmentMain',
-                    targets: [
-                        {
-                            format: navigator.gpu.getPreferredCanvasFormat()
-                        }
-                    ]
-                },
-                primitive: {
-                    topology: 'triangle-list'
+            // Set up camera target to center of grid without overriding position
+            this.updateLoadingState(true, "Configuring camera...", 90);
+            if (this.resourceManager && this.resourceManager.camera) {
+                // Look at the center of the grid (0,0,0)
+                this.resourceManager.camera.target = [0, 0, 0];
+                this.resourceManager.camera.updateView();
+                
+                // Set up camera controller if available
+                if (this.resourceManager.cameraController) {
+                    // Set the target to the center of the grid
+                    this.resourceManager.cameraController.target = [0, 0, 0];
                 }
-            });
+            }
             
-            // Create bind group with separate bindings
-            this.bindGroup = this.device.createBindGroup({
-                layout: this.bindGroupLayout,
-                entries: [
-                    {
-                        binding: 0,
-                        resource: {
-                            buffer: this.timeBuffer
-                        }
-                    },
-                    {
-                        binding: 1,
-                        resource: {
-                            buffer: this.resolutionBuffer
-                        }
-                    },
-                    {
-                        binding: 2,
-                        resource: {
-                            buffer: this.mouseBuffer
-                        }
-                    }
-                ]
-            });
-            
-            console.log("Home Background Experience initialized successfully");
+            this.updateLoadingState(false, "Initialization complete", 100);
             return true;
         } catch (error) {
             console.error("Error initializing Home Background Experience:", error);
+            this.updateLoadingState(false, `Error: ${error.message}`, 100);
             return false;
         }
     }
     
     render(commandEncoder, textureView) {
+        if (!this.pipeline || !this.pipeline.isInitialized) {
+            return;
+        }
+        
         try {
-            // Update time
-            this.time += 0.016; // Approximately 60fps
-            
-            // Get canvas dimensions - use the texture view's dimensions or fallback to window size
-            let width = 800;
-            let height = 600;
-            
-            // Try to get dimensions from the texture
-            if (textureView && textureView.texture) {
-                width = textureView.texture.width;
-                height = textureView.texture.height;
-            } 
-            // Fallback to window dimensions if available
-            else if (typeof window !== 'undefined') {
-                width = window.innerWidth;
-                height = window.innerHeight;
+            // Get depth texture view
+            const depthTextureView = this.resourceManager.getDepthTextureView?.();
+            if (!depthTextureView) {
+                return;
             }
             
-            // Update time buffer
-            this.device.queue.writeBuffer(this.timeBuffer, 0, new Float32Array([this.time]));
+            // Update time (for subtle animation)
+            this.time += 0.01;
             
-            // Update resolution buffer
-            this.device.queue.writeBuffer(this.resolutionBuffer, 0, new Float32Array([width, height]));
+            // Update uniform buffer with time
+            this.device.queue.writeBuffer(
+                this.uniformBuffer,
+                0,
+                new Float32Array([0, 0, 0, this.time])
+            );
             
-            // Update mouse buffer
-            this.device.queue.writeBuffer(this.mouseBuffer, 0, new Float32Array([this.mouse.x, this.mouse.y]));
-            
-            // Begin render pass
-            const renderPassDescriptor = {
-                colorAttachments: [
-                    {
-                        view: textureView,
-                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                        loadOp: 'clear',
-                        storeOp: 'store'
-                    }
-                ]
-            };
-            
-            const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-            passEncoder.setPipeline(this.pipeline);
-            passEncoder.setBindGroup(0, this.bindGroup);
-            passEncoder.setVertexBuffer(0, this.vertexBuffer);
-            passEncoder.setIndexBuffer(this.indexBuffer, 'uint16');
-            passEncoder.drawIndexed(6); // 6 indices for a quad (2 triangles)
-            passEncoder.end();
+            // Render using pipeline
+            this.pipeline.render(
+                commandEncoder,
+                textureView,
+                depthTextureView,
+                this.vertexBuffer,
+                this.indexBuffer,
+                this.uniformBuffer,
+                this.totalIndices
+            );
         } catch (error) {
             console.error("Error in Home Background render:", error);
         }
     }
     
     cleanup() {
-        console.log("Cleaning up Home Background Experience");
-        
         // Remove event listener
-        if (typeof window !== 'undefined') {
-            window.removeEventListener('mousemove', this.handleMouseMove);
+        // Clean up pipeline
+        if (this.pipeline) {
+            this.pipeline.cleanup();
+            this.pipeline = null;
         }
         
         // Clean up buffers
-        this.vertexBuffer = null;
-        this.indexBuffer = null;
-        this.timeBuffer = null;
-        this.resolutionBuffer = null;
-        this.mouseBuffer = null;
+        if (this.vertexBuffer) {
+            this.vertexBuffer = null;
+        }
+        
+        if (this.indexBuffer) {
+            this.indexBuffer = null;
+        }
+        
+        if (this.uniformBuffer) {
+            this.uniformBuffer = null;
+        }
+        
+        // Reset state
+        this.isLoading = true;
+        this.loadingProgress = 0;
+        this.time = 0;
+        
+        // Remove from resource manager
+        if (this.resourceManager && this.resourceManager.experiences) {
+            if (this.resourceManager.experiences.homeBackground === this) {
+                this.resourceManager.experiences.homeBackground = null;
+            }
+        }
+        
+        // Clear device and resource manager references
+        this.device = null;
+        this.resourceManager = null;
         
         // Call parent cleanup
         super.cleanup();

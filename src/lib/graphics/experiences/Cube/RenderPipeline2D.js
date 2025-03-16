@@ -53,15 +53,12 @@ export default class RenderPipeline2D extends Pipeline {
 	}
 	
 	async initialize() {
-		console.log("Initializing 2D Pipeline");
-		
 		try {
 			// Fetch the shader from the static directory
 			try {
 				const response = await fetch('/shaders/cube/theta2D.wgsl');
 				if (response.ok) {
 					this.shaderCode = await response.text();
-					console.log("Cube 2D shader loaded from static directory");
 				} else {
 					console.error("Failed to load cube 2D shader from static directory");
 					return false;
@@ -132,7 +129,6 @@ export default class RenderPipeline2D extends Pipeline {
 			});
 			
 			this.isInitialized = true;
-			console.log("2D Pipeline initialized successfully");
 			return true;
 		} catch (error) {
 			console.error("Error initializing 2D Pipeline:", error);
@@ -181,7 +177,6 @@ export default class RenderPipeline2D extends Pipeline {
 	}
 	
 	cleanup() {
-		console.log("Cleaning up 2D Pipeline");
 		this.isInitialized = false;
 	}
 }

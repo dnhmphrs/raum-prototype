@@ -165,44 +165,26 @@ class Experience {
 	}
 
 	cleanup() {
-		console.log(`Experience cleanup called for ${this.name}`);
-		
-		// Deactivate the experience
-		this.active = false;
-		
-		// Clean up any resources specific to this experience
-		if (this.objects && this.objects.length > 0) {
-			console.log(`Cleaning up ${this.objects.length} objects`);
-			for (let i = this.objects.length - 1; i >= 0; i--) {
-				const object = this.objects[i];
-				if (object && typeof object.cleanup === 'function') {
-					object.cleanup();
-				}
-				this.objects[i] = null;
+		// Remove all objects
+		this.objects.forEach(obj => {
+			if (obj && typeof obj.cleanup === 'function') {
+				obj.cleanup();
 			}
-			this.objects = [];
-		}
-		
-		// Clean up pipelines
-		if (this.pipelines && this.pipelines.length > 0) {
-			console.log(`Cleaning up ${this.pipelines.length} pipelines`);
-			for (let i = this.pipelines.length - 1; i >= 0; i--) {
-				const pipeline = this.pipelines[i];
-				if (pipeline && typeof pipeline.cleanup === 'function') {
-					pipeline.cleanup();
-				}
-				this.pipelines[i] = null;
+		});
+		this.objects = [];
+
+		// Remove all pipelines
+		this.pipelines.forEach(pipeline => {
+			if (pipeline && typeof pipeline.cleanup === 'function') {
+				pipeline.cleanup();
 			}
-			this.pipelines = [];
-		}
-		
+		});
+		this.pipelines = [];
+
 		// Clean up all tracked resources
 		for (const type in this.resources) {
 			const resources = this.resources[type];
 			if (resources && resources.length > 0) {
-				console.log(`Cleaning up ${resources.length} ${type}`);
-				
-				// Clean up each resource
 				for (let i = resources.length - 1; i >= 0; i--) {
 					const resource = resources[i];
 					if (resource) {
@@ -218,15 +200,13 @@ class Experience {
 				this.resources[type] = [];
 			}
 		}
-		
+
 		// Clear device and resource manager references
 		this.device = null;
 		this.resourceManager = null;
 		
 		// Unregister this experience from the memory manager
 		unregisterResource(this, 'experiences');
-		
-		console.log(`Experience cleanup complete for ${this.name}`);
 	}
 }
 

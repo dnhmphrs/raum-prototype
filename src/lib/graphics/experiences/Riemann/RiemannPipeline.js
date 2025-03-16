@@ -8,13 +8,11 @@ class RiemannPipeline {
         this.resourceManager = resourceManager;
         this.isInitialized = false;
         this.currentShaderType = 'default';
-        this.shaderModules = {};
+        this.shaderModules = new Map();
         this.renderPipelines = {};
     }
     
     async initialize() {
-        console.log("Initializing Riemann Pipeline");
-        
         try {
             // Create bind group layout
             this.bindGroupLayout = this.device.createBindGroupLayout({
@@ -53,37 +51,36 @@ class RiemannPipeline {
             await this.initializeShader('torus', `${basePath}/TorusShader.wgsl`);
             
             this.isInitialized = true;
-            console.log("Riemann Pipeline initialized successfully");
             return true;
         } catch (error) {
-            console.error("Error initializing Riemann Pipeline:", error);
             return false;
         }
     }
     
     async initializeShader(shaderType, shaderPath) {
-        console.log(`Initializing shader: ${shaderType} from ${shaderPath}`);
-        
         try {
-            // Fetch the shader code from the WGSL file using browser's fetch API
             const response = await fetch(shaderPath);
             if (!response.ok) {
                 console.error(`Failed to load shader: ${shaderPath} (Status: ${response.status})`);
-                throw new Error(`Failed to load shader: ${shaderPath}`);
+                return false;
             }
+            
             const shaderCode = await response.text();
             
             // Create shader module
-            this.shaderModules[shaderType] = this.device.createShaderModule({
+            const shaderModule = this.device.createShaderModule({
                 label: `Riemann ${shaderType} Shader`,
                 code: shaderCode
             });
+            
+            // Store shader module
+            this.shaderModules.set(shaderType, shaderModule);
             
             // Create render pipeline
             this.renderPipelines[shaderType] = this.device.createRenderPipeline({
                 layout: this.pipelineLayout,
                 vertex: {
-                    module: this.shaderModules[shaderType],
+                    module: shaderModule,
                     entryPoint: 'vertexMain',
                     buffers: [{
                         arrayStride: 12, // 3 floats, 4 bytes each
@@ -95,7 +92,7 @@ class RiemannPipeline {
                     }]
                 },
                 fragment: {
-                    module: this.shaderModules[shaderType],
+                    module: shaderModule,
                     entryPoint: 'fragmentMain',
                     targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat()
@@ -112,21 +109,29 @@ class RiemannPipeline {
                 }
             });
             
-            console.log(`Shader ${shaderType} initialized successfully`);
+            return true;
         } catch (error) {
             console.error(`Error initializing shader ${shaderType}:`, error);
-            throw error;
+            return false;
         }
     }
     
     setShaderType(shaderType) {
-        if (this.renderPipelines[shaderType]) {
+        try {
+            if (!this.shaderModules.has(shaderType)) {
+                console.warn(`Shader ${shaderType} not found, using default`);
+                shaderType = 'default';
+            }
+            
+            // Update current shader type
             this.currentShaderType = shaderType;
-            console.log(`Switched to shader: ${shaderType}`);
+            
+            // Update pipeline with new shader
+            this.updatePipeline();
+            
             return true;
-        } else {
-            console.warn(`Shader ${shaderType} not found, using default`);
-            this.currentShaderType = 'default';
+        } catch (error) {
+            console.error(`Error setting shader type ${shaderType}:`, error);
             return false;
         }
     }
@@ -205,8 +210,26 @@ class RiemannPipeline {
     }
     
     cleanup() {
-        console.log("Cleaning up Riemann Pipeline");
         this.isInitialized = false;
+        
+        // Clean up shader modules
+        for (const [_, module] of this.shaderModules) {
+            module.destroy?.();
+        }
+        this.shaderModules.clear();
+        
+        // Clean up pipeline
+        this.renderPipelines = {};
+        
+        // Clean up bind group layout and bind group
+        this.bindGroupLayout = null;
+        this.bindGroup = null;
+        
+        // Clean up pipeline layout
+        this.pipelineLayout = null;
+        
+        // Call parent cleanup
+        super.cleanup();
     }
 }
 

@@ -66,10 +66,6 @@ export function registerResource(resource, type = 'others', label = '') {
     if (stats.activeResources > stats.peakResourceCount) {
         stats.peakResourceCount = stats.activeResources;
     }
-    
-    if (debugMode) {
-        console.log(`Registered ${type} resource${label ? ` (${label})` : ''}, active: ${stats.activeResources}`);
-    }
 }
 
 /**
@@ -101,10 +97,6 @@ export function unregisterResource(resource, type = 'others') {
     if (removed) {
         stats.destroyedResources++;
         stats.activeResources--;
-        
-        if (debugMode) {
-            console.log(`Unregistered ${type} resource${resource.label ? ` (${resource.label})` : ''}, active: ${stats.activeResources}`);
-        }
     }
 }
 
@@ -128,7 +120,6 @@ export function cleanupResource(resource, type = 'others') {
         // Return null to help with garbage collection
         return null;
     } catch (error) {
-        console.error(`Error cleaning up ${type} resource:`, error);
         return null;
     }
 }
@@ -139,11 +130,8 @@ export function cleanupResource(resource, type = 'others') {
  */
 export function cleanupResourcesByType(type) {
     if (!resourceRegistry[type]) {
-        console.warn(`No resource registry for type: ${type}`);
         return;
     }
-    
-    console.log(`Cleaning up all ${type} resources (${resourceRegistry[type].size})`);
     
     // Create a copy of the set to avoid modification during iteration
     const resourcesToCleanup = [...resourceRegistry[type]];
@@ -161,8 +149,6 @@ export function cleanupResourcesByType(type) {
  * Clean up all tracked resources
  */
 export function cleanupAllResources() {
-    console.log("Cleaning up all tracked resources");
-    
     // Clean up each type of resource
     for (const type in resourceRegistry) {
         cleanupResourcesByType(type);
@@ -171,8 +157,6 @@ export function cleanupAllResources() {
     // Update stats
     stats.cleanupCount++;
     stats.lastCleanupTime = Date.now();
-    
-    console.log("All resources cleaned up");
 }
 
 /**
@@ -240,9 +224,6 @@ export function forceGarbageCollection() {
     stats.lastCleanupTime = Date.now();
     stats.cleanupCount++;
     
-    // Log current memory stats
-    console.log("Memory stats before GC:", getMemoryStats());
-    
     // Force garbage collection if available
     if (typeof window !== 'undefined') {
         if (window.gc) {
@@ -259,11 +240,6 @@ export function forceGarbageCollection() {
             // Ignore any errors
         }
     }
-    
-    // Log memory stats after GC attempt
-    setTimeout(() => {
-        console.log("Memory stats after GC:", getMemoryStats());
-    }, 100);
 }
 
 /**
@@ -291,8 +267,6 @@ export function resetStats() {
         peakResourceCount: 0,
         cleanupCount: 0
     };
-    
-    console.log("Memory statistics reset");
 }
 
 export default {

@@ -45,13 +45,8 @@
         });
         
         // Log if memory usage is growing significantly
-        if (currentUsage > 0.9 * window.performance.memory.jsHeapSizeLimit) {
+        if (currentUsage > memoryUsage.limit * 0.8) {
           console.warn("Memory usage is approaching the limit!", formatBytes(currentUsage));
-          
-          // Try to force garbage collection
-          if (engine && typeof engine.performGarbageCollection === 'function') {
-            engine.performGarbageCollection();
-          }
         }
       }, 5000); // Check every 5 seconds
     }
@@ -64,7 +59,6 @@
     }
     
     autoCleanupIntervalId = setInterval(() => {
-      console.log("Performing scheduled garbage collection");
       forceCleanup();
     }, autoCleanupInterval);
   }
@@ -73,7 +67,6 @@
   $: if (page && $page.url.pathname !== currentPath) {
     currentPath = $page.url.pathname;
     if (engine && !isLoading) {
-      console.log("Route changed, performing garbage collection");
       forceCleanup();
     }
   }
@@ -125,7 +118,6 @@
       
       return () => {
         window.removeEventListener('resize', handleResize);
-        console.log("Component being destroyed, cleaning up resources");
         
         // Stop memory monitoring
         if (memoryMonitorInterval) {
@@ -139,22 +131,13 @@
           autoCleanupIntervalId = null;
         }
         
-        // Log final memory usage
-        if (typeof window.performance !== 'undefined' && window.performance.memory) {
-          console.log("Final memory usage:", formatBytes(window.performance.memory.usedJSHeapSize));
-          console.log("Peak memory usage:", formatBytes(memoryUsage.peak));
-          console.log("Detailed memory stats:", getMemoryStats());
-        }
-        
         // First remove any global references
-        // This is a common pattern in the experiences
         if (window.currentExperience) {
           window.currentExperience = null;
         }
         
         // Then stop the engine which will trigger all cleanup
         if (engine) {
-          console.log("Stopping engine");
           engine.stop();
           engine = null;
         }

@@ -3,7 +3,6 @@ import Experience from '../Experience';
 class LorentzExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
-        console.log("Creating Lorentz Experience");
         
         // Store device and resource manager
         this.device = device;
@@ -38,11 +37,8 @@ class LorentzExperience extends Experience {
     }
     
     async initialize() {
-        console.log("Initializing Lorentz Experience");
-        
         // Check if we have a resource manager
         if (!this.resourceManager) {
-            console.error('Resource manager not available');
             return false;
         }
 
@@ -365,8 +361,6 @@ class LorentzExperience extends Experience {
     }
     
     cleanup() {
-        console.log("Cleaning up Lorentz Experience");
-        
         // Remove event listeners
         const canvas = this.resourceManager.canvas;
         if (canvas) {

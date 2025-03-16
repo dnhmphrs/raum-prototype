@@ -10,14 +10,11 @@ export default class RenderPipeline3D extends Pipeline {
 	}
 
 	async initialize() {
-		console.log("Initializing 3D Pipeline");
-		
 		try {
 			// Fetch the shader from the static directory
 			const response = await fetch('/shaders/cube/theta3D.wgsl');
 			if (response.ok) {
 				this.shaderCode = await response.text();
-				console.log("Cube shader loaded from static directory");
 			} else {
 				console.error("Failed to load cube shader from static directory");
 				return false;
@@ -105,7 +102,6 @@ export default class RenderPipeline3D extends Pipeline {
 		});
 		
 		this.isInitialized = true;
-		console.log("3D Pipeline initialized successfully");
 		return true;
 	}
 
@@ -168,7 +164,6 @@ export default class RenderPipeline3D extends Pipeline {
 	}
 
 	cleanup() {
-		console.log("Cleaning up 3D Pipeline");
 		this.isInitialized = false;
 	}
 }

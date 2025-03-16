@@ -120,9 +120,7 @@ class ResourceManager {
 			// Only recreate if we have valid dimensions
 			if (width > 0 && height > 0) {
 				this.updateDepthTexture(width, height);
-				console.log(`Recreated depth texture with size ${width}x${height}`);
 			} else {
-				console.warn("Cannot recreate depth texture: invalid dimensions");
 				return null;
 			}
 		}
@@ -131,9 +129,7 @@ class ResourceManager {
 		return this.depthTextureView;
 	}
 
-	updateViewportSize(width, height) {
-		console.log(`ResourceManager updating viewport size: ${width}x${height}`);
-		
+	updateViewportSize(width, height) {		
 		// Store dimensions
 		this.width = width;
 		this.height = height;
@@ -190,7 +186,6 @@ class ResourceManager {
 			
 			// Pre-create the view for faster access
 			this.depthTextureView = this.depthTexture.createView();
-			console.log(`Depth texture recreated with size ${width}x${height}`);
 		} catch (error) {
 			console.error("Error creating depth texture:", error);
 			this.depthTexture = null;
@@ -216,15 +211,11 @@ class ResourceManager {
 		return experience;
 	}
 
-	cleanup() {
-		console.log("ResourceManager cleanup called");
-		
+	cleanup() {		
 		// Clean up all experiences first
 		if (this.experiences) {
-			console.log("Cleaning up experiences in ResourceManager");
 			for (const key in this.experiences) {
 				if (this.experiences[key] && typeof this.experiences[key].cleanup === 'function') {
-					console.log(`Cleaning up experience: ${key}`);
 					this.experiences[key].cleanup();
 				}
 				this.experiences[key] = null;
@@ -235,9 +226,7 @@ class ResourceManager {
 		// Clean up all tracked resources
 		for (const type in this.resources) {
 			const resources = this.resources[type];
-			if (resources && resources.length > 0) {
-				console.log(`Cleaning up ${resources.length} ${type}`);
-				
+			if (resources && resources.length > 0) {				
 				// Clean up each resource
 				for (let i = resources.length - 1; i >= 0; i--) {
 					const resource = resources[i];
@@ -259,7 +248,6 @@ class ResourceManager {
 		if (this.buffers) {
 			for (const key in this.buffers) {
 				if (this.buffers[key]) {
-					console.log(`Nullifying buffer: ${key}`);
 					unregisterResource(this.buffers[key], 'buffers');
 					this.buffers[key] = null;
 				}
@@ -269,7 +257,6 @@ class ResourceManager {
 
 		// Destroy depth texture - WebGPU textures need to be explicitly nullified
 		if (this.depthTexture) {
-			console.log("Nullifying depth texture");
 			unregisterResource(this.depthTexture, 'textures');
 			this.depthTexture = null;
 		}
@@ -292,8 +279,7 @@ class ResourceManager {
 		
 		// Unregister from memory manager
 		unregisterResource(this, 'others');
-		
-		console.log("ResourceManager cleanup complete");
+
 	}
 }
 

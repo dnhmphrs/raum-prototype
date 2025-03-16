@@ -31,8 +31,6 @@
             
             // Start the Lorentz experience
             engine.start(LorentzExperience).then(() => {
-                console.log("Lorentz experience started successfully");
-                
                 // Apply initial parameters after a short delay
                 setTimeout(() => {
                     updateParameters();
@@ -52,7 +50,6 @@
             
             // Store cleanup function
             cleanup = () => {
-                console.log("Cleaning up Lorentz experience");
                 window.removeEventListener('resize', handleResize);
                 
                 // Properly clean up the engine

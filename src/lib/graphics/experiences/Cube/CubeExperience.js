@@ -5,7 +5,6 @@ import RenderPipeline3D from './RenderPipeline3D.js';
 class CubeExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
-		console.log("Creating Cube Experience");
 		
 		// Store device and resource manager
 		this.device = device;
@@ -32,13 +31,10 @@ class CubeExperience extends Experience {
 		// Expose this experience globally
 		if (typeof window !== 'undefined') {
 			window.cubeExperience = this;
-			console.log("Exposed Cube Experience globally as window.cubeExperience");
 		}
 	}
 	
-	async initialize() {
-		console.log("Initializing Cube Experience");
-		
+	async initialize() {		
 		try {
 			// Create 2D pipeline first (renders behind)
 			this.pipeline2D = new RenderPipeline2D(this.device, this.resourceManager);
@@ -62,10 +58,8 @@ class CubeExperience extends Experience {
 				}
 			}
 			
-			console.log('Cube Experience initialized successfully');
 			return true;
 		} catch (error) {
-			console.error('Error initializing Cube Experience:', error);
 			return false;
 		}
 	}

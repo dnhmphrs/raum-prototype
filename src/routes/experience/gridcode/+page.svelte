@@ -50,7 +50,6 @@
     
     // Function to update KP scale
     function updateKPScale(scaleIndex, experience) {
-        console.log(`Updating KP scale to: ${scaleIndex}`);
         kpScaleIndex = scaleIndex;
         
         if (experience) {
@@ -62,7 +61,6 @@
     
     // Function to update KP distortion
     function updateKPDistortion(distortion, experience) {
-        console.log(`Updating KP distortion to: ${distortion}`);
         kpDistortion = distortion;
         
         if (experience) {
