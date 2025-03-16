@@ -11,26 +11,34 @@
   let recordingProgress = 0;
   let recordingTimer = null;
   let recordingStartTime = 0;
+  let processingChunks = false;
+  let maxChunkSize = 50 * 1024 * 1024; // 50MB max chunk size
+  let maxTotalSize = 500 * 1024 * 1024; // 500MB max total size
+  let totalRecordedSize = 0;
+  let memoryWarning = false;
   
   // Quality presets for different recording modes
   const qualityPresets = {
     low: {
-      fps: 30,
-      bitrate: 15000000, // 20 Mbps
-      fallbackBitrate: 10000000, // 12 Mbps
-      lossless: true
+      fps: 24,
+      bitrate: 8000000, // 8 Mbps
+      fallbackBitrate: 5000000, // 5 Mbps
+      lossless: false,
+      dataInterval: 250 // More frequent chunks for better memory management
     },
     medium: {
-      fps: 60,
-      bitrate: 30000000, // 35 Mbps
-      fallbackBitrate: 15000000, // 20 Mbps
-      lossless: true
+      fps: 30,
+      bitrate: 20000000, // 20 Mbps
+      fallbackBitrate: 12000000, // 12 Mbps
+      lossless: true,
+      dataInterval: 500
     },
     high: {
       fps: 60,
-      bitrate: 60000000, // 50 Mbps (near lossless)
-      fallbackBitrate: 30000000, // 30 Mbps
-      lossless: true
+      bitrate: 40000000, // 40 Mbps (lossless)
+      fallbackBitrate: 25000000, // 25 Mbps
+      lossless: true,
+      dataInterval: 500
     }
   };
   
@@ -114,6 +122,9 @@
   function updateRecordingProgress() {
     const elapsed = (Date.now() - recordingStartTime) / 1000;
     recordingProgress = Math.min(100, (elapsed / captureDuration) * 100);
+    
+    // Show memory warning if we're using more than 60% of total allowed size
+    memoryWarning = totalRecordedSize > (maxTotalSize * 0.6);
   }
   
   // Function to start video capture
@@ -139,25 +150,36 @@
       // For all quality levels, try to use the canvas directly without scaling
       let stream;
       try {
-        // Try to capture at native resolution first
-        stream = canvas.captureStream(quality.fps);
-        
-        // If we're using OffscreenCanvas, we might need a different approach
+        // Handle OffscreenCanvas specially
         if (canvas instanceof OffscreenCanvas) {
           const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = width;
-          tempCanvas.height = height;
+          
+          // For low quality, use a smaller canvas
+          if (captureQuality === 'low' && width > 1280) {
+            const aspectRatio = width / height;
+            tempCanvas.height = 720;
+            tempCanvas.width = Math.round(720 * aspectRatio);
+          } else {
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+          }
           
           // Set up a render loop to copy from the offscreen canvas
           const ctx = tempCanvas.getContext('2d');
+          ctx.imageSmoothingQuality = captureQuality === 'low' ? 'medium' : 'high';
+          
           const renderLoop = () => {
             if (!isRecording) return;
-            ctx.drawImage(canvas, 0, 0, width, height);
+            ctx.drawImage(canvas, 0, 0, width, height, 
+                         0, 0, tempCanvas.width, tempCanvas.height);
             requestAnimationFrame(renderLoop);
           };
           
           renderLoop();
           stream = tempCanvas.captureStream(quality.fps);
+        } else {
+          // For regular canvas, use our optimization function
+          stream = optimizeCanvasForRecording(canvas, quality);
         }
       } catch (e) {
         console.warn(`Failed to capture at ${captureQuality} quality, falling back:`, e);
@@ -166,8 +188,10 @@
       
       // Reset recording state
       recordedChunks = [];
+      totalRecordedSize = 0;
       isRecording = true;
       recordingProgress = 0;
+      processingChunks = false;
       
       // Create a single MediaRecorder for the entire duration
       mediaRecorder = createMediaRecorder(stream);
@@ -175,8 +199,20 @@
       // Set up event handlers
       mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
-          console.log(`Data available: ${formatBytes(event.data.size)}`);
+          // Check if we're approaching memory limits
+          totalRecordedSize += event.data.size;
+          console.log(`Data available: ${formatBytes(event.data.size)}, Total: ${formatBytes(totalRecordedSize)}`);
+          
           recordedChunks.push(event.data);
+          
+          // Check for memory pressure after adding new chunk
+          checkMemoryPressure();
+          
+          // If individual chunk is too large, process it immediately
+          if (event.data.size > maxChunkSize && !processingChunks) {
+            console.log(`Large chunk detected (${formatBytes(event.data.size)}), processing immediately`);
+            processLargeChunks();
+          }
         }
       };
       
@@ -185,8 +221,8 @@
         finalizeRecording(width, height, stream);
       };
       
-      // For all quality levels, request data more frequently for better quality
-      const dataInterval = 500; // 500ms for all quality levels
+      // For all quality levels, use the data interval from the preset
+      const dataInterval = quality.dataInterval || 500;
       
       // Start recording with appropriate data collection frequency
       mediaRecorder.start(dataInterval);
@@ -197,20 +233,16 @@
       // Start a timer to update the progress display
       recordingTimer = setInterval(() => {
         updateRecordingProgress();
+        
+        // Check for memory pressure
+        checkMemoryPressure();
       }, 100);
       
       // Schedule the stop after the specified duration
       setTimeout(() => {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
           console.log('Stopping recording after duration');
-          try {
-            // Request data before stopping to ensure we get the last bit of data
-            mediaRecorder.requestData();
-            mediaRecorder.stop();
-          } catch (error) {
-            console.error('Error stopping recorder:', error);
-            finalizeRecording(width, height, stream);
-          }
+          stopRecording();
         }
       }, captureDuration * 1000);
       
@@ -223,8 +255,53 @@
     }
   }
   
+  // Function to stop recording safely
+  function stopRecording() {
+    try {
+      // Request data before stopping to ensure we get the last bit of data
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.requestData();
+        mediaRecorder.stop();
+      }
+    } catch (error) {
+      console.error('Error stopping recorder:', error);
+      if (mediaRecorder) {
+        finalizeRecording(
+          findCanvas()?.width || 1280, 
+          findCanvas()?.height || 720, 
+          null
+        );
+      }
+    }
+  }
+  
+  // Function to process large chunks to free memory
+  async function processLargeChunks() {
+    if (processingChunks || recordedChunks.length === 0) return;
+    
+    processingChunks = true;
+    console.log(`Processing ${recordedChunks.length} chunks to free memory`);
+    
+    try {
+      // Create a temporary blob from current chunks
+      const tempBlob = new Blob(recordedChunks, { type: 'video/webm' });
+      
+      // Convert to ArrayBuffer to maintain a single reference
+      const arrayBuffer = await tempBlob.arrayBuffer();
+      
+      // Replace multiple chunks with a single chunk
+      recordedChunks = [new Blob([arrayBuffer], { type: 'video/webm' })];
+      
+      console.log(`Processed chunks: ${recordedChunks.length}, Size: ${formatBytes(recordedChunks[0].size)}`);
+    } catch (error) {
+      console.error('Error processing chunks:', error);
+    } finally {
+      processingChunks = false;
+    }
+  }
+  
   // Function to finalize the recording and create the download
-  function finalizeRecording(width, height, stream) {
+  async function finalizeRecording(width, height, stream) {
     console.log(`Finalizing recording: ${recordedChunks.length} chunks collected`);
     
     if (recordedChunks.length === 0) {
@@ -234,70 +311,84 @@
       return;
     }
 
-    // Choose appropriate MIME type based on quality
-    let mimeType = 'video/webm;codecs=vp9.0 profile=3'; // Try lossless profile first
-    
-    // Fall back to high quality VP9 if lossless not supported
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm;codecs=vp9';
-    }
-    
-    // Log each chunk size for debugging
-    let totalSize = 0;
-    recordedChunks.forEach((chunk, index) => {
-      totalSize += chunk.size;
-      console.log(`Chunk ${index + 1} size: ${formatBytes(chunk.size)}`);
-    });
-    
-    console.log(`Total size before creating blob: ${formatBytes(totalSize)}`);
-    
-    // Create a blob from the recorded chunks
-    const blob = new Blob(recordedChunks, { type: mimeType });
-    
-    console.log(`Combined video size: ${formatBytes(blob.size)}`);
-    
-    // Create a download link
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    
-    // Include resolution and quality in filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const quality = captureQuality.toUpperCase();
-    a.download = `raum-capture-${width}x${height}-${quality}-${timestamp}.webm`;
-    
-    // Add to document, trigger download, and clean up
-    document.body.appendChild(a);
-    a.click();
-    
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Stop the recording timer
-      if (recordingTimer) {
-        clearInterval(recordingTimer);
-        recordingTimer = null;
+    try {
+      // Process chunks if needed before finalizing
+      if (recordedChunks.length > 1) {
+        await processLargeChunks();
       }
       
-      // Stop the stream tracks
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      // Choose appropriate MIME type based on quality
+      let mimeType = 'video/webm;codecs=vp9.0 profile=3'; // Try lossless profile first
+      
+      // Fall back to high quality VP9 if lossless not supported
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm;codecs=vp9';
       }
       
-      // Reset state
+      console.log(`Final video size: ${formatBytes(recordedChunks[0].size)}`);
+      
+      // Create a blob from the recorded chunks
+      const blob = new Blob(recordedChunks, { type: mimeType });
+      
+      // Create a download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      
+      // Include resolution and quality in filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const quality = captureQuality.toUpperCase();
+      a.download = `raum-capture-${width}x${height}-${quality}-${timestamp}.webm`;
+      
+      // Add to document, trigger download, and clean up
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up resources immediately
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Stop the recording timer
+        if (recordingTimer) {
+          clearInterval(recordingTimer);
+          recordingTimer = null;
+        }
+        
+        // Stop the stream tracks
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Reset state and clear memory
+        recordedChunks = [];
+        totalRecordedSize = 0;
+        isRecording = false;
+        recordingProgress = 0;
+        mediaRecorder = null;
+        processingChunks = false;
+      }, 100);
+    } catch (error) {
+      console.error('Error finalizing recording:', error);
+      // Reset state on error
       recordedChunks = [];
+      totalRecordedSize = 0;
       isRecording = false;
       recordingProgress = 0;
       mediaRecorder = null;
-    }, 100);
+      processingChunks = false;
+    }
   }
   
   // Function to cancel an ongoing recording
   function cancelRecording() {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
+      try {
+        mediaRecorder.stop();
+      } catch (error) {
+        console.error('Error stopping recorder during cancel:', error);
+      }
     }
     
     if (recordingTimer) {
@@ -305,15 +396,125 @@
       recordingTimer = null;
     }
     
+    // Clean up any stream tracks
+    try {
+      const canvas = findCanvas();
+      if (canvas) {
+        const stream = canvas.captureStream();
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up stream tracks:', error);
+    }
+    
+    // Reset all state
     recordedChunks = [];
+    totalRecordedSize = 0;
     isRecording = false;
     recordingProgress = 0;
     mediaRecorder = null;
+    processingChunks = false;
+  }
+  
+  // Function to optimize canvas for recording
+  function optimizeCanvasForRecording(canvas, quality) {
+    // For low quality, we can use a smaller canvas to reduce memory usage
+    if (captureQuality === 'low' && canvas.width > 1280) {
+      console.log('Using optimized canvas for low quality recording');
+      
+      // Create a smaller canvas for recording
+      const optimizedCanvas = document.createElement('canvas');
+      const aspectRatio = canvas.width / canvas.height;
+      
+      // Target 720p for low quality
+      optimizedCanvas.height = 720;
+      optimizedCanvas.width = Math.round(720 * aspectRatio);
+      
+      const ctx = optimizedCanvas.getContext('2d');
+      
+      // Set up a render loop to copy and scale down from the original canvas
+      const renderLoop = () => {
+        if (!isRecording) return;
+        
+        // Use low quality settings for better performance
+        ctx.imageSmoothingQuality = 'medium';
+        ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 
+                     0, 0, optimizedCanvas.width, optimizedCanvas.height);
+        
+        requestAnimationFrame(renderLoop);
+      };
+      
+      renderLoop();
+      return optimizedCanvas.captureStream(quality.fps);
+    }
+    
+    // For medium/high quality, use the original canvas
+    return canvas.captureStream(quality.fps);
+  }
+  
+  // Function to check for memory pressure
+  function checkMemoryPressure() {
+    // Check if performance.memory is available (Chrome/Edge)
+    if (typeof window.performance !== 'undefined' && window.performance.memory) {
+      const memoryUsage = window.performance.memory.usedJSHeapSize;
+      const memoryLimit = window.performance.memory.jsHeapSizeLimit;
+      const memoryPercentage = (memoryUsage / memoryLimit) * 100;
+      
+      // Log memory usage every 5 seconds
+      if (Date.now() - recordingStartTime > 5000 && (Date.now() - recordingStartTime) % 5000 < 100) {
+        console.log(`Memory usage: ${formatBytes(memoryUsage)} / ${formatBytes(memoryLimit)} (${memoryPercentage.toFixed(1)}%)`);
+      }
+      
+      // Critical memory pressure - stop recording immediately
+      if (memoryPercentage > 85) {
+        console.error(`Critical memory pressure detected (${memoryPercentage.toFixed(1)}%), stopping recording`);
+        stopRecording();
+        return true;
+      }
+      
+      // High memory pressure - process chunks to free memory
+      if (memoryPercentage > 70 && !processingChunks && recordedChunks.length > 1) {
+        console.warn(`High memory pressure detected (${memoryPercentage.toFixed(1)}%), processing chunks`);
+        processLargeChunks();
+        return true;
+      }
+    }
+    
+    // Check if we're exceeding our self-imposed size limit
+    if (totalRecordedSize > maxTotalSize * 0.9) {
+      console.warn(`Approaching size limit (${formatBytes(totalRecordedSize)}), stopping recording`);
+      stopRecording();
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Function to clean up all resources
+  function cleanupResources() {
+    // Stop any ongoing recording
+    cancelRecording();
+    
+    // Clear any large objects to help garbage collection
+    recordedChunks = [];
+    totalRecordedSize = 0;
+    mediaRecorder = null;
+    
+    // Force a garbage collection hint (not guaranteed to run)
+    if (window.gc) {
+      try {
+        window.gc();
+      } catch (e) {
+        // Ignore if not available
+      }
+    }
   }
   
   onDestroy(() => {
-    // Stop any ongoing recording
-    cancelRecording();
+    // Clean up all resources when component is destroyed
+    cleanupResources();
   });
 </script>
 
@@ -323,7 +524,7 @@
     {#if isRecording}
       <div class="recording-status">
         <div class="progress-bar">
-          <div class="progress-fill" style="width: {recordingProgress}%"></div>
+          <div class="progress-fill" class:warning={memoryWarning} style="width: {recordingProgress}%"></div>
         </div>
         <button class="cancel-btn" on:click={cancelRecording} title="Cancel recording">
           ✕
@@ -364,21 +565,21 @@
             <button 
               class="quality-btn {captureQuality === 'low' ? 'active' : ''}" 
               on:click={() => captureQuality = 'low'}
-              title="Lossless 30 FPS"
+              title="Optimized for stability (24 FPS)"
             >
               Low
             </button>
             <button 
               class="quality-btn {captureQuality === 'medium' ? 'active' : ''}" 
               on:click={() => captureQuality = 'medium'}
-              title="Lossless 60 FPS"
+              title="Balanced quality (30 FPS)"
             >
               Medium
             </button>
             <button 
               class="quality-btn {captureQuality === 'high' ? 'active' : ''}" 
               on:click={() => captureQuality = 'high'}
-              title="Maximum lossless quality (60 FPS)"
+              title="Maximum quality (60 FPS)"
             >
               High
             </button>
@@ -386,11 +587,11 @@
           
           <div class="quality-help">
             {#if captureQuality === 'low'}
-              Lossless 30 FPS. Good balance of quality and file size.
+              Optimized for stability (24 FPS). Best for longer recordings.
             {:else if captureQuality === 'medium'}
-              Lossless 60 FPS. Better for capturing motion and noise.
+              Balanced quality (30 FPS). Good for most recordings.
             {:else if captureQuality === 'high'}
-              Maximum lossless quality (60 FPS). Best for Projection in large spaces such as clubs.
+              Maximum quality (60 FPS). Best for short recordings.
             {/if}
           </div>
         </div>
@@ -447,6 +648,10 @@
     height: 100%;
     background-color: rgba(255, 255, 255, 0.7);
     transition: width 0.3s ease;
+  }
+  
+  .progress-fill.warning {
+    background-color: rgba(255, 180, 0, 0.8);
   }
   
   .cancel-btn {
