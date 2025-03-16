@@ -81,6 +81,7 @@ class Engine {
 			this.webgpuContext = await initializeWebGPU(this.canvas);
 			
 			if (!this.webgpuContext) {
+				console.error("Failed to initialize WebGPU context");
 				return null;
 			}
 			
@@ -159,6 +160,7 @@ class Engine {
 			
 			return this.experience;
 		} catch (error) {
+			console.error("Error in Engine.start:", error);
 			this.cleanup();
 			return null;
 		}
@@ -294,6 +296,7 @@ class Engine {
 	render = () => {
 		// Check if we have a valid device and context
 		if (!this.device || !this.context) {
+			console.warn("WebGPU device or context is null, stopping render loop");
 			return;
 		}
 		
@@ -307,21 +310,24 @@ class Engine {
 		try {
 			// Get the current texture from the context
 			const textureView = this.context.getCurrentTexture().createView();
-
+			
 			// Create a command encoder
 			const commandEncoder = this.device.createCommandEncoder();
-
+			
 			// Render the scene
 			if (this.scene) {
 				this.scene.render(commandEncoder, textureView);
+			} else {
+				console.warn("No scene available to render");
 			}
-
+			
 			// Submit the command buffer
 			this.device.queue.submit([commandEncoder.finish()]);
 		} catch (error) {
+			console.error("Error in render loop:", error);
 			// Don't stop the render loop on error, just log it
 		}
-
+		
 		// Request the next frame
 		this.animationFrameId = requestAnimationFrame(this.render);
 	}

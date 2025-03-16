@@ -31,18 +31,6 @@
     
     window.addEventListener('resize', handleResize);
     
-    // Update image loading
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = imageUrl; // Use the local path
-    img.onload = () => {
-      imageLoaded = true;
-      showImage = true; // Show image after loading
-    };
-    img.onerror = (e) => {
-      console.error("Error loading image:", e);
-    };
-    
     return () => {
       window.removeEventListener('resize', handleResize);
       if (engine) {
@@ -122,21 +110,5 @@
   
   .back-button:hover {
     background-color: rgba(0, 0, 0, 0.9);
-  }
-  
-  .image-overlay {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 50;
-    pointer-events: none;
-  }
-  
-  .image-overlay img {
-    max-height: 80vh;
-    max-width: 90vw;
-    width: auto;
-    opacity: 0.9;
   }
 </style> 

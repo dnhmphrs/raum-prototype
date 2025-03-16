@@ -86,12 +86,15 @@ class Pipeline {
 		for (const type in this.resources) {
 			const resources = this.resources[type];
 			if (resources && resources.length > 0) {
-				for (const resource of resources) {
+				for (let i = 0; i < resources.length; i++) {
+					const resource = resources[i];
 					if (resource) {
 						// Call destroy method if available
-						resource.destroy?.();
-						// Clear reference
-						resource = null;
+						if (typeof resource.destroy === 'function') {
+							resource.destroy();
+						}
+						// Clear reference in the array
+						resources[i] = null;
 					}
 				}
 				// Clear array

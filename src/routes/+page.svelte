@@ -83,6 +83,7 @@
         backgroundLoaded = true; // Still mark as loaded to avoid blocking UI
       }
     } else {
+      console.warn("WebGPU is not available, skipping background initialization");
       // No WebGPU support, just mark as loaded
       backgroundLoaded = true;
     }
@@ -519,32 +520,10 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .company-link {
-    color: #00ff00;
+    color: #ff0000;
     text-decoration: none;
     position: relative;
     transition: all 0.3s ease;
-  }
-  
-  .company-link:hover {
-    color: #fff;
-    text-shadow: 0 0 8px #00ff00;
-  }
-  
-  .company-link::after {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 1px;
-    bottom: -2px;
-    left: 0;
-    background-color: #00ff00;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s ease;
-  }
-  
-  .company-link:hover::after {
-    transform: scaleX(1);
   }
 </style>
 

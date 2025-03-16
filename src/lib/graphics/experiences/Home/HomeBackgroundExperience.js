@@ -1,5 +1,6 @@
 import Experience from '../Experience.js';
 import { createFullScreenQuad } from '../../utils/geometryUtils.js';
+import Pipeline from '../../pipelines/Pipeline.js';
 // Remove the direct import
 // import matrixShader from './MatrixShader.wgsl';
 
@@ -54,6 +55,147 @@ fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
 }
 `;
 
+class HomeBackgroundPipeline extends Pipeline {
+    constructor(device, resourceManager) {
+        super(device);
+        this.resourceManager = resourceManager;
+        this.isInitialized = false;
+        this.shaderCode = null;
+    }
+    
+    async initialize() {
+        try {
+            // Load shader code
+            this.shaderCode = await this.resourceManager.experiences.homeBackground.loadShader();
+            
+            // Create pipeline layout
+            const bindGroupLayout = this.device.createBindGroupLayout({
+                entries: [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' } // Time
+                    },
+                    {
+                        binding: 1,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' } // Resolution
+                    },
+                    {
+                        binding: 2,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' } // Mouse
+                    }
+                ]
+            });
+            
+            // Create pipeline layout
+            const pipelineLayout = this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout]
+            });
+            
+            // Create shader module
+            const shaderModule = this.createShaderModule({
+                code: this.shaderCode
+            });
+            
+            // Create render pipeline
+            this.renderPipeline = this.createRenderPipeline({
+                layout: pipelineLayout,
+                vertex: {
+                    module: shaderModule,
+                    entryPoint: 'vertexMain',
+                    buffers: [
+                        {
+                            arrayStride: 3 * 4, // 3 floats, 4 bytes each
+                            attributes: [
+                                {
+                                    shaderLocation: 0,
+                                    offset: 0,
+                                    format: 'float32x3'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                fragment: {
+                    module: shaderModule,
+                    entryPoint: 'fragmentMain',
+                    targets: [
+                        {
+                            format: navigator.gpu.getPreferredCanvasFormat()
+                        }
+                    ]
+                },
+                primitive: {
+                    topology: 'triangle-list'
+                },
+                depthStencil: {
+                    format: 'depth24plus',
+                    depthWriteEnabled: true,
+                    depthCompare: 'less'
+                }
+            });
+            
+            // Create bind group
+            this.bindGroup = this.createBindGroup({
+                layout: bindGroupLayout,
+                entries: [
+                    {
+                        binding: 0,
+                        resource: { buffer: this.resourceManager.experiences.homeBackground.timeBuffer }
+                    },
+                    {
+                        binding: 1,
+                        resource: { buffer: this.resourceManager.experiences.homeBackground.resolutionBuffer }
+                    },
+                    {
+                        binding: 2,
+                        resource: { buffer: this.resourceManager.experiences.homeBackground.mouseBuffer }
+                    }
+                ]
+            });
+            
+            this.isInitialized = true;
+            return true;
+        } catch (error) {
+            console.error("Error initializing HomeBackgroundPipeline:", error);
+            return false;
+        }
+    }
+    
+    render(commandEncoder, textureView, depthTextureView, vertexBuffer, indexBuffer, uniformBuffer, totalIndices) {
+        try {
+            const renderPassDescriptor = {
+                colorAttachments: [
+                    {
+                        view: textureView,
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        loadOp: 'clear',
+                        storeOp: 'store'
+                    }
+                ],
+                depthStencilAttachment: {
+                    view: depthTextureView,
+                    depthClearValue: 1.0,
+                    depthLoadOp: 'clear',
+                    depthStoreOp: 'store'
+                }
+            };
+            
+            const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+            passEncoder.setPipeline(this.renderPipeline);
+            passEncoder.setBindGroup(0, this.bindGroup);
+            passEncoder.setVertexBuffer(0, vertexBuffer);
+            passEncoder.setIndexBuffer(indexBuffer, 'uint16');
+            passEncoder.drawIndexed(6); // Draw 2 triangles (6 indices)
+            passEncoder.end();
+        } catch (error) {
+            console.error("Error in HomeBackgroundPipeline render:", error);
+        }
+    }
+}
+
 class HomeBackgroundExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
@@ -64,8 +206,14 @@ class HomeBackgroundExperience extends Experience {
         
         // Initialize loading state
         this.isLoading = true;
+        this.loadingProgress = 0;
+        this.loadingMessage = "Initializing...";
+        
         // Create a full-screen quad
         const { vertices, indices } = createFullScreenQuad();
+        
+        // Store total indices for rendering
+        this.totalIndices = indices.length;
         
         // Create vertex buffer
         this.vertexBuffer = this.device.createBuffer({
@@ -128,11 +276,20 @@ class HomeBackgroundExperience extends Experience {
         // Fetch the shader from the static directory instead of using the imported one
         let shaderCode = FALLBACK_SHADER;
         try {
+            // Skip directory checks and directly try to load the shader file
             const response = await fetch('/shaders/home/MatrixShader.wgsl');
             if (response.ok) {
                 shaderCode = await response.text();
             } else {
-                console.warn("Matrix shader not found in static directory, using fallback shader");
+                console.warn("Matrix shader not found in static directory, using fallback shader", response.status, response.statusText);
+                
+                // Try loading from the static directory directly
+                const staticResponse = await fetch('/static/shaders/home/MatrixShader.wgsl');
+                if (staticResponse.ok) {
+                    shaderCode = await staticResponse.text();
+                } else {
+                    console.warn("Matrix shader not found in /static directory either, using fallback shader");
+                }
             }
         } catch (error) {
             console.error("Error loading Matrix shader:", error);
@@ -145,6 +302,13 @@ class HomeBackgroundExperience extends Experience {
         this.updateLoadingState(true, "Initializing pipeline...", 10);
         
         try {
+            // Register this experience with the resource manager
+            if (this.resourceManager && this.resourceManager.experiences) {
+                this.resourceManager.experiences.homeBackground = this;
+            } else {
+                console.warn("ResourceManager or experiences not available for registration");
+            }
+            
             // Create the pipeline
             this.pipeline = new HomeBackgroundPipeline(this.device, this.resourceManager);
             
@@ -195,11 +359,27 @@ class HomeBackgroundExperience extends Experience {
             // Update time (for subtle animation)
             this.time += 0.01;
             
-            // Update uniform buffer with time
+            // Update time uniform buffer
             this.device.queue.writeBuffer(
-                this.uniformBuffer,
+                this.timeBuffer,
                 0,
-                new Float32Array([0, 0, 0, this.time])
+                new Float32Array([this.time])
+            );
+            
+            // Update resolution uniform buffer
+            if (typeof window !== 'undefined') {
+                this.device.queue.writeBuffer(
+                    this.resolutionBuffer,
+                    0,
+                    new Float32Array([window.innerWidth, window.innerHeight])
+                );
+            }
+            
+            // Update mouse uniform buffer
+            this.device.queue.writeBuffer(
+                this.mouseBuffer,
+                0,
+                new Float32Array([this.mouse.x, this.mouse.y])
             );
             
             // Render using pipeline
@@ -209,7 +389,7 @@ class HomeBackgroundExperience extends Experience {
                 depthTextureView,
                 this.vertexBuffer,
                 this.indexBuffer,
-                this.uniformBuffer,
+                null, // No longer using uniformBuffer
                 this.totalIndices
             );
         } catch (error) {
@@ -219,6 +399,10 @@ class HomeBackgroundExperience extends Experience {
     
     cleanup() {
         // Remove event listener
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('mousemove', this.handleMouseMove.bind(this));
+        }
+        
         // Clean up pipeline
         if (this.pipeline) {
             this.pipeline.cleanup();
@@ -234,8 +418,16 @@ class HomeBackgroundExperience extends Experience {
             this.indexBuffer = null;
         }
         
-        if (this.uniformBuffer) {
-            this.uniformBuffer = null;
+        if (this.timeBuffer) {
+            this.timeBuffer = null;
+        }
+        
+        if (this.resolutionBuffer) {
+            this.resolutionBuffer = null;
+        }
+        
+        if (this.mouseBuffer) {
+            this.mouseBuffer = null;
         }
         
         // Reset state
@@ -256,6 +448,17 @@ class HomeBackgroundExperience extends Experience {
         
         // Call parent cleanup
         super.cleanup();
+    }
+    
+    updateLoadingState(isLoading, message, progress) {
+        this.isLoading = isLoading;
+        this.loadingMessage = message || this.loadingMessage;
+        this.loadingProgress = progress !== undefined ? progress : this.loadingProgress;
+        
+        // Update resource manager if available
+        if (this.resourceManager && this.resourceManager.updateLoadingState) {
+            this.resourceManager.updateLoadingState(this.isLoading, this.loadingMessage, this.loadingProgress);
+        }
     }
 }
 
