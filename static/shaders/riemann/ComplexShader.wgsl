@@ -14,76 +14,108 @@ struct TimeUniform {
 @group(0) @binding(1) var<uniform> view: mat4x4<f32>;
 @group(0) @binding(2) var<uniform> timeUniform: TimeUniform;
 
-// Function to generate color based on height
+// Function to generate color based on "height" with more vibrant colors
 fn heightColor(height: f32, time: f32) -> vec3<f32> {
-    // Map height to a normalized range [0, 1]
-    // Complex function values typically range from -0.5 to 0.5
-    let normalizedHeight = (height + 0.5) * 1.0;
+    // Map height to a [0, 1] range for coloring logic
+    let normalizedHeight = clamp((height + 1.5) * 0.4, 0.0, 1.0);
     
-    // Create a color gradient based on height
-    // Purple (low) -> Blue (middle-low) -> Cyan (middle-high) -> Green (high)
-    let color1 = vec3<f32>(0.5, 0.0, 0.8); // Purple
-    let color2 = vec3<f32>(0.0, 0.2, 0.8); // Blue
-    let color3 = vec3<f32>(0.0, 0.8, 0.8); // Cyan
-    let color4 = vec3<f32>(0.0, 0.8, 0.2); // Green
+    // Time-based color cycling
+    let colorPhase = time * 0.1;
     
-    // Multi-step gradient
+    // Create vibrant color palette that shifts over time
+    let color1 = vec3<f32>(0.8 * sin(colorPhase) + 0.2, 0.2, 0.8 * cos(colorPhase) + 0.2); // Dynamic purple
+    let color2 = vec3<f32>(0.1, 0.3, 0.9); // Deep blue
+    let color3 = vec3<f32>(0.0, 0.8 * sin(colorPhase + 1.5) + 0.2, 0.8); // Dynamic cyan
+    let color4 = vec3<f32>(0.8 * cos(colorPhase + 3.0) + 0.2, 0.8, 0.1); // Dynamic yellow-green
+
     var finalColor: vec3<f32>;
     if (normalizedHeight < 0.33) {
-        // Map from color1 to color2
         finalColor = mix(color1, color2, normalizedHeight * 3.0);
     } else if (normalizedHeight < 0.66) {
-        // Map from color2 to color3
         finalColor = mix(color2, color3, (normalizedHeight - 0.33) * 3.0);
     } else {
-        // Map from color3 to color4
         finalColor = mix(color3, color4, (normalizedHeight - 0.66) * 3.0);
     }
-    
+
     return finalColor;
 }
 
-// Complex function: f(z) = sin(z) * cos(z^2)
-fn complexFunction(re: f32, im: f32, time: f32) -> f32 {
-    // Convert to polar form
-    let r = sqrt(re * re + im * im) + 0.01;
-    let theta = atan2(im, re);
+// A dramatically changing surface function
+fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
+    // Convert to polar coordinates
+    let r = sqrt(x * x + y * y);
+    let theta = atan2(y, x);
     
-    // Add time-based animation
-    let animTheta = theta + time * 0.1;
+    // Create multiple time-based effects
     
-    // Compute a complex function
-    return sin(r * 5.0) * cos(theta * 3.0 + time * 0.2) * 0.5;
+    // 1. Moving peaks that travel across the surface
+    let peak1X = sin(time * 0.3) * 1.6;
+    let peak1Y = cos(time * 0.4) * 1.6;
+    let peak2X = sin(time * 0.5 + 2.0) * 1.6;
+    let peak2Y = cos(time * 0.2 + 1.0) * 1.6;
+    
+    let dist1 = sqrt(pow(x - peak1X, 2.0) + pow(y - peak1Y, 2.0));
+    let dist2 = sqrt(pow(x - peak2X, 2.0) + pow(y - peak2Y, 2.0));
+    
+    let peak1 = 1.5 * exp(-dist1 * 1.2);
+    let peak2 = 1.2 * exp(-dist2 * 1.2);
+    
+    // 2. Ripples with changing frequency
+    let rippleFreq = 5.0 + 3.0 * sin(time * 0.2);
+    let ripple = 0.4 * sin(r * rippleFreq - time * 2.0);
+    
+    // 3. Spiral waves that rotate
+    let spiralFreq = 3.0 + sin(time * 0.3);
+    let spiralPhase = time * 1.5;
+    let spiral = 0.5 * sin(theta * spiralFreq + r * 4.0 + spiralPhase) * exp(-r * 0.8);
+    
+    // 4. Pulsing effect
+    let pulse = 0.3 * sin(time * 0.7) + 1.0;
+    
+    // Combine all effects with time-based blending
+    let blend1 = 0.5 + 0.5 * sin(time * 0.15);
+    let blend2 = 0.5 + 0.5 * sin(time * 0.15 + 2.0);
+    let blend3 = 0.5 + 0.5 * sin(time * 0.15 + 4.0);
+    
+    // Normalize blending
+    let blendSum = blend1 + blend2 + blend3;
+    let norm1 = blend1 / blendSum;
+    let norm2 = blend2 / blendSum;
+    let norm3 = blend3 / blendSum;
+    
+    // Combine effects with dramatic time-based changes
+    return pulse * (norm1 * (peak1 + peak2) + norm2 * ripple + norm3 * spiral);
 }
 
 @vertex
 fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     var output: VertexOutput;
-    
-    // Store original position for coloring
+
+    // Store original position for fragment calculations
     output.worldPos = position;
-    
-    // Calculate time-varying complex function
-    let time = timeUniform.time;
-    let height = complexFunction(position.x, position.y, time);
-    
-    // Create a modified position with complex function as z-coordinate
+
+    // Use time with a reasonable scale
+    let time = timeUniform.time * 1.0;
+
+    // Calculate the new height using our surface function
+    let height = surfaceFunction(position.x, position.y, time);
+
+    // Adjust the vertex's z based on the calculated height
     var modifiedPosition = position;
     modifiedPosition.z = height;
-    
-    // Transform position with view and projection matrices
+
+    // Transform position with view and projection
     output.position = projection * view * vec4<f32>(modifiedPosition, 1.0);
-    
-    // Calculate normal (approximate)
+
+    // Approximate normal via partial derivatives
     let epsilon = 0.01;
-    let dx = complexFunction(position.x + epsilon, position.y, time) - height;
-    let dy = complexFunction(position.x, position.y + epsilon, time) - height;
-    
-    output.normal = normalize(vec3<f32>(-dx/epsilon, -dy/epsilon, 1.0));
-    
-    // Generate color based on height
+    let dx = surfaceFunction(position.x + epsilon, position.y, time) - height;
+    let dy = surfaceFunction(position.x, position.y + epsilon, time) - height;
+    output.normal = normalize(vec3<f32>(-dx / epsilon, -dy / epsilon, 1.0));
+
+    // Generate color from height with time influence
     output.color = heightColor(height, time);
-    
+
     return output;
 }
 
@@ -93,18 +125,18 @@ fn fragmentMain(
     @location(1) normal: vec3<f32>,
     @location(2) worldPos: vec3<f32>
 ) -> @location(0) vec4<f32> {
-    // Enhanced lighting with fixed view direction
+    // Enhanced lighting
     let light_dir = normalize(vec3<f32>(0.5, 0.5, 1.0));
     let diffuse = max(dot(normal, light_dir), 0.0);
     let ambient = 0.3;
-    
-    // Use a fixed view direction for specular to avoid zoom issues
+
+    // Enhanced specular highlight
     let view_dir = normalize(vec3<f32>(0.0, 0.0, 1.0));
     let half_dir = normalize(light_dir + view_dir);
-    let specular = pow(max(dot(normal, half_dir), 0.0), 32.0) * 0.3;
-    
-    // Combine lighting components
-    let lighting = ambient + diffuse * 0.6 + specular;
-    
+    let specular = pow(max(dot(normal, half_dir), 0.0), 64.0) * 0.5;
+
+    // Combine lighting with enhanced specular
+    let lighting = ambient + diffuse * 0.7 + specular;
+
     return vec4<f32>(color * lighting, 1.0);
-} 
+}

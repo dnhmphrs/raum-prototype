@@ -67,7 +67,18 @@
   $: if (page && $page.url.pathname !== currentPath) {
     currentPath = $page.url.pathname;
     if (engine && !isLoading) {
+      // Set loading state while cleaning up
+      isLoading = true;
+      loadingMessage = "Cleaning up resources...";
+      
+      // Force cleanup and wait before allowing new experience to load
       forceCleanup();
+      
+      // Add a short delay to ensure resources are properly released
+      setTimeout(() => {
+        // Now the new route can load its experience
+        isLoading = false;
+      }, 300);
     }
   }
   
@@ -177,7 +188,19 @@
   // Function to force garbage collection
   export function forceCleanup() {
     if (engine) {
+      // First try to explicitly clean up the current experience
+      if (experience && typeof experience.cleanup === 'function') {
+        experience.cleanup();
+      }
+      
+      // Then use the engine's garbage collection
       engine.performGarbageCollection();
+      
+      // Force a double garbage collection after a short delay
+      setTimeout(() => {
+        engine.performGarbageCollection();
+      }, 100);
+      
       return true;
     }
     return false;

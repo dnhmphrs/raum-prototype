@@ -26,7 +26,7 @@ class GridCodeExperience extends Experience {
         }
         
         // Grid resolution - reduced for better performance during debugging
-        this.resolution = 100; // 50x50 grid (reduced from 100x100)
+        this.resolution = 200; // 50x50 grid (reduced from 100x100)
         this.totalVertices = this.resolution * this.resolution;
         this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6; // 2 triangles per grid cell
         

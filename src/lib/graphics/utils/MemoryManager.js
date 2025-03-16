@@ -224,6 +224,11 @@ export function forceGarbageCollection() {
     stats.lastCleanupTime = Date.now();
     stats.cleanupCount++;
     
+    // First try to clean up remaining untracked resources
+    for (const type in resourceRegistry) {
+        cleanupResourcesByType(type);
+    }
+    
     // Force garbage collection if available
     if (typeof window !== 'undefined') {
         if (window.gc) {
@@ -238,6 +243,24 @@ export function forceGarbageCollection() {
             }, 50);
         } catch (e) {
             // Ignore any errors
+        }
+        
+        // For Chrome, try this trick to release more memory
+        if (window.performance && window.performance.memory) {
+            try {
+                // Create and destroy many small objects to trigger GC
+                for (let i = 0; i < 10; i++) {
+                    setTimeout(() => {
+                        let arr = [];
+                        for (let j = 0; j < 1000; j++) {
+                            arr.push({});
+                        }
+                        arr = null;
+                    }, i * 20);
+                }
+            } catch (e) {
+                // Ignore errors
+            }
         }
     }
 }

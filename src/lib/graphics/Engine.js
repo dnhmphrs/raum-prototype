@@ -380,11 +380,24 @@ class Engine {
 		this.memoryStats.lastCleanupTime = Date.now();
 		this.memoryStats.cleanupCount++;
 		
+		// First, make sure any pending operations are complete
+		this.device?.queue.onSubmittedWorkDone();
+		
+		// If we have an active experience but we're just garbage collecting, 
+		// make sure its resources are properly tracked
+		if (this.experience && typeof this.experience.cleanup === 'function') {
+			console.log(`Performing cleanup for ${this.experience.name || 'current'} experience`);
+			this.experience.cleanup();
+		}
+		
 		// Use the MemoryManager to get and log memory stats
 		const memoryStats = getMemoryStats();
 		
 		// Force garbage collection
 		forceGarbageCollection();
+		
+		// Return memory stats for monitoring
+		return memoryStats;
 	}
 	
 	// Helper method to format bytes to human-readable format
