@@ -7,11 +7,20 @@
   import { page } from '$app/stores';
   import Engine from '$lib/graphics/Engine.js';
   import { getMemoryStats, formatBytes } from '$lib/graphics/utils/MemoryManager.js';
+  import LoadingOverlay from './LoadingOverlay.svelte';
+  import { getExperienceColor } from '$lib/store/experienceStore.js';
   
   // Props
   export let experienceClass; // The experience class to instantiate
   export let cameraConfig = {}; // Camera configuration
   export let showMemoryStats = false; // Whether to show memory stats
+  export let accentColor = null; // Optional override for accent color
+  
+  // Get experience ID from class name
+  $: experienceId = experienceClass?.name?.toLowerCase().replace('experience', '') || '';
+  
+  // Get accent color from store if not provided
+  $: effectiveAccentColor = accentColor || getExperienceColor(experienceId);
   
   // Internal state
   let canvas;
@@ -19,6 +28,7 @@
   let experience;
   let isLoading = true;
   let loadingMessage = "Initializing WebGPU...";
+  let loadingProgress = -1; // -1 means indeterminate
   let memoryMonitorInterval;
   let memoryUsage = { current: 0, peak: 0 };
   let currentPath;
@@ -50,6 +60,29 @@
     }
   }
   
+  // Function to handle loading state updates from the experience
+  function handleLoadingUpdate(event) {
+    const { experience: expName, isLoading: expIsLoading, message, progress } = event.detail;
+    
+    // Only update if it's from our current experience
+    if (experience && experience.name === expName) {
+      loadingMessage = message;
+      loadingProgress = progress;
+      
+      // If the experience says it's done loading, wait a short delay then hide the loading screen
+      if (!expIsLoading && isLoading) {
+        loadingProgress = 100;
+        setTimeout(() => {
+          isLoading = false;
+          dispatch('loaded');
+        }, 300);
+      } else if (expIsLoading && !isLoading) {
+        // If the experience says it's loading but we're not showing the loading screen, show it
+        isLoading = true;
+      }
+    }
+  }
+  
   // Watch for route changes to trigger cleanup
   $: if (page && $page.url.pathname !== currentPath) {
     currentPath = $page.url.pathname;
@@ -75,16 +108,21 @@
       currentPath = $page.url.pathname;
     }
     
+    // Add event listener for loading state updates
+    window.addEventListener('experience-loading-update', handleLoadingUpdate);
+    
     if (canvas && navigator.gpu) {
       // Start memory monitoring
       startMemoryMonitoring();
       
       // Initialize the engine with the canvas
       loadingMessage = "Initializing graphics engine...";
+      loadingProgress = 30;
       engine = new Engine(canvas);
       
       // Start the experience with the camera config
       loadingMessage = `Loading ${experienceClass.name} experience...`;
+      loadingProgress = 40;
       experience = await engine.start(experienceClass, cameraConfig);
       
       // Dispatch the experience ready event
@@ -92,11 +130,15 @@
       
       // Update loading message to indicate we're finalizing
       loadingMessage = "Finalizing...";
+      loadingProgress = 90;
       
       // Hide loading screen immediately after the next frame renders
       requestAnimationFrame(() => {
-        isLoading = false;
-        dispatch('loaded');
+        loadingProgress = 100;
+        setTimeout(() => {
+          isLoading = false;
+          dispatch('loaded');
+        }, 300); // Short delay to show 100% progress
       });
       
       // Handle window resize
@@ -110,6 +152,7 @@
       
       return () => {
         window.removeEventListener('resize', handleResize);
+        window.removeEventListener('experience-loading-update', handleLoadingUpdate);
         
         // Stop memory monitoring
         if (memoryMonitorInterval) {
@@ -150,6 +193,10 @@
     }
   });
   
+  onDestroy(() => {
+    window.removeEventListener('experience-loading-update', handleLoadingUpdate);
+  });
+  
   // Function to get the current engine instance
   export function getEngine() {
     return engine;
@@ -186,12 +233,12 @@
   <canvas bind:this={canvas} class="webgpu-canvas"></canvas>
   
   <!-- Loading overlay -->
-  {#if isLoading}
-  <div class="loading-overlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">{loadingMessage}</div>
-  </div>
-  {/if}
+  <LoadingOverlay 
+    isLoading={isLoading} 
+    message={loadingMessage} 
+    accentColor={effectiveAccentColor}
+    progress={loadingProgress}
+  />
   
   <!-- Memory stats display (if enabled) -->
   {#if showMemoryStats && !isLoading}
@@ -223,53 +270,16 @@
     display: block;
   }
   
-  /* Loading overlay styles */
-  .loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-  
-  .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 3px solid rgba(255, 153, 0, 0.3);
-    border-radius: 50%;
-    border-top-color: #ff9900;
-    animation: spin 1s ease-in-out infinite;
-    margin-bottom: 20px;
-  }
-  
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  .loading-text {
-    color: #ff9900;
-    font-family: 'Courier New', monospace;
-    font-size: 16px;
-    text-align: center;
-  }
-  
-  /* Memory stats display */
   .memory-stats {
     position: absolute;
     bottom: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 10px;
-    border-radius: 5px;
-    font-family: monospace;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-family: 'Courier New', monospace;
     font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 4px;
     z-index: 100;
   }
 </style> 

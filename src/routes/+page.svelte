@@ -2,46 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import Engine from '$lib/graphics/Engine.js';
   import HomeBackgroundExperience from '$lib/graphics/experiences/Home/HomeBackgroundExperience.js';
+  import { experiences } from '$lib/store/experienceStore.js';
   // import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
-  
-  const experiences = [
-    {
-      id: 'flocking',
-      name: 'FLOCKING',
-      description: 'Simulation of collective motion in flocks using parallel compute shaders. Simple local rules generate complex global murmurations; cute emergent behavior in natural systems.',
-      color: '#00bfff'
-    },
-    // {
-    //   id: 'cube',
-    //   name: 'CUBE',
-    //   description: 'Interactive 3D cube visualization',
-    //   color: '#ff0000'
-    // },
-    {
-      id: 'neuralnet',
-      name: 'NEURAL NET',
-      description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
-      color: '#ff0000'
-    },
-    {
-      id: 'riemann',
-      name: 'RIEMANN SURFACES',
-      description: 'Visualization of complex mathematical functions as 3D surfaces. Early steps to figuring out what Riemann was on about in his 1851 thesis.',
-      color: '#ffff00'
-    },
-    {
-      id: 'gridcode',
-      name: 'Θ-FUNCTION // GRID CODE',
-      description: 'Model of medial entorhinal grid cells using the Riemann theta functions. Visualising how the brain encodes spatial information in a structured form..',
-      color: '#ff9900'
-    },
-    // {
-    //   id: 'lorentz',
-    //   name: 'LORENTZ',
-    //   description: 'Lorentz attractor visualization',
-    //   color: '#00ffff'
-    // }
-  ];
   
   let selectedExp = null;
   let mounted = false;
@@ -49,9 +11,16 @@
   let engine;
   let backgroundLoaded = false;
   
-  onMount(async () => {
+  onMount(() => {
     mounted = true;
     
+    // Simulate background loading
+    setTimeout(() => {
+      backgroundLoaded = true;
+    }, 500);
+  });
+  
+  onMount(async () => {
     // Terminal typing effect
     const terminalText = document.querySelector('.terminal-text');
     if (terminalText) {
@@ -129,7 +98,7 @@
 
   <main>
     <div class="experience-grid">
-      {#each experiences as exp, i}
+      {#each $experiences as exp, i}
         <div 
           class="experience-item" 
           on:mouseenter={() => selectedExp = exp}

@@ -2,6 +2,10 @@
     import ExperienceWrapper from '$lib/components/ExperienceWrapper.svelte';
     import GridCodeExperience from '$lib/graphics/experiences/GridCode/GridCodeExperience.js';
     import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
+    import { getExperienceColor } from '$lib/store/experienceStore.js';
+    
+    // Get the accent color for use in the control panel
+    const accentColor = getExperienceColor('gridcode');
     
     // KP shader parameters
     let kpScaleIndex = 2; // Default scale index (middle scale)
@@ -107,6 +111,7 @@
             on:mouseup={stopPropagation}
             on:mousemove={stopPropagation}
             on:wheel={handleControlPanelWheel}
+            style="--accent: {accentColor};"
         >
             <h2>Riemann Θ-FUNCTION // MEC GRID CODE</h2>
             <p>Computational model of the MEC grid code using the Riemannn Θ-function</p>
@@ -210,7 +215,7 @@
         max-height: calc(100vh - 60px);
         overflow-y: auto;
         scrollbar-width: thin;
-        scrollbar-color: #ff9900 rgba(0, 0, 0, 0.3);
+        scrollbar-color: var(--accent, #ff9900) rgba(0, 0, 0, 0.3);
     }
     
     /* Custom scrollbar styling */
@@ -224,7 +229,7 @@
     }
     
     .control-panel::-webkit-scrollbar-thumb {
-        background-color: #ff9900;
+        background-color: var(--accent, #ff9900);
         border-radius: 3px;
     }
     
@@ -234,7 +239,7 @@
         font-size: 18px;
         letter-spacing: 2px;
         text-transform: uppercase;
-        color: #ff9900;
+        color: var(--accent, #ff9900);
     }
     
     .control-panel h3 {
@@ -250,36 +255,60 @@
         opacity: 0.9;
     }
     
-    .controls {
-        border-top: 1px solid #444;
-        padding-top: 15px;
-        margin-top: 10px;
-    }
-    
     .control-group {
         margin-bottom: 15px;
     }
     
-    label {
+    .control-group label {
         display: block;
         margin-bottom: 5px;
+        font-size: 14px;
     }
     
-    select, input[type="range"] {
+    .control-group select,
+    .control-group input {
         width: 100%;
-        padding: 5px;
-        background-color: #333;
+        padding: 8px;
+        background-color: rgba(30, 30, 30, 0.8);
+        border: 1px solid rgba(100, 100, 100, 0.3);
         color: white;
-        border: 1px solid #555;
-        border-radius: 4px;
+        font-family: 'Courier New', monospace;
     }
     
-    select {
-        height: 30px;
+    .control-group select:focus,
+    .control-group input:focus {
+        outline: none;
+        border-color: var(--accent, #ff9900);
     }
     
-    .theta, .tau {
-        margin-top: 15px;
+    .control-group input[type="range"] {
+        -webkit-appearance: none;
+        height: 6px;
+        background: rgba(30, 30, 30, 0.8);
+        border-radius: 3px;
+        padding: 0;
+    }
+    
+    .control-group input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent, #ff9900);
+        cursor: pointer;
+    }
+    
+    .control-group input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent, #ff9900);
+        cursor: pointer;
+        border: none;
+    }
+    
+    .theta, .tau, .psychosis {
+        margin-top: 20px;
         padding-top: 10px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
     }

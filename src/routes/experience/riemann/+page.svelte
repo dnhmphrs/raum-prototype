@@ -3,12 +3,18 @@
     import Engine from '$lib/graphics/Engine.js';
     import RiemannExperience from '$lib/graphics/experiences/Riemann/RiemannExperience.js';
     import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
+    import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
+    import { getExperienceColor } from '$lib/store/experienceStore.js';
     
     let canvas;
     let engine;
     let experience;
     let isLoading = true; // Loading state
     let loadingMessage = "Initializing WebGPU..."; // Dynamic loading message
+    let loadingProgress = -1; // -1 means indeterminate
+    
+    // Experience accent color from store
+    const accentColor = getExperienceColor('riemann');
     
     // Available manifold functions
     const manifoldTypes = [
@@ -63,6 +69,7 @@
         if (canvas && navigator.gpu) {
             // Initialize the engine with the canvas
             loadingMessage = "Initializing graphics engine...";
+            loadingProgress = 20;
             engine = new Engine(canvas);
             
             // Get the Riemann camera config
@@ -70,6 +77,7 @@
             
             // Start the Riemann experience with the camera config
             loadingMessage = "Loading Riemann experience...";
+            loadingProgress = 40;
             const result = await engine.start(RiemannExperience, cameraConfig);
             
             // Try to get the experience reference in multiple ways
@@ -84,16 +92,21 @@
             // Set initial surface to ripple
             if (experience) {
                 loadingMessage = "Loading Ripple Surface...";
+                loadingProgress = 70;
                 experience.updateSurface('ripple');
             }
             
             // Update loading message to indicate we're finalizing
             loadingMessage = "Finalizing...";
+            loadingProgress = 90;
             
             // Hide loading screen immediately after the next frame renders
             // This ensures the experience is visible and ready
             requestAnimationFrame(() => {
-                isLoading = false;
+                loadingProgress = 100;
+                setTimeout(() => {
+                    isLoading = false;
+                }, 300); // Short delay to show 100% progress
             });
             
             // Handle window resize
@@ -128,12 +141,12 @@
     <a href="/" class="back-button">⏎ Back</a>
     
     <!-- Loading overlay -->
-    {#if isLoading}
-    <div class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">{loadingMessage}</div>
-    </div>
-    {/if}
+    <LoadingOverlay 
+        isLoading={isLoading} 
+        message={loadingMessage} 
+        accentColor={accentColor}
+        progress={loadingProgress}
+    />
     
     <div 
         class="control-panel"
@@ -141,6 +154,7 @@
         on:mouseup={stopPropagation}
         on:mousemove={stopPropagation}
         on:wheel={preventDefaultAndStopPropagation}
+        style="--accent: {accentColor};"
     >
         <h2>RIEMANN MANIFOLD</h2>
         <p>Visualizing 2D manifolds in 3D space</p>
@@ -199,42 +213,6 @@
         background-color: rgba(0, 0, 0, 0.8);
     }
     
-    /* Loading overlay styles */
-    .loading-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-    
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 3px solid rgba(0, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: #00ffff;
-        animation: spin 1s ease-in-out infinite;
-        margin-bottom: 20px;
-    }
-    
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-    
-    .loading-text {
-        color: #00ffff;
-        font-family: 'Courier New', monospace;
-        font-size: 16px;
-        text-align: center;
-    }
-    
     .control-panel {
         position: absolute;
         top: 20px;
@@ -256,7 +234,7 @@
         font-size: 18px;
         letter-spacing: 2px;
         text-transform: uppercase;
-        color: #00ffff;
+        color: var(--accent, #00ffff);
     }
     
     .control-panel h3 {
@@ -278,35 +256,37 @@
         gap: 8px;
     }
     
-    button {
-        background-color: rgba(30, 30, 30, 0.8);
+    .button-group button {
+        background-color: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         color: white;
-        border: 1px solid rgba(100, 100, 100, 0.3);
         padding: 8px 12px;
-        border-radius: 4px;
         font-family: 'Courier New', monospace;
+        font-size: 14px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.2s ease;
+        text-align: left;
     }
     
-    button:hover {
-        background-color: rgba(50, 50, 50, 0.8);
-        border-color: rgba(150, 150, 150, 0.5);
+    .button-group button:hover {
+        background-color: rgba(0, 0, 0, 0.7);
+        border-color: var(--accent, #00ffff);
     }
     
-    button.active {
-        background-color: rgba(0, 150, 150, 0.5);
-        border-color: #00ffff;
+    .button-group button.active {
+        background-color: rgba(0, 0, 0, 0.8);
+        border-color: var(--accent, #00ffff);
+        color: var(--accent, #00ffff);
+    }
+    
+    .highlight {
+        color: var(--accent, #00ffff);
+        font-weight: bold;
     }
     
     .info {
         margin-top: 20px;
-        padding-top: 15px;
+        padding-top: 10px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .highlight {
-        color: #00ffff;
-        font-weight: bold;
     }
 </style> 

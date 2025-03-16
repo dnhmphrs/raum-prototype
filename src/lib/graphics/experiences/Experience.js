@@ -23,6 +23,11 @@ class Experience {
 		this.active = false;
 		this.name = this.constructor.name;
 		
+		// Loading state
+		this.isLoading = true;
+		this.loadingProgress = 0;
+		this.loadingMessage = "Initializing...";
+		
 		// Register this experience with the memory manager
 		registerResource(this, 'experiences', this.name);
 		
@@ -207,6 +212,26 @@ class Experience {
 		
 		// Unregister this experience from the memory manager
 		unregisterResource(this, 'experiences');
+	}
+
+	// Method to update loading state
+	updateLoadingState(isLoading, message = "", progress = 0) {
+		this.isLoading = isLoading;
+		this.loadingMessage = message;
+		this.loadingProgress = progress;
+		
+		// Dispatch a custom event that the UI can listen for
+		if (typeof window !== 'undefined') {
+			const event = new CustomEvent('experience-loading-update', { 
+				detail: { 
+					experience: this.name,
+					isLoading: this.isLoading,
+					message: this.loadingMessage,
+					progress: this.loadingProgress
+				} 
+			});
+			window.dispatchEvent(event);
+		}
 	}
 }
 
