@@ -144,6 +144,10 @@ class RiemannPipeline {
         // Set shader type if provided
         if (shaderType && this.renderPipelines[shaderType]) {
             this.currentShaderType = shaderType;
+        } else if (shaderType && !this.renderPipelines[shaderType]) {
+            // If requested shader doesn't exist, log a warning and use default
+            console.warn(`Requested shader '${shaderType}' not found, falling back to default`);
+            this.currentShaderType = 'default';
         }
         
         // Use default if current shader not found

@@ -10,7 +10,7 @@ class RiemannExperience extends Experience {
         this.resourceManager = resourceManager;
         
         // Initialize surface type
-        this.surfaceType = 'riemann';
+        this.surfaceType = 'flat';
         
         // Initialize loading state
         this.isLoading = true;
@@ -58,7 +58,7 @@ class RiemannExperience extends Experience {
         this.surfaceShaderMap.set('riemann', 'default');
         
         // Set current surface
-        this.currentSurface = 'riemann';
+        this.currentSurface = 'flat';
     }
     
     // Method to update loading state
@@ -393,6 +393,12 @@ class RiemannExperience extends Experience {
             
             this.updateLoadingState(true, "Pipeline initialized", 50);
             
+            // Explicitly generate the flat surface to ensure it's ready on first render
+            this.updateLoadingState(true, "Generating surface...", 70);
+            const vertices = new Float32Array(this.totalVertices * 3);
+            this.generateFlatGrid(vertices);
+            this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
+            
             // Set up camera target to center of grid without overriding position
             this.updateLoadingState(true, "Configuring camera...", 90);
             if (this.resourceManager && this.resourceManager.camera) {
@@ -456,7 +462,12 @@ class RiemannExperience extends Experience {
             }
             
             // Get the shader type for the current surface
-            const shaderType = this.surfaceShaderMap.get(this.currentSurface) || 'default';
+            let shaderType = this.surfaceShaderMap.get(this.currentSurface) || 'default';
+            
+            // Force 'default' shader for flat surface to ensure consistent rendering
+            if (this.currentSurface === 'flat' || this.currentSurface === 'riemann') {
+                shaderType = 'default';
+            }
             
             // Render using pipeline with the appropriate shader
             this.pipeline.render(
