@@ -63,7 +63,7 @@ fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
     let pole2Term = 0.8 / max(dist2, epsilon);
     
     // Scale down the effect for visual balance
-    let poleEffect = (pole1Term + pole2Term) * 0.4;
+    let poleEffect = (pole1Term + pole2Term) * 0.25;
     
     // Add a wave pattern based on distance and angle - maintains meromorphicity
     // using pure trigonometric functions of r and theta
@@ -78,7 +78,7 @@ fn surfaceFunction(x: f32, y: f32, time: f32) -> f32 {
     var height = poleEffect + wave + spiral;
     
     // Add gentle overall pulsing
-    let pulse = 0.2 * sin(time * 0.4) + 1.0;
+    let pulse = 0.2 * sin(time * 0.4) + 0.8;
     height *= pulse;
     
     return height;
