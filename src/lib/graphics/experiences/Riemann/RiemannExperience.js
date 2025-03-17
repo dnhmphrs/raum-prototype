@@ -33,8 +33,14 @@ class RiemannExperience extends Experience {
         this.totalVertices = this.resolution * this.resolution;
         this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6;
         
-        // Create vertex and index buffers
-        this.createBuffers();
+        // Create a map to store buffers for each surface type
+        this.vertexBuffers = new Map();
+        
+        // Create index buffer (shared across all surface types)
+        this.createIndexBuffer();
+        
+        // Initialize vertex buffers for each surface type
+        this.initializeVertexBuffers();
         
         // Create uniform buffer for time
         this.uniformBuffer = this.device.createBuffer({
@@ -50,12 +56,11 @@ class RiemannExperience extends Experience {
     // Initialize the mapping of surface types to shader types
     initializeSurfaceShaderMap() {
         this.surfaceShaderMap = new Map();
-        this.surfaceShaderMap.set('flat', 'default');
+        this.surfaceShaderMap.set('flat', 'flat');
         this.surfaceShaderMap.set('sine', 'sine');
         this.surfaceShaderMap.set('ripple', 'ripple');
-        this.surfaceShaderMap.set('complex', 'complex');
+        this.surfaceShaderMap.set('weird', 'weird');
         this.surfaceShaderMap.set('torus', 'torus');
-        this.surfaceShaderMap.set('riemann', 'default');
         
         // Set current surface
         this.currentSurface = 'flat';
@@ -85,25 +90,8 @@ class RiemannExperience extends Experience {
         return this.updateSurface(surfaceType);
     }
     
-    createBuffers() {
-        // Create vertices for the grid
-        const vertices = new Float32Array(this.totalVertices * 3); // x, y, z for each vertex
-        
-        // Generate a flat grid initially
-        this.generateSurface(vertices, 'flat');
-        
-        // Create vertex buffer with mappedAtCreation for better memory management
-        this.vertexBuffer = this.device.createBuffer({
-            size: vertices.byteLength,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            mappedAtCreation: true,
-            label: 'Riemann Vertex Buffer'
-        });
-        
-        // Copy data to the mapped buffer and unmap
-        new Float32Array(this.vertexBuffer.getMappedRange()).set(vertices);
-        this.vertexBuffer.unmap();
-        
+    // Create index buffer (only need one for all surface types since topology is the same)
+    createIndexBuffer() {
         // Create indices for the grid
         const indices = new Uint32Array(this.totalIndices);
         let index = 0;
@@ -135,6 +123,56 @@ class RiemannExperience extends Experience {
         this.indexBuffer.unmap();
     }
     
+    // Initialize separate vertex buffers for each surface type
+    initializeVertexBuffers() {
+        // Create vertex buffers for each surface type
+        const surfaceTypes = ['flat', 'sine', 'ripple', 'weird', 'torus'];
+        
+        for (const surfaceType of surfaceTypes) {
+            // Generate vertices for this surface type
+            const vertices = new Float32Array(this.totalVertices * 3);
+            
+            // Create specific surface geometry
+            this.generateSurfaceData(vertices, surfaceType);
+            
+            // Create vertex buffer 
+            const vertexBuffer = this.device.createBuffer({
+                size: vertices.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true,
+                label: `Riemann Vertex Buffer (${surfaceType})`
+            });
+            
+            // Copy data to the mapped buffer and unmap
+            new Float32Array(vertexBuffer.getMappedRange()).set(vertices);
+            vertexBuffer.unmap();
+            
+            // Store the buffer in our map
+            this.vertexBuffers.set(surfaceType, vertexBuffer);
+        }
+        
+        // Set the current vertex buffer based on the current surface
+        this.vertexBuffer = this.vertexBuffers.get(this.currentSurface);
+    }
+    
+    // Generate appropriate data for a specific surface type
+    generateSurfaceData(vertexData, surfaceType) {
+        switch (surfaceType) {
+            case 'flat':
+                return this.generateFlatGrid(vertexData);
+            case 'sine':
+                return this.generateSineWave(vertexData);
+            case 'ripple':
+                return this.generateRipple(vertexData);
+            case 'weird':
+                return this.generateWeirdSurface(vertexData, 0);
+            case 'torus':
+                return this.generateTorus(vertexData);
+            default:
+                return this.generateFlatGrid(vertexData);
+        }
+    }
+    
     // Method to update the surface based on the selected type
     updateSurface(surfaceType) {
         try {
@@ -147,8 +185,14 @@ class RiemannExperience extends Experience {
             this.surfaceType = surfaceType;
             this.currentSurface = surfaceType;
             
-            // Generate the new surface
-            this.generateSurface(null, surfaceType);
+            // Get the appropriate vertex buffer for this surface type
+            if (this.vertexBuffers && this.vertexBuffers.has(surfaceType)) {
+                this.vertexBuffer = this.vertexBuffers.get(surfaceType);
+            } else {
+                // If buffer not found, use flat as fallback
+                console.warn(`Vertex buffer for surface type '${surfaceType}' not found, using 'flat' as fallback`);
+                this.vertexBuffer = this.vertexBuffers.get('flat');
+            }
             
             return true;
         } catch (error) {
@@ -157,7 +201,7 @@ class RiemannExperience extends Experience {
         }
     }
     
-    // Generate different surface types
+    // Generate different surface types - maintain for compatibility
     generateSurface(vertices, surfaceType) {
         try {
             if (!this.surfaceShaderMap) {
@@ -172,26 +216,8 @@ class RiemannExperience extends Experience {
             // Update current surface
             this.currentSurface = surface;
             
-            // Generate a flat grid if no other type is specified
-            if (surface === 'flat' || surface === 'riemann') {
-                this.generateFlatGrid(vertexData);
-            } else if (surface === 'sine') {
-                this.generateSineWave(vertexData);
-            } else if (surface === 'ripple') {
-                this.generateRipple(vertexData);
-            } else if (surface === 'complex') {
-                this.generateComplexSurface(vertexData);
-            } else if (surface === 'torus') {
-                this.generateTorus(vertexData);
-            } else {
-                // Default to flat grid
-                this.generateFlatGrid(vertexData);
-            }
-            
-            // Update vertex buffer with new data if vertices were provided
-            if (vertices && this.vertexBuffer) {
-                this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
-            }
+            // Generate surface using our data generator
+            this.generateSurfaceData(vertexData, surface);
             
             return true;
         } catch (error) {
@@ -284,15 +310,15 @@ class RiemannExperience extends Experience {
         return vertices;
     }
     
-    // Helper method to generate a complex surface
-    generateComplexSurface(vertexData, time = 0) {
+    // Helper method to generate a weird surface
+    generateWeirdSurface(vertexData, time = 0) {
         const vertices = vertexData || new Float32Array(this.totalVertices * 3);
         let index = 0;
         
         // Scale factor to make the grid larger
         const scale = 2.0;
         
-        // Use a more reasonable time scale - the previous value was too extreme
+        // Use a more reasonable time scale
         const t = time * 0.5;
         
         for (let y = 0; y < this.resolution; y++) {
@@ -301,41 +327,43 @@ class RiemannExperience extends Experience {
                 const xPos = ((x / (this.resolution - 1)) * 2 - 1) * scale;
                 const yPos = ((y / (this.resolution - 1)) * 2 - 1) * scale;
                 
-                // Calculate base position
-                let zPos = 0;
+                // Calculate polar coordinates
+                const r = Math.sqrt(xPos * xPos + yPos * yPos);
+                const theta = Math.atan2(yPos, xPos);
                 
-                // Create a dramatically changing surface based on time
-                // Use a completely different approach with more visible changes
+                // Moving poles (meromorphic singularities)
+                const pole1X = Math.sin(t * 0.3) * scale * 0.5;
+                const pole1Y = Math.cos(t * 0.4) * scale * 0.5;
+                const pole2X = Math.sin(t * 0.5 + 2) * scale * 0.5;
+                const pole2Y = Math.cos(t * 0.2 + 1) * scale * 0.5;
                 
-                // Time-based parameters that change more dramatically
-                const phase1 = t * 0.3;
-                const phase2 = t * 0.7;
+                // Distances to poles
+                const dist1 = Math.sqrt(Math.pow(xPos - pole1X, 2) + Math.pow(yPos - pole1Y, 2));
+                const dist2 = Math.sqrt(Math.pow(xPos - pole2X, 2) + Math.pow(yPos - pole2Y, 2));
                 
-                // Create dramatic peaks that move across the surface
-                const peak1X = Math.sin(phase1) * scale * 0.8;
-                const peak1Y = Math.cos(phase1 * 1.3) * scale * 0.8;
-                const peak2X = Math.sin(phase2 * 0.7 + 2) * scale * 0.8;
-                const peak2Y = Math.cos(phase2 * 0.5 + 1) * scale * 0.8;
+                // Avoid true singularities with epsilon
+                const epsilon = 0.1;
                 
-                // Distance from moving peaks
-                const dist1 = Math.sqrt(Math.pow(xPos - peak1X, 2) + Math.pow(yPos - peak1Y, 2));
-                const dist2 = Math.sqrt(Math.pow(xPos - peak2X, 2) + Math.pow(yPos - peak2Y, 2));
+                // Laurent series-like approach for poles
+                const pole1Term = 1.0 / Math.max(dist1, epsilon);
+                const pole2Term = 0.8 / Math.max(dist2, epsilon);
                 
-                // Create dramatic peaks that move across the surface
-                const peak1 = 2.0 * Math.exp(-dist1 * 1.5);
-                const peak2 = 1.5 * Math.exp(-dist2 * 1.5);
+                // Scale for visual balance
+                const poleEffect = (pole1Term + pole2Term) * 0.4;
                 
-                // Add some ripples that change frequency over time
-                const rippleFreq = 3.0 + Math.sin(t * 0.2) * 2.0;
-                const dist = Math.sqrt(xPos * xPos + yPos * yPos);
-                const ripple = 0.5 * Math.sin(dist * rippleFreq + t * 2.0);
+                // Wave pattern based on distance and angle
+                const waveFreq = 3.0 + Math.sin(t * 0.2);
+                const wave = 0.3 * Math.sin(r * waveFreq + t * 1.5);
                 
-                // Combine effects with dramatic time-based changes
-                zPos = peak1 + peak2 + ripple;
+                // Spiral term (varies with angle)
+                const spiral = 0.2 * Math.sin(theta * 3.0 + r * 2.0 + t * 0.7);
                 
-                // Add dramatic vertical stretching that changes over time
-                const stretch = 1.0 + Math.sin(t * 0.1) * 0.5;
-                zPos *= stretch;
+                // Combine effects in a way that maintains meromorphicity
+                let zPos = poleEffect + wave + spiral;
+                
+                // Add gentle overall pulsing
+                const pulse = 0.2 * Math.sin(t * 0.4) + 1.0;
+                zPos *= pulse;
                 
                 // Set vertex position
                 vertices[index++] = xPos;
@@ -352,9 +380,12 @@ class RiemannExperience extends Experience {
         const vertices = vertexData || new Float32Array(this.totalVertices * 3);
         let index = 0;
         
-        // Enhanced torus parameters for better proportions
-        const R = 0.65; // Major radius
-        const r = 0.35; // Minor radius
+        // Scale factor to match other surfaces
+        const scale = 2.0;
+        
+        // Enhanced torus parameters with scaling
+        const R = 0.65 * scale; // Major radius
+        const r = 0.35 * scale; // Minor radius
         
         for (let y = 0; y < this.resolution; y++) {
             for (let x = 0; x < this.resolution; x++) {
@@ -362,7 +393,7 @@ class RiemannExperience extends Experience {
                 const theta = (x / (this.resolution - 1)) * Math.PI * 2;
                 const phi = (y / (this.resolution - 1)) * Math.PI * 2;
                 
-                // Parametric equation for torus with enhancement
+                // Parametric equation for torus with scaling
                 const xPos = (R + r * Math.cos(phi)) * Math.cos(theta);
                 const yPos = (R + r * Math.cos(phi)) * Math.sin(theta);
                 const zPos = r * Math.sin(phi);
@@ -393,11 +424,14 @@ class RiemannExperience extends Experience {
             
             this.updateLoadingState(true, "Pipeline initialized", 50);
             
-            // Explicitly generate the flat surface to ensure it's ready on first render
-            this.updateLoadingState(true, "Generating surface...", 70);
-            const vertices = new Float32Array(this.totalVertices * 3);
-            this.generateFlatGrid(vertices);
-            this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
+            // Make sure all vertex buffers are initialized
+            this.updateLoadingState(true, "Generating surfaces...", 70);
+            if (!this.vertexBuffers || this.vertexBuffers.size === 0) {
+                this.initializeVertexBuffers();
+            }
+            
+            // Set the proper current buffer
+            this.vertexBuffer = this.vertexBuffers.get(this.currentSurface) || this.vertexBuffers.get('flat');
             
             // Set up camera target to center of grid without overriding position
             this.updateLoadingState(true, "Configuring camera...", 90);
@@ -436,16 +470,12 @@ class RiemannExperience extends Experience {
             // Update time with smoother value for more elegant animation
             this.time += 0.015;
             
-            // If the current surface is complex, update it with time-based animation
-            if (this.currentSurface === 'complex') {
+            // Only the weird surface needs to be updated each frame for animation
+            if (this.currentSurface === 'weird') {
+                // For weird surface, update with time-based animation
                 const vertices = new Float32Array(this.totalVertices * 3);
-                this.generateComplexSurface(vertices, this.time);
+                this.generateWeirdSurface(vertices, this.time);
                 this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
-                
-                // // Log time value occasionally to verify it's changing
-                // if (Math.floor(this.time * 10) % 100 === 0) {
-                //     console.log("Current time:", this.time);
-                // }
             }
             
             // Update uniform buffer with time and additional parameters
@@ -457,16 +487,16 @@ class RiemannExperience extends Experience {
             
             // Safety check for surfaceShaderMap
             if (!this.surfaceShaderMap) {
-                console.warn("surfaceShaderMap is not defined in render, using default shader");
+                console.warn("surfaceShaderMap is not defined in render, initializing with defaults");
                 this.initializeSurfaceShaderMap();
             }
             
             // Get the shader type for the current surface
-            let shaderType = this.surfaceShaderMap.get(this.currentSurface) || 'default';
+            let shaderType = this.surfaceShaderMap.get(this.currentSurface) || 'flat';
             
-            // Force 'default' shader for flat surface to ensure consistent rendering
-            if (this.currentSurface === 'flat' || this.currentSurface === 'riemann') {
-                shaderType = 'default';
+            // Force 'flat' shader for flat surface to ensure consistent rendering
+            if (this.currentSurface === 'flat') {
+                shaderType = 'flat';
             }
             
             // Render using pipeline with the appropriate shader
@@ -502,10 +532,16 @@ class RiemannExperience extends Experience {
             this.pipeline = null;
         }
         
-        // Clean up buffers
-        if (this.vertexBuffer) {
-            this.vertexBuffer = null;
+        // Clean up all vertex buffers
+        if (this.vertexBuffers) {
+            for (const [_, buffer] of this.vertexBuffers) {
+                // Can't reassign buffer parameter, just remove the reference
+            }
+            this.vertexBuffers.clear();
         }
+        
+        // Clear current vertex buffer reference
+        this.vertexBuffer = null;
         
         if (this.indexBuffer) {
             this.indexBuffer = null;
@@ -533,6 +569,12 @@ class RiemannExperience extends Experience {
         
         // Call parent cleanup
         super.cleanup();
+    }
+    
+    // Replace the old createBuffers method
+    createBuffers() {
+        this.createIndexBuffer();
+        this.initializeVertexBuffers();
     }
 }
 

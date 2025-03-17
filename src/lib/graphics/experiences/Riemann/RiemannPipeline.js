@@ -7,7 +7,7 @@ class RiemannPipeline {
         this.device = device;
         this.resourceManager = resourceManager;
         this.isInitialized = false;
-        this.currentShaderType = 'default';
+        this.currentShaderType = 'flat';
         this.shaderModules = new Map();
         this.renderPipelines = {};
     }
@@ -44,10 +44,10 @@ class RiemannPipeline {
             const basePath = '/shaders/riemann';
             
             // Initialize all shaders with paths relative to the base URL
-            await this.initializeShader('default', `${basePath}/RiemannShader.wgsl`);
+            await this.initializeShader('flat', `${basePath}/FlatShader.wgsl`);
             await this.initializeShader('sine', `${basePath}/SineShader.wgsl`);
             await this.initializeShader('ripple', `${basePath}/RippleShader.wgsl`);
-            await this.initializeShader('complex', `${basePath}/ComplexShader.wgsl`);
+            await this.initializeShader('weird', `${basePath}/WeirdShader.wgsl`);
             await this.initializeShader('torus', `${basePath}/TorusShader.wgsl`);
             
             this.isInitialized = true;
@@ -119,8 +119,8 @@ class RiemannPipeline {
     setShaderType(shaderType) {
         try {
             if (!this.shaderModules.has(shaderType)) {
-                console.warn(`Shader ${shaderType} not found, using default`);
-                shaderType = 'default';
+                console.warn(`Shader ${shaderType} not found, using flat`);
+                shaderType = 'flat';
             }
             
             // Update current shader type
@@ -145,14 +145,14 @@ class RiemannPipeline {
         if (shaderType && this.renderPipelines[shaderType]) {
             this.currentShaderType = shaderType;
         } else if (shaderType && !this.renderPipelines[shaderType]) {
-            // If requested shader doesn't exist, log a warning and use default
-            console.warn(`Requested shader '${shaderType}' not found, falling back to default`);
-            this.currentShaderType = 'default';
+            // If requested shader doesn't exist, log a warning and use flat
+            console.warn(`Requested shader '${shaderType}' not found, falling back to flat`);
+            this.currentShaderType = 'flat';
         }
         
-        // Use default if current shader not found
+        // Use flat if current shader not found
         if (!this.renderPipelines[this.currentShaderType]) {
-            this.currentShaderType = 'default';
+            this.currentShaderType = 'flat';
         }
         
         // Validate depth texture view

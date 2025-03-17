@@ -17,8 +17,8 @@ struct TimeUniform {
 // Simple color function for torus based on position
 fn simpleTorusColor(position: vec3<f32>, time: f32) -> vec3<f32> {
     // Use the height (z-coordinate) for coloring
-    // Torus z values range from -0.5 to 0.5
-    let normalizedHeight = (position.z + 0.5) * 1.0;
+    // Torus z values range from -0.7 to 0.7 now with scaling
+    let normalizedHeight = (position.z + 0.7) / 1.4;
     
     // Create a simple blue-to-cyan gradient
     let baseColor = vec3<f32>(0.0, 0.3, 0.8); // Blue
@@ -34,34 +34,28 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     // Store original position for calculations
     output.worldPos = position;
     
-    // Torus parameters
-    let R = 1.5; // Major radius
-    let r = 0.5; // Minor radius
-    
-    // Calculate parametric coordinates
-    let u = position.x * 3.14159; // Angle around the tube
-    let v = position.y * 3.14159; // Angle around the torus
-    
-    // Calculate torus position
-    let torusX = (R + r * cos(v)) * cos(u);
-    let torusY = (R + r * cos(v)) * sin(u);
-    let torusZ = r * sin(v);
-    
-    let torusPosition = vec3<f32>(torusX, torusY, torusZ);
+    // The position already contains a properly generated torus
+    // Just pass it through directly
     
     // Transform position with view and projection matrices
-    output.position = projection * view * vec4<f32>(torusPosition, 1.0);
+    output.position = projection * view * vec4<f32>(position, 1.0);
     
-    // Calculate normal
-    // For a torus, the normal at point (u,v) is:
-    let nx = cos(v) * cos(u);
-    let ny = cos(v) * sin(u);
-    let nz = sin(v);
+    // Calculate normal for lighting
+    // For a torus with parameters R=1.3 (0.65*2) and r=0.7 (0.35*2)
+    // Extract angles from position
+    let theta = atan2(position.y, position.x);
+    let r_xz = sqrt(position.x * position.x + position.y * position.y) - 1.3;
+    let phi = atan2(position.z, r_xz);
+    
+    // Normal vectors for a torus
+    let nx = cos(phi) * cos(theta);
+    let ny = cos(phi) * sin(theta);
+    let nz = sin(phi);
     
     output.normal = normalize(vec3<f32>(nx, ny, nz));
     
     // Generate color based on position
-    output.color = simpleTorusColor(torusPosition, timeUniform.time);
+    output.color = simpleTorusColor(position, timeUniform.time);
     
     return output;
 }

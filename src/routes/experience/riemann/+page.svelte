@@ -21,7 +21,7 @@
         { id: 'flat', name: 'Flat Surface' },
         { id: 'sine', name: 'Sine Wave' },
         { id: 'ripple', name: 'Ripple' },
-        { id: 'complex', name: 'Complex Function' },
+        { id: 'weird', name: 'Weird Function' },
         { id: 'torus', name: 'Torus' }
     ];
     
