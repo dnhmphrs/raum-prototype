@@ -245,13 +245,16 @@ class GridCodeExperience extends Experience {
             this.resourceManager.camera.updateAspect(width, height);
         }
         
-        // Update depth texture if needed
-        if (this.resourceManager.updateDepthTexture) {
+        // Update depth texture if needed - add null check
+        if (this.resourceManager && typeof this.resourceManager.updateDepthTexture === 'function') {
             this.resourceManager.updateDepthTexture(width, height);
         }
     }
     
     cleanup() {
+        // First, mark as loading to prevent further rendering
+        this.isLoading = true;
+        
         // Clean up pipeline
         if (this.pipeline) {
             this.pipeline.cleanup();
@@ -260,6 +263,7 @@ class GridCodeExperience extends Experience {
         
         // Clean up buffers - explicitly nullify WebGPU resources
         if (this.vertexBuffer) {
+            // No need to explicitly destroy buffers as they're automatically collected
             this.vertexBuffer = null;
         }
         
@@ -272,7 +276,6 @@ class GridCodeExperience extends Experience {
         }
         
         // Reset state
-        this.isLoading = true;
         this.loadingProgress = 0;
         this.time = 0;
         
@@ -292,7 +295,15 @@ class GridCodeExperience extends Experience {
         this._globalRef = null;
         this._previousGlobalRef = null;
         
-        // Clear device and resource manager references
+        // Dispatch an event to notify UI components that we're cleaning up
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('gridcode-cleanup', { 
+                detail: { experience: 'gridcode' } 
+            });
+            window.dispatchEvent(event);
+        }
+        
+        // Clear device and resource manager references - do this last
         this.device = null;
         this.resourceManager = null;
         

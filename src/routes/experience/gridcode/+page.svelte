@@ -83,7 +83,6 @@
 <ExperienceWrapper 
     experienceClass={GridCodeExperience} 
     cameraConfig={getCameraConfig('GridCode')}
-    showMemoryStats={false}
     on:ready={handleExperienceReady}
 >
     <div 

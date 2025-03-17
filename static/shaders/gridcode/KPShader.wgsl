@@ -435,7 +435,7 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     let heightOffset = kpParams.distortion * 0.1;
     
     // Apply height offset to raw height
-    let height = rawHeight * 0.2 + heightOffset;
+    let height = rawHeight * 0.25 + heightOffset;
     
     // For high distortion, add domain warping micro-noise
     var finalHeight = height;

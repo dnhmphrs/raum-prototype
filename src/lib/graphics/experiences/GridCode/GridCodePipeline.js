@@ -196,8 +196,18 @@ class GridCodePipeline {
                 return;
             }
             
-            const { projectionBuffer, viewBuffer } = this.resourceManager.camera.getBuffers();
-            if (!projectionBuffer || !viewBuffer) {
+            // Safely get camera buffers and check if they're valid
+            const cameraBuffers = this.resourceManager.camera.getBuffers();
+            if (!cameraBuffers || !cameraBuffers.projectionBuffer || !cameraBuffers.viewBuffer) {
+                renderPass.end();
+                return;
+            }
+            
+            const { projectionBuffer, viewBuffer } = cameraBuffers;
+            
+            // Additional safety check for destroyed buffers
+            if (!projectionBuffer.size || !viewBuffer.size) {
+                console.warn("Camera buffers appear to be destroyed, skipping render");
                 renderPass.end();
                 return;
             }
@@ -231,37 +241,41 @@ class GridCodePipeline {
     }
     
     cleanup() {
-        // Clean up resources - explicitly nullify WebGPU resources
-        if (this.shaderModule) {
-            this.shaderModule = null;
-        }
-        
-        if (this.renderPipeline) {
-            this.renderPipeline = null;
-        }
-        
-        if (this.bindGroupLayout) {
-            this.bindGroupLayout = null;
-        }
-        
-        if (this.pipelineLayout) {
-            this.pipelineLayout = null;
-        }
-        
-        if (this.kpParamsBuffer) {
-            this.kpParamsBuffer = null;
-        }
-        
-        if (this.bindGroup) {
-            this.bindGroup = null;
-        }
-        
-        // Clear device and resource manager references
-        this.device = null;
-        this.resourceManager = null;
-        
-        // Mark as not initialized
+        // Mark as not initialized first to prevent further rendering
         this.isInitialized = false;
+        
+        try {
+            // Clean up resources - explicitly nullify WebGPU resources
+            if (this.shaderModule) {
+                this.shaderModule = null;
+            }
+            
+            if (this.renderPipeline) {
+                this.renderPipeline = null;
+            }
+            
+            if (this.bindGroupLayout) {
+                this.bindGroupLayout = null;
+            }
+            
+            if (this.pipelineLayout) {
+                this.pipelineLayout = null;
+            }
+            
+            if (this.kpParamsBuffer) {
+                this.kpParamsBuffer = null;
+            }
+            
+            if (this.bindGroup) {
+                this.bindGroup = null;
+            }
+            
+            // Clear device and resource manager references
+            this.device = null;
+            this.resourceManager = null;
+        } catch (error) {
+            console.error("Error during GridCodePipeline cleanup:", error);
+        }
     }
 }
 
