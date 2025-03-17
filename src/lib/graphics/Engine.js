@@ -27,6 +27,9 @@ class Engine {
 		this.interactionManager = null;
 		this.currentExperience = null;
 		this.animationFrameId = null;
+		this.renderingPaused = false;
+		this.renderEveryNthFrame = 1;
+		this.frameCounter = 0;
 		
 		// Resource tracking
 		this.resources = {
@@ -44,6 +47,11 @@ class Engine {
 	// Track a resource for automatic cleanup
 	trackResource(resource, type = 'others') {
 		if (!resource) return resource;
+		
+		// Track large buffer allocations
+		if (type === 'buffers' && resource.size) {
+			this.trackBufferAllocation(resource.size, resource.label || 'Unnamed buffer');
+		}
 		
 		// Add to appropriate resource list
 		if (this.resources[type]) {
@@ -325,7 +333,43 @@ class Engine {
 			return;
 		}
 		
+		// Monitor memory every 30 frames
+		if (!this._frameCount) this._frameCount = 0;
+		this._frameCount++;
+		
+		if (this._frameCount % 30 === 0) {
+			this.monitorMemoryGrowth();
+		}
+		
+		// Skip frames if throttling is active
+		if (this.renderEveryNthFrame > 1) {
+			this.frameCounter = (this.frameCounter || 0) + 1;
+			if (this.frameCounter % this.renderEveryNthFrame !== 0) {
+				// Skip this frame
+				this.animationFrameId = requestAnimationFrame(this.render);
+				return;
+			}
+		}
+		
 		try {
+			// Memory throttling check - pause rendering if memory usage is too high
+			if (typeof window !== 'undefined' && window.performance && window.performance.memory) {
+				const memUsage = window.performance.memory.usedJSHeapSize;
+				const memLimit = window.performance.memory.jsHeapSizeLimit;
+				const percentUsed = (memUsage / memLimit) * 100;
+				
+				if (memUsage > memLimit * 0.85) {
+					// Memory usage is too high - manage with our smart system
+					if (this.handleHighMemoryUsage(percentUsed)) {
+						// Memory management took action, continue the render loop if appropriate
+						if (!this.renderingPaused) {
+							this.animationFrameId = requestAnimationFrame(this.render);
+						}
+						return;
+					}
+				}
+			}
+			
 			// Get the current texture from the context
 			const textureView = this.context.getCurrentTexture().createView();
 			
@@ -350,70 +394,264 @@ class Engine {
 		this.animationFrameId = requestAnimationFrame(this.render);
 	}
 
-	handleResize() {
-		// Update canvas size
-		if (this.canvas) {
-			const width = this.canvas.clientWidth;
-			const height = this.canvas.clientHeight;
+	// Smart memory management - implements a progressive throttling strategy
+	handleHighMemoryUsage(percentUsed) {
+		const isHighMemory = percentUsed > 85;
+		const isCriticalMemory = percentUsed > 95;
+		
+		// Dispatch memory warning event for the UI
+		const event = new CustomEvent('memory-warning', {
+			detail: {
+				usedJSHeapSize: window.performance.memory.usedJSHeapSize,
+				jsHeapSizeLimit: window.performance.memory.jsHeapSizeLimit,
+				percentUsed: percentUsed,
+				isCritical: isCriticalMemory
+			}
+		});
+		window.dispatchEvent(event);
+		
+		if (isCriticalMemory) {
+			// Enter emergency mode - pause rendering and reduce quality
+			console.warn(`Critical memory usage detected (${percentUsed.toFixed(1)}%). Entering emergency mode.`);
+			this.pauseRendering(true);
+			return true;
+		} else if (isHighMemory) {
+			// Throttle rendering and reduce quality
+			console.warn(`High memory usage detected (${percentUsed.toFixed(1)}%). Throttling rendering.`);
+			this.reduceRenderingQuality();
+			return true;
+		}
+		
+		return false;
+	}
+	
+	// Pause/resume rendering
+	pauseRendering(isPaused) {
+		this.renderingPaused = isPaused;
+		
+		if (isPaused) {
+			// Dispatch event that rendering is paused
+			const event = new CustomEvent('rendering-paused', {
+				detail: { reason: 'memory' }
+			});
+			window.dispatchEvent(event);
 			
-			if (width > 0 && height > 0) {
-				this.canvas.width = width;
-				this.canvas.height = height;
-				
-				// Update context configuration if needed
-				if (this.context && this.device) {
-					try {
-						this.context.configure({
-							device: this.device,
-							format: navigator.gpu.getPreferredCanvasFormat(),
-							alphaMode: 'premultiplied'
-						});
-					} catch (error) {
-						// Error reconfiguring context
+			// If we have an animation frame ID, cancel it
+			if (this.animationFrameId) {
+				cancelAnimationFrame(this.animationFrameId);
+				this.animationFrameId = null;
+			}
+			
+			// Schedule a check to see if we can resume in a few seconds
+			setTimeout(() => {
+				if (this.renderingPaused) {
+					// Check if memory usage has decreased
+					if (window.performance && window.performance.memory) {
+						const memUsage = window.performance.memory.usedJSHeapSize;
+						const memLimit = window.performance.memory.jsHeapSizeLimit;
+						const percentUsed = (memUsage / memLimit) * 100;
+						
+						if (percentUsed < 80) {
+							// Safe to resume
+							this.pauseRendering(false);
+						} else {
+							// Still high, check again later
+							setTimeout(() => {
+								if (this.renderingPaused) {
+									this.pauseRendering(false);
+								}
+							}, 3000);
+						}
+					} else {
+						// No memory API available, just resume
+						this.pauseRendering(false);
 					}
 				}
+			}, 3000);
+		} else {
+			// Resume rendering if paused
+			if (!this.animationFrameId) {
+				this.animationFrameId = requestAnimationFrame(this.render);
 				
-				// Update viewport if needed
-				if (this.resourceManager && this.resourceManager.updateViewportSize) {
-					this.resourceManager.updateViewportSize(width, height);
-				}
-				
-				// Update camera aspect ratio
-				if (this.camera) {
-					this.camera.updateAspect(width, height);
-				}
-				
-				// Call resize on scene if it exists
-				if (this.scene && typeof this.scene.handleResize === 'function') {
-					this.scene.handleResize(width, height);
-				}
-			} else {
-				// Invalid canvas dimensions
+				// Dispatch event that rendering is resumed
+				const event = new CustomEvent('rendering-resumed');
+				window.dispatchEvent(event);
 			}
 		}
 	}
+	
+	// Reduce rendering quality to manage memory usage
+	reduceRenderingQuality() {
+		// Skip frames to reduce GPU load
+		this.renderEveryNthFrame = (this.renderEveryNthFrame || 1) * 2;
+		this.renderEveryNthFrame = Math.min(this.renderEveryNthFrame, 8); // Cap at 8 frames (very low FPS)
+		
+		// If we have a scene with custom memory management
+		if (this.scene && typeof this.scene.handleLowMemory === 'function') {
+			this.scene.handleLowMemory();
+		}
+		
+	// If we have an experience with custom memory management
+	if (this.experience && typeof this.experience.handleLowMemory === 'function') {
+		this.experience.handleLowMemory();
+	}
+	
+	// Schedule quality improvement after some time has passed
+	setTimeout(() => {
+		if (this.renderEveryNthFrame > 1) {
+			this.renderEveryNthFrame = Math.max(1, this.renderEveryNthFrame / 2);
+		}
+	}, 5000);
+}
 
-	// Add a stop method that calls cleanup for compatibility
-	async stop() {
-		await this.cleanup();
+handleResize() {
+	// Update canvas size
+	if (this.canvas) {
+		const width = this.canvas.clientWidth;
+		const height = this.canvas.clientHeight;
+		
+		if (width > 0 && height > 0) {
+			this.canvas.width = width;
+			this.canvas.height = height;
+			
+			// Update context configuration if needed
+			if (this.context && this.device) {
+				try {
+					this.context.configure({
+						device: this.device,
+						format: navigator.gpu.getPreferredCanvasFormat(),
+						alphaMode: 'premultiplied'
+					});
+				} catch (error) {
+					// Error reconfiguring context
+				}
+			}
+			
+			// Update viewport if needed
+			if (this.resourceManager && this.resourceManager.updateViewportSize) {
+				this.resourceManager.updateViewportSize(width, height);
+			}
+			
+			// Update camera aspect ratio
+			if (this.camera) {
+				this.camera.updateAspect(width, height);
+			}
+			
+			// Call resize on scene if it exists
+			if (this.scene && typeof this.scene.handleResize === 'function') {
+				this.scene.handleResize(width, height);
+			}
+		} else {
+			// Invalid canvas dimensions
+		}
+	}
+}
+
+// Add a stop method that calls cleanup for compatibility
+async stop() {
+	await this.cleanup();
+}
+
+// Helper method to format bytes to human-readable format
+formatBytes(bytes) {
+	return formatBytes(bytes);
+}
+
+// Static method to clean up all WebGPU resources
+static cleanupAll() {
+	// Clean up all WebGPU contexts
+	cleanupAllWebGPUContexts();
+	
+	// Clean up all tracked resources
+	cleanupAllResources();
+	
+	// Force garbage collection
+	forceGarbageCollection();
+}
+
+// Track biggest buffer allocations
+trackBufferAllocation(size, description = "") {
+	// Record large buffer allocations to help debug memory spikes
+	if (size > 1024 * 1024 * 10) { // Only track buffers > 10MB
+		if (!this._largeBufferLog) {
+			this._largeBufferLog = [];
+		}
+		
+		// Store info about the large buffer
+		this._largeBufferLog.push({
+			size,
+			description,
+			timestamp: Date.now(),
+			stack: new Error().stack // Capture stack trace to see where it was allocated
+		});
+		
+		// Keep only the last 20 entries
+		if (this._largeBufferLog.length > 20) {
+			this._largeBufferLog.shift();
+		}
+		
+		console.warn(`Large buffer allocated: ${formatBytes(size)} - ${description}`);
+	}
+}
+
+// Check for memory growth
+monitorMemoryGrowth() {
+	// Only run in browser environment with memory API
+	if (typeof window === 'undefined' || !window.performance || !window.performance.memory) {
+		return;
 	}
 	
-	// Helper method to format bytes to human-readable format
-	formatBytes(bytes) {
-		return formatBytes(bytes);
+	// Setup memory tracking
+	if (!this._memoryHistory) {
+		this._memoryHistory = [];
+		this._lastMemSize = window.performance.memory.usedJSHeapSize;
+		this._spikeDetected = false;
 	}
 	
-	// Static method to clean up all WebGPU resources
-	static cleanupAll() {
-		// Clean up all WebGPU contexts
-		cleanupAllWebGPUContexts();
-		
-		// Clean up all tracked resources
-		cleanupAllResources();
-		
-		// Force garbage collection
-		forceGarbageCollection();
+	const currentMem = window.performance.memory.usedJSHeapSize;
+	const memDiff = currentMem - this._lastMemSize;
+	const memGrowthMB = memDiff / (1024 * 1024);
+	
+	// Record history
+	this._memoryHistory.push({
+		timestamp: Date.now(),
+		size: currentMem,
+		change: memDiff
+	});
+	
+	// Keep history limited to last 100 samples
+	if (this._memoryHistory.length > 100) {
+		this._memoryHistory.shift();
 	}
+	
+	// Detect rapid growth (possible leak)
+	if (memGrowthMB > 100) { // 100MB sudden growth
+		if (!this._spikeDetected) {
+			console.warn(`Memory spike detected: +${memGrowthMB.toFixed(2)}MB - possible memory leak`);
+			
+			// Log currently active resource counts
+			console.warn('Active resources:', this.resourceManager ? 
+				JSON.stringify(getMemoryStats().resourceCounts) : 'Resource manager not available');
+			
+			// Log recently allocated large buffers
+			if (this._largeBufferLog && this._largeBufferLog.length > 0) {
+				console.warn('Recent large buffer allocations:');
+				this._largeBufferLog.forEach(entry => {
+					console.warn(`- ${formatBytes(entry.size)} - ${entry.description}`);
+				});
+			}
+			
+			this._spikeDetected = true;
+			
+			// Reset spike detector after a while
+			setTimeout(() => {
+				this._spikeDetected = false;
+			}, 10000);
+		}
+	}
+	
+	this._lastMemSize = currentMem;
+}
 }
 
 export default Engine;

@@ -472,17 +472,34 @@ class RiemannExperience extends Experience {
             
             // Only the weird surface needs to be updated each frame for animation
             if (this.currentSurface === 'weird') {
-                // For weird surface, update with time-based animation
-                const vertices = new Float32Array(this.totalVertices * 3);
-                this.generateWeirdSurface(vertices, this.time);
-                this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
+                // Reuse vertices array instead of creating a new one every frame
+                if (!this._verticesCache) {
+                    // Create once and cache
+                    this._verticesCache = new Float32Array(this.totalVertices * 3);
+                }
+                
+                // For weird surface, update with time-based animation using cached array
+                this.generateWeirdSurface(this._verticesCache, this.time);
+                this.device.queue.writeBuffer(this.vertexBuffer, 0, this._verticesCache);
             }
             
             // Update uniform buffer with time and additional parameters
+            // Create this Float32Array once and reuse it
+            if (!this._timeUniformData) {
+                this._timeUniformData = new Float32Array(4);
+            }
+            
+            // Update values without creating new array
+            this._timeUniformData[0] = 0.15;
+            this._timeUniformData[1] = 0.2;
+            this._timeUniformData[2] = 0.05;
+            this._timeUniformData[3] = this.time;
+            
+            // Write reused buffer to GPU
             this.device.queue.writeBuffer(
                 this.uniformBuffer,
                 0,
-                new Float32Array([0.15, 0.2, 0.05, this.time]) // Add some parameters for enhanced shading
+                this._timeUniformData
             );
             
             // Safety check for surfaceShaderMap
@@ -550,6 +567,10 @@ class RiemannExperience extends Experience {
         if (this.uniformBuffer) {
             this.uniformBuffer = null;
         }
+        
+        // Clean up cached arrays we added to prevent memory leaks
+        this._verticesCache = null;
+        this._timeUniformData = null;
         
         // Reset state
         this.isLoading = true;
