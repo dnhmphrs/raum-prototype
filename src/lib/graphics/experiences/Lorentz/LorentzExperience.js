@@ -362,7 +362,7 @@ class LorentzExperience extends Experience {
     
     cleanup() {
         // Remove event listeners
-        const canvas = this.resourceManager.canvas;
+        const canvas = this.resourceManager?.canvas;
         if (canvas) {
             const newCanvas = canvas.cloneNode(true);
             if (canvas.parentNode) {
@@ -370,12 +370,43 @@ class LorentzExperience extends Experience {
             }
         }
         
-        // Clear references
+        // Clean up pipeline
+        if (this.renderPipeline) {
+            // Unregister from resource manager
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.renderPipeline, 'pipelines');
+            }
+            this.renderPipeline = null;
+        }
+        
+        // Clean up buffers
+        if (this.vertexBuffer) {
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.vertexBuffer, 'buffers');
+            }
+            this.vertexBuffer = null;
+        }
+        
+        if (this.uniformBuffer) {
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.uniformBuffer, 'buffers');
+            }
+            this.uniformBuffer = null;
+        }
+        
+        // Clean up bind group
+        if (this.bindGroup) {
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.bindGroup, 'bindGroups');
+            }
+            this.bindGroup = null;
+        }
+        
+        // Clear data
         this.points = null;
-        this.vertexBuffer = null;
-        this.uniformBuffer = null;
-        this.renderPipeline = null;
-        this.bindGroup = null;
+        
+        // Call parent cleanup for standardized resource management
+        super.cleanup();
     }
 }
 

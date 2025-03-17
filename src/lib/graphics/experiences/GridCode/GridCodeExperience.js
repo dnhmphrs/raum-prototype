@@ -295,17 +295,27 @@ class GridCodeExperience extends Experience {
             this.pipeline = null;
         }
         
-        // Clean up buffers - explicitly nullify WebGPU resources
+        // Clean up buffers - explicitly destroy WebGPU resources
         if (this.vertexBuffer) {
-            // No need to explicitly destroy buffers as they're automatically collected
+            // Not calling destroy() as WebGPU doesn't support explicit destruction for buffers
+            // Just unregister from resource manager and set to null
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.vertexBuffer, 'buffers');
+            }
             this.vertexBuffer = null;
         }
         
         if (this.indexBuffer) {
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.indexBuffer, 'buffers');
+            }
             this.indexBuffer = null;
         }
         
         if (this.uniformBuffer) {
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.uniformBuffer, 'buffers');
+            }
             this.uniformBuffer = null;
         }
         
@@ -337,11 +347,7 @@ class GridCodeExperience extends Experience {
             window.dispatchEvent(event);
         }
         
-        // Clear device and resource manager references - do this last
-        this.device = null;
-        this.resourceManager = null;
-        
-        // Call parent cleanup
+        // Call parent cleanup for standardized resource management
         super.cleanup();
     }
 }

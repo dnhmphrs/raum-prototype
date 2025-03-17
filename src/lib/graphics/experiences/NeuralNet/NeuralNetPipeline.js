@@ -461,8 +461,52 @@ export default class NeuralNetPipeline extends Pipeline {
 	}
 
 	cleanup() {
-		if (this.activityBuffer) this.activityBuffer.destroy();
-		if (this.positionBuffer) this.positionBuffer.destroy();
-		if (this.dendriteVertexBuffer) this.dendriteVertexBuffer.destroy();
+		// Try-catch to handle any errors during cleanup
+		try {
+			// Clean up buffers using safe destroy pattern
+			if (this.activityBuffer) {
+				try {
+					this.activityBuffer.destroy();
+				} catch (e) {
+					console.warn("Error destroying activityBuffer:", e);
+				}
+				this.activityBuffer = null;
+			}
+			
+			if (this.positionBuffer) {
+				try {
+					this.positionBuffer.destroy();
+				} catch (e) {
+					console.warn("Error destroying positionBuffer:", e);
+				}
+				this.positionBuffer = null;
+			}
+			
+			if (this.dendriteVertexBuffer) {
+				try {
+					this.dendriteVertexBuffer.destroy();
+				} catch (e) {
+					console.warn("Error destroying dendriteVertexBuffer:", e);
+				}
+				this.dendriteVertexBuffer = null;
+			}
+			
+			// Clean up other resources
+			if (this.computePipeline) {
+				this.computePipeline = null;
+			}
+			
+			if (this.dendriteBindGroup) {
+				this.dendriteBindGroup = null;
+			}
+			
+			// Mark as uninitialized
+			this.isInitialized = false;
+			
+			// Call parent cleanup for standardized resource management
+			super.cleanup();
+		} catch (error) {
+			console.error("Error in NeuralNetPipeline cleanup:", error);
+		}
 	}
 }

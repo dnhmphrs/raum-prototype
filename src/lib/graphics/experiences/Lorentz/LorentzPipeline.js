@@ -217,10 +217,48 @@ export default class LorentzPipeline extends Pipeline {
     }
     
     cleanup() {
-        // Since GPU resources don't have explicit destroy methods, we can nullify references
-        this.computePipeline = null;
-        this.renderPipeline = null;
-        this.computeBindGroup = null;
-        this.renderBindGroup = null;
+        try {
+            // Clean up compute pipeline resources
+            if (this.computePipeline) {
+                this.computePipeline = null;
+            }
+            
+            if (this.renderPipeline) {
+                this.renderPipeline = null;
+            }
+            
+            // Clean up bind groups
+            if (this.computeBindGroup) {
+                this.computeBindGroup = null;
+            }
+            
+            if (this.renderBindGroup) {
+                this.renderBindGroup = null;
+            }
+            
+            // Clean up buffers with destroy method if available
+            if (this.verticesBuffer && typeof this.verticesBuffer.destroy === 'function') {
+                try {
+                    this.verticesBuffer.destroy();
+                } catch (e) {
+                    console.warn("Error destroying verticesBuffer:", e);
+                }
+            }
+            this.verticesBuffer = null;
+            
+            if (this.paramsBuffer && typeof this.paramsBuffer.destroy === 'function') {
+                try {
+                    this.paramsBuffer.destroy();
+                } catch (e) {
+                    console.warn("Error destroying paramsBuffer:", e);
+                }
+            }
+            this.paramsBuffer = null;
+            
+            // Call parent cleanup for standardized resource management
+            super.cleanup();
+        } catch (error) {
+            console.error("Error in LorentzPipeline cleanup:", error);
+        }
     }
 } 

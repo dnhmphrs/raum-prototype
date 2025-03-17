@@ -557,9 +557,6 @@ export default class FlockingPipeline extends Pipeline {
 
         // Begin main render pass
         const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
-
-        // Render main scene
-        passEncoder.setViewport(0, 0, this.canvasWidth, this.canvasHeight, 0.0, 1.0);
         
         // -----------------------
         // 1. Render Background
@@ -671,51 +668,63 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     cleanup() {
-        // Destroy all buffers
-        const buffers = [
-            'phaseBuffer', 'positionBuffer', 'velocityBuffer', 
-            'predatorPositionBuffer', 'predatorVelocityBuffer', 
-            'flockingParamsBuffer', 'deltaTimeBuffer', 'targetIndexBuffer'
-        ];
-        
-        buffers.forEach(bufferName => {
-            if (this[bufferName]) {
-                this[bufferName] = null;
-            }
-        });
-        
-        // Clean up bind groups
-        const bindGroups = [
-            'flockingComputeBindGroup', 'huntingComputeBindGroup',
-            'birdBindGroup', 'predatorBindGroup', 'guidingLineBindGroup',
-            'backgroundBindGroup'
-        ];
-        
-        bindGroups.forEach(groupName => {
-            if (this[groupName]) {
-                this[groupName] = null;
-            }
-        });
-        
-        // Clean up pipelines
-        const pipelines = [
-            'flockingComputePipeline', 'huntingComputePipeline',
-            'birdPipeline', 'predatorPipeline'
-        ];
-        
-        pipelines.forEach(pipelineName => {
-            if (this[pipelineName]) {
-                this[pipelineName] = null;
-            }
-        });
-
-        // Clear references to external resources
-        this.camera = null;
-        this.viewportBuffer = null;
-        this.mouseBuffer = null;
-        
-        // Call parent cleanup
-        super.cleanup();
+        try {
+            // Destroy all buffers with proper resource cleanup
+            const buffers = [
+                'phaseBuffer', 'positionBuffer', 'velocityBuffer', 
+                'predatorPositionBuffer', 'predatorVelocityBuffer', 
+                'flockingParamsBuffer', 'deltaTimeBuffer', 'targetIndexBuffer'
+            ];
+            
+            buffers.forEach(bufferName => {
+                if (this[bufferName]) {
+                    if (typeof this[bufferName].destroy === 'function') {
+                        try {
+                            this[bufferName].destroy();
+                        } catch (e) {
+                            console.warn(`Error destroying ${bufferName}:`, e);
+                        }
+                    }
+                    this[bufferName] = null;
+                }
+            });
+            
+            // Clean up bind groups
+            const bindGroups = [
+                'flockingComputeBindGroup', 'huntingComputeBindGroup',
+                'birdBindGroup', 'predatorBindGroup', 'guidingLineBindGroup',
+                'backgroundBindGroup'
+            ];
+            
+            bindGroups.forEach(groupName => {
+                if (this[groupName]) {
+                    this[groupName] = null;
+                }
+            });
+            
+            // Clean up pipelines
+            const pipelines = [
+                'flockingComputePipeline', 'huntingComputePipeline',
+                'birdPipeline', 'predatorPipeline', 'guidingLinePipeline',
+                'backgroundPipeline'
+            ];
+            
+            pipelines.forEach(pipelineName => {
+                if (this[pipelineName]) {
+                    this[pipelineName] = null;
+                }
+            });
+    
+            // Clear references to external resources
+            this.camera = null;
+            this.viewportBuffer = null;
+            this.mouseBuffer = null;
+            
+            // Call parent cleanup
+            super.cleanup();
+        } catch (error) {
+            console.error("Error in FlockingPipeline cleanup:", error);
+        }
     }
 
     updateViewportDimensions(width, height) {

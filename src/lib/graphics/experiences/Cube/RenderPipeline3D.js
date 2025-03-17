@@ -165,5 +165,8 @@ export default class RenderPipeline3D extends Pipeline {
 
 	cleanup() {
 		this.isInitialized = false;
+		
+		// Call parent cleanup for proper resource management
+		super.cleanup();
 	}
 }

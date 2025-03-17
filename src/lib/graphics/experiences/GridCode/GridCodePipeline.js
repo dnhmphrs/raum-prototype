@@ -247,29 +247,35 @@ class GridCodePipeline {
         this.isActive = false;
         
         try {
-            // Clean up resources - explicitly nullify WebGPU resources
-            if (this.shaderModule) {
+            // Proper cleanup with memory manager unregistering
+            if (this.shaderModule && this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.shaderModule, 'shaderModules');
                 this.shaderModule = null;
             }
             
-            if (this.renderPipeline) {
+            if (this.renderPipeline && this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.renderPipeline, 'pipelines');
                 this.renderPipeline = null;
             }
             
-            if (this.bindGroupLayout) {
-                this.bindGroupLayout = null;
+            if (this.bindGroup && this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.bindGroup, 'bindGroups');
+                this.bindGroup = null;
             }
             
-            if (this.pipelineLayout) {
-                this.pipelineLayout = null;
-            }
-            
-            if (this.kpParamsBuffer) {
+            if (this.kpParamsBuffer && this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.kpParamsBuffer, 'buffers');
                 this.kpParamsBuffer = null;
             }
             
-            if (this.bindGroup) {
-                this.bindGroup = null;
+            // Other resources that don't need special handling
+            this.bindGroupLayout = null;
+            this.pipelineLayout = null;
+            
+            // Check if this is a subclass of Pipeline before calling super.cleanup()
+            if (Object.getPrototypeOf(this).constructor.name === 'Pipeline' && 
+                typeof super.cleanup === 'function') {
+                super.cleanup();
             }
             
             // Clear device and resource manager references

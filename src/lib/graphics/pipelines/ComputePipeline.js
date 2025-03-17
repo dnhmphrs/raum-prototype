@@ -200,9 +200,33 @@ export default class ComputePipeline {
 	}
 
 	cleanup() {
-		// Clean up buffers
-		// Since GPU pipelines don't have a destroy method, we can nullify references
-		this.pipeline = null;
-		this.bindGroup = null;
+		try {
+			// Clean up buffers that have destroy method
+			if (this.storageBuffer && typeof this.storageBuffer.destroy === 'function') {
+				try {
+					this.storageBuffer.destroy();
+				} catch (e) {
+					console.warn("Error destroying storageBuffer:", e);
+				}
+			}
+			this.storageBuffer = null;
+			
+			if (this.readBuffer && typeof this.readBuffer.destroy === 'function') {
+				try {
+					this.readBuffer.destroy();
+				} catch (e) {
+					console.warn("Error destroying readBuffer:", e);
+				}
+			}
+			this.readBuffer = null;
+			
+			// WebGPU pipelines don't have destroy methods, just nullify references
+			this.pipeline = null;
+			this.bindGroup = null;
+			this.device = null;
+			this.shaderCode = null;
+		} catch (error) {
+			console.error("Error in ComputePipeline cleanup:", error);
+		}
 	}
 }

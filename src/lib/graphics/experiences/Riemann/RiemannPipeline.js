@@ -217,23 +217,55 @@ class RiemannPipeline {
         this.isInitialized = false;
         
         // Clean up shader modules
-        for (const [_, module] of this.shaderModules) {
-            module.destroy?.();
+        if (this.shaderModules) {
+            for (const [_, module] of this.shaderModules) {
+                if (module && typeof module.destroy === 'function') {
+                    try {
+                        module.destroy();
+                    } catch (error) {
+                        console.warn(`Error destroying shader module:`, error);
+                    }
+                }
+            }
+            this.shaderModules.clear();
         }
-        this.shaderModules.clear();
         
-        // Clean up pipeline
-        this.renderPipelines = {};
+        // Unregister render pipelines
+        if (this.renderPipelines) {
+            for (const key in this.renderPipelines) {
+                if (this.renderPipelines[key]) {
+                    if (this.resourceManager) {
+                        this.resourceManager.unregisterResource?.(this.renderPipelines[key], 'pipelines');
+                    }
+                }
+            }
+            this.renderPipelines = {};
+        }
         
         // Clean up bind group layout and bind group
-        this.bindGroupLayout = null;
-        this.bindGroup = null;
+        if (this.bindGroup) {
+            if (this.resourceManager) {
+                this.resourceManager.unregisterResource?.(this.bindGroup, 'bindGroups');
+            }
+            this.bindGroup = null;
+        }
+        
+        if (this.bindGroupLayout) {
+            this.bindGroupLayout = null;
+        }
         
         // Clean up pipeline layout
         this.pipelineLayout = null;
         
-        // Call parent cleanup
-        super.cleanup();
+        // Check if this is a subclass of Pipeline before calling super.cleanup()
+        if (Object.getPrototypeOf(this).constructor.name === 'Pipeline' && 
+            typeof super.cleanup === 'function') {
+            super.cleanup();
+        }
+        
+        // Clear references
+        this.device = null;
+        this.resourceManager = null;
     }
 }
 

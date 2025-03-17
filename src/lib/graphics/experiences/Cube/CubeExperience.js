@@ -113,13 +113,19 @@ class CubeExperience extends Experience {
 	}
 	
 	cleanup() {
+		// Clean up pipelines
 		if (this.pipeline2D) {
 			this.pipeline2D.cleanup();
+			this.pipeline2D = null;
 		}
 		
 		if (this.pipeline3D) {
 			this.pipeline3D.cleanup();
+			this.pipeline3D = null;
 		}
+		
+		// Call parent cleanup for standardized resource management
+		super.cleanup();
 	}
 }
 

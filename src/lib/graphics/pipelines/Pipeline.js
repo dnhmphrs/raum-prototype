@@ -91,8 +91,16 @@ class Pipeline {
 					if (resource) {
 						// Call destroy method if available
 						if (typeof resource.destroy === 'function') {
-							resource.destroy();
+							try {
+								resource.destroy();
+							} catch (error) {
+								console.warn(`Error destroying ${type} resource:`, error);
+							}
 						}
+						
+						// Unregister from memory manager
+						unregisterResource(resource, type);
+						
 						// Clear reference in the array
 						resources[i] = null;
 					}
@@ -105,11 +113,31 @@ class Pipeline {
 		// Clear resources object
 		this.resources = {};
 		
+		// Clear pipeline and bindGroup references
+		if (this.pipeline) {
+			// WebGPU doesn't provide a way to destroy pipelines, so just unregister
+			unregisterResource(this.pipeline, 'pipelines');
+			this.pipeline = null;
+		}
+		
+		if (this.bindGroup) {
+			unregisterResource(this.bindGroup, 'bindGroups');
+			this.bindGroup = null;
+		}
+		
+		// Mark as not initialized
+		if (this.isInitialized !== undefined) {
+			this.isInitialized = false;
+		}
+		
 		// Clear device reference
 		this.device = null;
 		
 		// Clear resource manager reference
 		this.resourceManager = null;
+		
+		// Unregister this pipeline from memory manager
+		unregisterResource(this, 'pipelines');
 	}
 }
 

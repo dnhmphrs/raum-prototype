@@ -250,14 +250,32 @@ class FlockingExperience extends Experience {
         this.frameCount = 0;
         this.frameTimes = [];
         this.performanceScaleFactor = 1.0;
+        this.accumulatedTargetTime = 0;
         
-        // Call parent cleanup to handle common resources
+        // Call parent cleanup to handle common resources and tracking
         super.cleanup();
     }
 
-    onResize(width, height) {
+    handleResize(width, height) {
+        // Update viewport dimensions in pipeline
         if (this.pipeline) {
             this.pipeline.updateViewportDimensions(width, height);
+        }
+        
+        // Update camera aspect ratio if needed
+        if (this.resourceManager && this.resourceManager.camera) {
+            this.resourceManager.camera.updateAspect(width, height);
+        }
+        
+        // Update depth texture if needed - add null check like in GridCodeExperience
+        if (this.resourceManager && typeof this.resourceManager.updateDepthTexture === 'function') {
+            this.resourceManager.updateDepthTexture(width, height);
+        }
+        
+        // Update the viewport buffer with new dimensions
+        if (this.resourceManager && this.resourceManager.getViewportBuffer()) {
+            const viewportArray = new Float32Array([width, height]);
+            this.device.queue.writeBuffer(this.resourceManager.getViewportBuffer(), 0, viewportArray);
         }
     }
 }

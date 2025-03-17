@@ -67,8 +67,14 @@ export default class RenderPipeline2D extends Pipeline {
 	}
 
 	cleanup() {
-		// Since GPU pipelines don't have a destroy method, we can nullify references
+		// Since GPU pipelines don't have a destroy method, we nullify references
 		this.pipeline = null;
 		this.bindGroup = null;
+		
+		// Mark as uninitialized
+		this.isInitialized = false;
+		
+		// Call parent cleanup for proper resource management
+		super.cleanup();
 	}
 }
