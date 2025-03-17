@@ -1,6 +1,7 @@
 export default class BirdGeometry {
 	constructor(device) {
 		this.device = device;
+		this.isVisible = true;
 
 		// Define bird vertices (body and wings)
 		const vertices = new Float32Array([
@@ -66,6 +67,14 @@ export default class BirdGeometry {
 		this.indexCount = this.indices.length;
 	}
 
+	setVisible(visible) {
+		this.isVisible = visible;
+	}
+
+	isVisible() {
+		return this.isVisible;
+	}
+
 	getVertexBuffer() {
 		return this.vertexBuffer;
 	}
@@ -86,6 +95,10 @@ export default class BirdGeometry {
 		if (this.indexBuffer) {
 			this.indexBuffer.destroy();
 			this.indexBuffer = null;
+		}
+		if (this.instanceBuffer) {
+			this.instanceBuffer.destroy();
+			this.instanceBuffer = null;
 		}
 	}
 }

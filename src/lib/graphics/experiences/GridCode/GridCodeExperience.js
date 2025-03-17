@@ -278,7 +278,6 @@ class GridCodeExperience extends Experience {
         // This gives any in-progress renders time to complete
         return new Promise(resolve => {
             setTimeout(() => {
-                // console.log("GridCodeExperience: Shutdown complete, proceeding with cleanup");
                 resolve();
             }, 100); // 100ms delay should be enough for any in-progress frame to complete
         });
@@ -295,17 +294,25 @@ class GridCodeExperience extends Experience {
             this.pipeline = null;
         }
         
-        // Clean up buffers - explicitly nullify WebGPU resources
+        // Clean up buffers with explicit destroy calls
         if (this.vertexBuffer) {
-            // No need to explicitly destroy buffers as they're automatically collected
+            if (typeof this.vertexBuffer.destroy === 'function') {
+                this.vertexBuffer.destroy();
+            }
             this.vertexBuffer = null;
         }
         
         if (this.indexBuffer) {
+            if (typeof this.indexBuffer.destroy === 'function') {
+                this.indexBuffer.destroy();
+            }
             this.indexBuffer = null;
         }
         
         if (this.uniformBuffer) {
+            if (typeof this.uniformBuffer.destroy === 'function') {
+                this.uniformBuffer.destroy();
+            }
             this.uniformBuffer = null;
         }
         
@@ -336,10 +343,6 @@ class GridCodeExperience extends Experience {
             });
             window.dispatchEvent(event);
         }
-        
-        // Clear device and resource manager references - do this last
-        this.device = null;
-        this.resourceManager = null;
         
         // Call parent cleanup
         super.cleanup();

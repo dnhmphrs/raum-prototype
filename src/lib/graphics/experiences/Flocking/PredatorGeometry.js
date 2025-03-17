@@ -1,6 +1,7 @@
 export default class PredatorGeometry {
 	constructor(device) {
 		this.device = device;
+		this.isVisible = true;
 
         // Define predator vertices (e.g., larger size)
         const vertices = new Float32Array([
@@ -70,6 +71,14 @@ export default class PredatorGeometry {
 		this.indexCount = this.indices.length;
 	}
 
+	setVisible(visible) {
+		this.isVisible = visible;
+	}
+
+	isVisible() {
+		return this.isVisible;
+	}
+
 	getVertexBuffer() {
 		return this.vertexBuffer;
 	}
@@ -91,5 +100,12 @@ export default class PredatorGeometry {
 			this.indexBuffer.destroy();
 			this.indexBuffer = null;
 		}
+		if (this.instanceBuffer) {
+			this.instanceBuffer.destroy();
+			this.instanceBuffer = null;
+		}
+		
+		// Clear other references
+		this.device = null;
 	}
 }

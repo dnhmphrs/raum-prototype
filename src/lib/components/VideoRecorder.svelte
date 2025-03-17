@@ -413,7 +413,6 @@
   function optimizeCanvasForRecording(canvas, quality) {
     // For low quality, we can use a smaller canvas to reduce memory usage
     if (captureQuality === 'low' && canvas.width > 1280) {
-      console.log('Using optimized canvas for low quality recording');
       
       // Create a smaller canvas for recording
       const optimizedCanvas = document.createElement('canvas');

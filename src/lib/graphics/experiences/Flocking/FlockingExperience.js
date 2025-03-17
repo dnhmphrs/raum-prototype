@@ -11,6 +11,7 @@ class FlockingExperience extends Experience {
         super(device, resourceManager);
 
         this.birdCount = 4096; // Adjusted for performance
+        this.initialBirdCount = this.birdCount; // Store initial count for recovery
         this.lastTime = performance.now(); // Initialize lastTime
         
         // Performance tracking variables
@@ -19,6 +20,10 @@ class FlockingExperience extends Experience {
         this.maxFrameHistory = 60; // Track last 60 frames for averaging
         this.performanceScaleFactor = 1.0; // Initial scale factor
         this.targetFrameTime = 4.0; // Target ~60fps (in ms)
+        
+        // Memory throttling flags
+        this.isMemoryThrottled = false;
+        this.recoveryScheduled = false;
 
         // Timer variables
         this.targetChangeInterval = 10000; // 10 seconds in milliseconds
@@ -53,8 +58,122 @@ class FlockingExperience extends Experience {
         // Bind the visibility change handler and store the bound function
         this.handleVisibilityChangeBound = this.handleVisibilityChange.bind(this);
         document.addEventListener('visibilitychange', this.handleVisibilityChangeBound);
+        
+        // Listen for memory warning events
+        this.handleMemoryWarningBound = this.handleMemoryWarning.bind(this);
+        window.addEventListener('memory-warning', this.handleMemoryWarningBound);
     }
-
+    
+    // Handle memory warnings
+    handleMemoryWarning(event) {
+        const { percentUsed, isCritical } = event.detail;
+        
+        if (isCritical && !this.isMemoryThrottled) {
+            // Drastic reduction for critical memory issues
+            this.handleLowMemory(true);
+        } else if (percentUsed > 90 && !this.isMemoryThrottled) {
+            // Regular throttling for high memory usage
+            this.handleLowMemory(false);
+        }
+    }
+    
+    // Handle low memory conditions by reducing bird count
+    handleLowMemory(isCritical = false) {
+        // Skip if already throttled
+        if (this.isMemoryThrottled) return;
+        
+        // Store original bird count for later recovery
+        if (this.initialBirdCount === undefined) {
+            this.initialBirdCount = this.birdCount;
+        }
+        
+        // Calculate reduced bird count
+        const reductionFactor = isCritical ? 0.25 : 0.5; // 75% or 50% reduction
+        const newBirdCount = Math.max(256, Math.floor(this.birdCount * reductionFactor));
+        
+        console.warn(`Reducing bird count from ${this.birdCount} to ${newBirdCount} due to ${isCritical ? 'critical' : 'high'} memory usage`);
+        
+        // Mark as throttled and update count
+        this.isMemoryThrottled = true;
+        this.birdCount = newBirdCount;
+        
+        // Update birds visibility - hide some birds instead of recreating them
+        this.updateBirdVisibility();
+        
+        // Apply low-performance mode to the pipeline
+        this.pipeline.updatePerformanceMode(true);
+        
+        // Schedule recovery after memory pressure subsides
+        if (!this.recoveryScheduled) {
+            this.recoveryScheduled = true;
+            // Clear any existing recovery timer
+            if (this._recoveryTimer) {
+                clearTimeout(this._recoveryTimer);
+            }
+            // Store the timer reference so we can clean it up later
+            this._recoveryTimer = setTimeout(() => this.attemptMemoryRecovery(), 30000); // Check after 30 seconds
+        }
+    }
+    
+    // Update bird visibility based on bird count
+    updateBirdVisibility() {
+        if (!this.birds || this.birds.length === 0) return;
+        
+        // Make sure only birdCount birds are visible
+        for (let i = 0; i < this.birds.length; i++) {
+            if (i < this.birdCount) {
+                // These birds are active
+                this.birds[i].isVisible = true;
+            } else {
+                // These birds are hidden
+                this.birds[i].isVisible = false;
+            }
+        }
+    }
+    
+    // Try to recover from memory throttling
+    attemptMemoryRecovery() {
+        this.recoveryScheduled = false;
+        
+        // Check if memory usage has improved
+        if (window.performance && window.performance.memory) {
+            const memUsage = window.performance.memory.usedJSHeapSize;
+            const memLimit = window.performance.memory.jsHeapSizeLimit;
+            const percentUsed = (memUsage / memLimit) * 100;
+            
+            // Only restore if memory usage is reasonable
+            if (percentUsed < 75 && this.initialBirdCount && this.isMemoryThrottled) {
+                console.info(`Restoring bird count to ${this.initialBirdCount}`);
+                
+                // Gradually increase bird count instead of jumping back to full
+                const currentCount = this.birdCount;
+                const targetCount = this.initialBirdCount;
+                const step = Math.max(256, Math.floor((targetCount - currentCount) / 2));
+                
+                this.birdCount = Math.min(targetCount, currentCount + step);
+                
+                // Update birds visibility
+                this.updateBirdVisibility();
+                
+                // If we're not fully recovered, schedule another recovery step
+                if (this.birdCount < this.initialBirdCount) {
+                    this.recoveryScheduled = true;
+                    // Store the timer so we can clear it during cleanup
+                    this._recoveryTimer = setTimeout(() => this.attemptMemoryRecovery(), 15000); // Check again sooner
+                } else {
+                    // We've recovered fully
+                    this.isMemoryThrottled = false;
+                    this.pipeline.updatePerformanceMode(false);
+                }
+            } else if (this.isMemoryThrottled) {
+                // Memory still high, check again later
+                this.recoveryScheduled = true;
+                // Store the timer so we can clear it during cleanup
+                this._recoveryTimer = setTimeout(() => this.attemptMemoryRecovery(), 30000);
+            }
+        }
+    }
+    
     async initialize() {
         // Initialize the pipeline
         await this.pipeline.initialize();
@@ -66,7 +185,7 @@ class FlockingExperience extends Experience {
         const bounds = 5000;
         const boundsHalf = bounds / 2;
 
-        for (let i = 0; i < this.birdCount; i++) {
+        for (let i = 0; i < this.initialBirdCount; i++) {
             // Random positions within bounds
             const posX = Math.random() * bounds - boundsHalf;
             const posY = Math.random() * bounds - boundsHalf;
@@ -98,12 +217,15 @@ class FlockingExperience extends Experience {
     }
 
     addBirds() {
-        // Add multiple birds to the scene and store references
-        for (let i = 0; i < this.birdCount; i++) {
+        // Add multiple birds to the scene and store references - always create full set
+        for (let i = 0; i < this.initialBirdCount; i++) {
             const bird = new BirdGeometry(this.device);
             this.birds.push(bird);
             this.addObject(bird);
         }
+        
+        // Set initial visibility
+        this.updateBirdVisibility();
     }
 
     addPredator() {
@@ -212,25 +334,33 @@ class FlockingExperience extends Experience {
 
     cleanup() {
         // Remove event listeners
-        document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
+        if (this.handleVisibilityChangeBound) {
+            document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
+            this.handleVisibilityChangeBound = null;
+        }
         
-        // Cleanup pipeline
+        if (this.handleMemoryWarningBound) {
+            window.removeEventListener('memory-warning', this.handleMemoryWarningBound);
+            this.handleMemoryWarningBound = null;
+        }
+        
+        // Destroy pipeline with explicit cleanup
         if (this.pipeline) {
             this.pipeline.cleanup();
             this.pipeline = null;
         }
-
-        // Cleanup birds
-        if (this.birds && this.birds.length > 0) {
-            this.birds.forEach((bird) => {
-                if (bird && typeof bird.cleanup === 'function') {
+        
+        // Cleanup birds with explicit destroy calls
+        if (this.birds) {
+            this.birds.forEach(bird => {
+                if (typeof bird.cleanup === 'function') {
                     bird.cleanup();
                 }
             });
             this.birds = [];
         }
-
-        // Cleanup predator
+        
+        // Cleanup predator with explicit destroy calls
         if (this.predator) {
             if (typeof this.predator.cleanup === 'function') {
                 this.predator.cleanup();
@@ -238,7 +368,7 @@ class FlockingExperience extends Experience {
             this.predator = null;
         }
         
-        // Cleanup guiding line
+        // Cleanup guiding line with explicit destroy calls
         if (this.guidingLine) {
             if (typeof this.guidingLine.cleanup === 'function') {
                 this.guidingLine.cleanup();
@@ -246,10 +376,26 @@ class FlockingExperience extends Experience {
             this.guidingLine = null;
         }
         
+        // Reset memory throttling variables
+        this.isMemoryThrottled = false;
+        this.recoveryScheduled = false;
+        this.initialBirdCount = undefined;
+        
         // Reset performance tracking
         this.frameCount = 0;
         this.frameTimes = [];
         this.performanceScaleFactor = 1.0;
+        
+        // Remove other references
+        this.currentTargetIndex = null;
+        this.lastTime = null;
+        this.accumulatedTargetTime = 0;
+        
+        // Clear any timers
+        if (this._recoveryTimer) {
+            clearTimeout(this._recoveryTimer);
+            this._recoveryTimer = null;
+        }
         
         // Call parent cleanup to handle common resources
         super.cleanup();

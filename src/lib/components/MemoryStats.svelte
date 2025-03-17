@@ -18,6 +18,8 @@
   let memoryHistory = [];
   let leakDetected = false;
   let leakGrowthRate = 0;
+  let subtleLeakDetected = false;
+  let consistentGrowthCount = 0;
   
   // Check if we're on the homepage
   $: isHomepage = $page && $page.url.pathname === '/';
@@ -26,8 +28,8 @@
   $: memUsagePercent = typeof window !== 'undefined' && window.performance && window.performance.memory ? 
     Math.round((memoryUsage.current / window.performance.memory.jsHeapSizeLimit) * 100) : 0;
   
-  // Determine warning status
-  $: isHighMemory = memUsagePercent > 75;
+  // Determine warning status (increased threshold)
+  $: isHighMemory = memUsagePercent > 85; // Warn at 85%, but don't throttle until 90%
   
   // Handle memory warning event
   function handleMemoryWarning(event) {
@@ -40,7 +42,7 @@
     }, 5000);
   }
   
-  // Function to detect memory leaks
+  // Function to detect memory leaks - both sudden and subtle
   function checkForMemoryLeak(currentMem) {
     // Add current memory to history with timestamp
     memoryHistory.push({
@@ -49,11 +51,11 @@
     });
     
     // Keep history to a reasonable size
-    if (memoryHistory.length > 10) {
+    if (memoryHistory.length > 20) { // Increased from 10 to 20 for better trend analysis
       memoryHistory.shift();
     }
     
-    // Need at least a few samples to detect a leak
+    // First check: Growth rate over time (medium term)
     if (memoryHistory.length >= 5) {
       // Calculate growth rate (MB per minute)
       const oldestSample = memoryHistory[0];
@@ -66,9 +68,30 @@
       const growthRate = (memoryDiff / (1024 * 1024)) / timeDiffMinutes;
       leakGrowthRate = Math.round(growthRate * 10) / 10;
       
-      // A leak is indicated by consistent growth over time
-      // Adjust threshold based on your app's normal memory behavior
-      leakDetected = growthRate > 15; // 15 MB per minute growth rate threshold
+      // A major leak is indicated by consistent growth over time
+      leakDetected = growthRate > 20; // Increased from 15 MB/min to 20 MB/min
+    }
+    
+    // Second check: Consistent small growth (subtle leak)
+    if (memoryHistory.length >= 10) {
+      let growingSegments = 0;
+      
+      // Check the last 9 segments
+      for (let i = 1; i < memoryHistory.length; i++) {
+        if (memoryHistory[i].value > memoryHistory[i-1].value + 1024*1024) { // 1MB growth
+          growingSegments++;
+        }
+      }
+      
+      // If 7+ out of 9 segments show growth, we likely have a subtle leak
+      const newSubtleLeakDetected = growingSegments >= 7;
+      
+      // If we just detected a subtle leak, increment the counter
+      if (newSubtleLeakDetected && !subtleLeakDetected) {
+        consistentGrowthCount++;
+      }
+      
+      subtleLeakDetected = newSubtleLeakDetected;
     }
   }
   
@@ -113,7 +136,8 @@
 </script>
 
 {#if !isHomepage}
-<div class="memory-stats" class:warning={isHighMemory} class:throttling={memoryWarning} class:leak={leakDetected}>
+<div class="memory-stats" class:warning={isHighMemory} class:throttling={memoryWarning} 
+     class:leak={leakDetected} class:subtle-leak={subtleLeakDetected && !leakDetected}>
   <div>Memory: {formatBytes(memoryUsage.current)} ({memUsagePercent}%)</div>
   <div>Peak: {formatBytes(memoryUsage.peak)}</div>
   {#if window.performance && window.performance.memory}
@@ -122,7 +146,13 @@
   
   {#if leakDetected}
     <div class="memory-alert leak-alert">
-      Possible memory leak: {leakGrowthRate} MB/min
+      Memory leak: {leakGrowthRate} MB/min
+    </div>
+  {/if}
+  
+  {#if subtleLeakDetected && !leakDetected}
+    <div class="memory-alert subtle-leak-alert">
+      Subtle leak detected ({consistentGrowthCount})
     </div>
   {/if}
   
@@ -178,8 +208,18 @@
     animation: pulse 2s infinite;
   }
   
+  .subtle-leak {
+    background-color: rgba(120, 80, 200, 0.7);
+    color: white;
+    animation: pulse 4s infinite;
+  }
+  
   .leak-alert {
     border-top: 2px solid yellow;
+  }
+  
+  .subtle-leak-alert {
+    border-top: 1px dashed yellow;
   }
   
   @keyframes pulse {

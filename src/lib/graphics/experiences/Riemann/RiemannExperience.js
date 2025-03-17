@@ -542,7 +542,85 @@ class RiemannExperience extends Experience {
         }
     }
     
+    // Add handler for low memory conditions
+    handleLowMemory() {
+        // Decrease resolution dynamically if we're in a memory constrained situation
+        if (this._originalResolution === undefined) {
+            // Store original resolution first time
+            this._originalResolution = this.resolution;
+        }
+        
+        // If we're already at a reduced resolution, don't reduce further
+        if (this.resolution <= 100) {
+            return;
+        }
+        
+        // Reduce resolution by half, but not below 100
+        const newResolution = Math.max(100, Math.floor(this.resolution / 2));
+        console.warn(`Reducing Riemann surface resolution from ${this.resolution} to ${newResolution} to conserve memory`);
+        
+        // Store current surface type
+        const currentSurfaceType = this.currentSurface;
+        
+        // Update resolution
+        this.resolution = newResolution;
+        this.totalVertices = this.resolution * this.resolution;
+        this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6;
+        
+        // Recreate buffers at lower resolution
+        this.createIndexBuffer();
+        this.initializeVertexBuffers();
+        
+        // Reset the current surface to what it was
+        this.updateSurface(currentSurfaceType);
+        
+        // Clear any existing recovery timer
+        if (this._recoveryTimer) {
+            clearTimeout(this._recoveryTimer);
+        }
+        
+        // Schedule resolution recovery after memory pressure subsides
+        this._recoveryTimer = setTimeout(() => {
+            if (window.performance && window.performance.memory) {
+                const memUsage = window.performance.memory.usedJSHeapSize;
+                const memLimit = window.performance.memory.jsHeapSizeLimit;
+                const percentUsed = (memUsage / memLimit) * 100;
+                
+                // Only restore if memory usage is reasonable
+                if (percentUsed < 75 && this._originalResolution) {
+                    // Restore original resolution
+                    console.info(`Restoring Riemann surface resolution to ${this._originalResolution}`);
+                    
+                    // Store current surface type
+                    const currentSurfaceType = this.currentSurface;
+                    
+                    // Update resolution
+                    this.resolution = this._originalResolution;
+                    this.totalVertices = this.resolution * this.resolution;
+                    this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6;
+                    
+                    // Recreate buffers at original resolution
+                    this.createIndexBuffer();
+                    this.initializeVertexBuffers();
+                    
+                    // Reset the current surface
+                    this.updateSurface(currentSurfaceType);
+                    
+                    // Clear the recovery timer reference
+                    this._recoveryTimer = null;
+                }
+            }
+        }, 30000); // Check after 30 seconds
+    }
+    
+    // Add to cleanup method
     cleanup() {
+        // Clear any recovery timers
+        if (this._recoveryTimer) {
+            clearTimeout(this._recoveryTimer);
+            this._recoveryTimer = null;
+        }
+        
         // Clean up pipeline
         if (this.pipeline) {
             this.pipeline.cleanup();
@@ -552,25 +630,33 @@ class RiemannExperience extends Experience {
         // Clean up all vertex buffers
         if (this.vertexBuffers) {
             for (const [_, buffer] of this.vertexBuffers) {
-                // Can't reassign buffer parameter, just remove the reference
+                if (buffer && typeof buffer.destroy === 'function') {
+                    buffer.destroy();
+                }
             }
             this.vertexBuffers.clear();
         }
         
         // Clear current vertex buffer reference
+        if (this.vertexBuffer && typeof this.vertexBuffer.destroy === 'function') {
+            this.vertexBuffer.destroy();
+        }
         this.vertexBuffer = null;
         
-        if (this.indexBuffer) {
-            this.indexBuffer = null;
+        if (this.indexBuffer && typeof this.indexBuffer.destroy === 'function') {
+            this.indexBuffer.destroy();
         }
+        this.indexBuffer = null;
         
-        if (this.uniformBuffer) {
-            this.uniformBuffer = null;
+        if (this.uniformBuffer && typeof this.uniformBuffer.destroy === 'function') {
+            this.uniformBuffer.destroy();
         }
+        this.uniformBuffer = null;
         
         // Clean up cached arrays we added to prevent memory leaks
         this._verticesCache = null;
         this._timeUniformData = null;
+        this._originalResolution = undefined; // Clear the original resolution
         
         // Reset state
         this.isLoading = true;
@@ -583,10 +669,6 @@ class RiemannExperience extends Experience {
                 this.resourceManager.experiences.riemann = null;
             }
         }
-        
-        // Clear device and resource manager references
-        this.device = null;
-        this.resourceManager = null;
         
         // Call parent cleanup
         super.cleanup();

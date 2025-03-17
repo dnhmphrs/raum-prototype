@@ -136,22 +136,41 @@ class NeuralNetExperience extends Experience {
 		this.pipeline.render(commandEncoder, passDescriptor, this.objects, this.neuronCount);
 	}
 
-	// cleanup() {
-	// 	this.pipeline.cleanup();
-	// 	super.cleanup();
-	// }
 	cleanup() {
+		// Clean up pipeline
+		if (this.pipeline) {
+			this.pipeline.cleanup();
+			this.pipeline = null;
+		}
+		
+		// Backup for old code that used pipeline3D
 		if (this.pipeline3D) {
 			this.pipeline3D.cleanup();
+			this.pipeline3D = null;
 		}
+
+		// Clean up cube geometry if it exists
+		if (this.cube) {
+			if (typeof this.cube.cleanup === 'function') {
+				this.cube.cleanup();
+			}
+			this.cube = null;
+		}
+		
+		// Cleanup all connection data
+		this.connections = [];
+		this.dendriteCount = 0;
 
 		// Cleanup objects
 		this.objects.forEach((object) => {
-			if (object.cleanup) {
+			if (object && typeof object.cleanup === 'function') {
 				object.cleanup();
 			}
 		});
 		this.objects = [];
+		
+		// Call parent cleanup to handle common resources
+		super.cleanup();
 	}
 }
 

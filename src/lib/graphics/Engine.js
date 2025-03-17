@@ -84,6 +84,9 @@ class Engine {
 			this.device = this.webgpuContext.device;
 			this.context = this.webgpuContext.context;
 			
+			// Set up WebGPU error handling
+			this.setupWebGPUErrorHandling();
+			
 			// Track the WebGPU context
 			this.trackResource(this.webgpuContext, 'others');
 	
@@ -202,14 +205,12 @@ class Engine {
 			try {
 				// Check if the experience has a shutdown method
 				if (typeof this.experience.shutdown === 'function') {
-					// console.log(`Shutting down ${this.experience.constructor.name} experience...`);
 					// Wait for shutdown to complete before proceeding with cleanup
 					await this.experience.shutdown();
 				}
 				
 				// Now perform cleanup
 				if (typeof this.experience.cleanup === 'function') {
-					// console.log(`Performing cleanup for ${this.experience.constructor.name} experience`);
 					this.experience.cleanup();
 				}
 			} catch (error) {
@@ -358,13 +359,11 @@ class Engine {
 				const memLimit = window.performance.memory.jsHeapSizeLimit;
 				const percentUsed = (memUsage / memLimit) * 100;
 				
-				if (memUsage > memLimit * 0.85) {
-					// Memory usage is too high - manage with our smart system
-					if (this.handleHighMemoryUsage(percentUsed)) {
-						// Memory management took action, continue the render loop if appropriate
-						if (!this.renderingPaused) {
-							this.animationFrameId = requestAnimationFrame(this.render);
-						}
+				if (percentUsed > 90) { // Check against high memory threshold
+					this.handleHighMemoryUsage(percentUsed);
+					
+					// If we're paused due to memory, don't continue rendering
+					if (this.renderingPaused) {
 						return;
 					}
 				}
@@ -396,33 +395,45 @@ class Engine {
 
 	// Smart memory management - implements a progressive throttling strategy
 	handleHighMemoryUsage(percentUsed) {
-		const isHighMemory = percentUsed > 85;
-		const isCriticalMemory = percentUsed > 95;
+		// Skip if already paused
+		if (this.renderingPaused) return;
 		
-		// Dispatch memory warning event for the UI
-		const event = new CustomEvent('memory-warning', {
-			detail: {
-				usedJSHeapSize: window.performance.memory.usedJSHeapSize,
-				jsHeapSizeLimit: window.performance.memory.jsHeapSizeLimit,
-				percentUsed: percentUsed,
-				isCritical: isCriticalMemory
-			}
-		});
-		window.dispatchEvent(event);
-		
-		if (isCriticalMemory) {
-			// Enter emergency mode - pause rendering and reduce quality
-			console.warn(`Critical memory usage detected (${percentUsed.toFixed(1)}%). Entering emergency mode.`);
-			this.pauseRendering(true);
-			return true;
-		} else if (isHighMemory) {
-			// Throttle rendering and reduce quality
-			console.warn(`High memory usage detected (${percentUsed.toFixed(1)}%). Throttling rendering.`);
-			this.reduceRenderingQuality();
-			return true;
+		if (percentUsed > 97) { // Critical threshold
+			console.warn(`Critical memory usage detected: ${percentUsed.toFixed(1)}% - Pausing rendering`);
+			this.renderingPaused = true;
+			this._pauseReason = 'memory';
+			
+			// Notify any active experience about critical memory
+			window.dispatchEvent(new CustomEvent('memory-warning', {
+				detail: { percentUsed, isCritical: true }
+			}));
+			
+			// Show toast notification
+			this.dispatchEvent(new CustomEvent('show-toast', {
+				detail: {
+					message: 'Memory usage critical - Rendering paused',
+					type: 'error',
+					duration: 10000
+				}
+			}));
 		}
-		
-		return false;
+		else if (percentUsed > 90) { // High threshold
+			console.warn(`High memory usage detected: ${percentUsed.toFixed(1)}% - Performance may be degraded`);
+			
+			// Notify any active experience about high memory
+			window.dispatchEvent(new CustomEvent('memory-warning', {
+				detail: { percentUsed, isCritical: false }
+			}));
+			
+			// Show toast notification
+			this.dispatchEvent(new CustomEvent('show-toast', {
+				detail: {
+					message: 'High memory usage - Performance may be degraded',
+					type: 'warning',
+					duration: 5000
+				}
+			}));
+		}
 	}
 	
 	// Pause/resume rendering
@@ -569,7 +580,7 @@ static cleanupAll() {
 	forceGarbageCollection();
 }
 
-// Track biggest buffer allocations
+// Enhanced method to track WebGPU leaks specifically
 trackBufferAllocation(size, description = "") {
 	// Record large buffer allocations to help debug memory spikes
 	if (size > 1024 * 1024 * 10) { // Only track buffers > 10MB
@@ -577,12 +588,25 @@ trackBufferAllocation(size, description = "") {
 			this._largeBufferLog = [];
 		}
 		
+		// Capture the stack trace synchronously for better debugging
+		const stackTrace = new Error().stack;
+		
+		// Try to parse out the stack and identify the source
+		const stackLines = stackTrace.split('\n');
+		const relevantLine = stackLines.find(line => 
+			!line.includes('trackBufferAllocation') && 
+			!line.includes('trackResource') &&
+			line.includes('/'));
+		
+		// More useful description with stack info
+		const enhancedDescription = `${description} - Source: ${relevantLine ? relevantLine.trim() : 'unknown'}`;
+		
 		// Store info about the large buffer
 		this._largeBufferLog.push({
 			size,
-			description,
+			description: enhancedDescription,
 			timestamp: Date.now(),
-			stack: new Error().stack // Capture stack trace to see where it was allocated
+			stack: stackTrace
 		});
 		
 		// Keep only the last 20 entries
@@ -590,8 +614,65 @@ trackBufferAllocation(size, description = "") {
 			this._largeBufferLog.shift();
 		}
 		
-		console.warn(`Large buffer allocated: ${formatBytes(size)} - ${description}`);
+		console.warn(`Large buffer allocated: ${formatBytes(size)} - ${enhancedDescription}`);
+		
+		// Add specialized handling for extremely large allocations
+		if (size > 100 * 1024 * 1024) { // Over 100MB individual buffer
+			console.error(`CRITICAL: Extremely large buffer (${formatBytes(size)}) allocated. This may cause crashes.`);
+			console.error(`Stack trace: ${stackTrace}`);
+			
+			// Log memory state for debugging
+			if (window.performance && window.performance.memory) {
+				const memState = window.performance.memory;
+				console.error(`Memory state: ${formatBytes(memState.usedJSHeapSize)} / ${formatBytes(memState.jsHeapSizeLimit)} (${Math.round((memState.usedJSHeapSize / memState.jsHeapSizeLimit) * 100)}%)`);
+			}
+			
+			// Dispatch an event to notify the UI of this critical allocation
+			const event = new CustomEvent('critical-allocation', {
+				detail: {
+					size,
+					description: enhancedDescription,
+					timestamp: Date.now()
+				}
+			});
+			window.dispatchEvent(event);
+		}
 	}
+}
+
+// Add this method to handle WebGPU errors
+setupWebGPUErrorHandling() {
+	if (!this.device) return;
+	
+	// Add handler for uncaptured errors
+	this.device.addEventListener('uncapturederror', (event) => {
+		const errorMessage = event.error?.message || 'Unknown WebGPU error';
+		console.error('WebGPU error detected:', errorMessage);
+		
+		// Try to recover from out-of-memory errors
+		if (errorMessage.includes('Out of memory') || 
+			errorMessage.includes('memory') || 
+			errorMessage.includes('exceeded') || 
+			errorMessage.includes('failed to map')) {
+			
+			console.warn('Attempting to recover from WebGPU memory error...');
+			
+			// Enter emergency mode - pause rendering immediately
+			this.handleHighMemoryUsage(99); // Force high memory handling
+			
+			// Dispatch event for UI notification
+			const event = new CustomEvent('webgpu-error', {
+				detail: { message: errorMessage, isMemoryError: true }
+			});
+			window.dispatchEvent(event);
+		} else {
+			// Other WebGPU errors
+			const event = new CustomEvent('webgpu-error', {
+				detail: { message: errorMessage, isMemoryError: false }
+			});
+			window.dispatchEvent(event);
+		}
+	});
 }
 
 // Check for memory growth
@@ -612,11 +693,13 @@ monitorMemoryGrowth() {
 	const memDiff = currentMem - this._lastMemSize;
 	const memGrowthMB = memDiff / (1024 * 1024);
 	
-	// Record history
+	// Record history with more details for analysis
 	this._memoryHistory.push({
 		timestamp: Date.now(),
 		size: currentMem,
-		change: memDiff
+		change: memDiff,
+		changePercent: (memDiff / this._lastMemSize) * 100, // Percent change
+		surfaceType: this.scene?.currentExperience?.currentSurface || this.experience?.currentSurface  // Helps identify which surface causes issues
 	});
 	
 	// Keep history limited to last 100 samples
@@ -624,30 +707,71 @@ monitorMemoryGrowth() {
 		this._memoryHistory.shift();
 	}
 	
+	// More sophisticated spike detection:
+	// 1. Detect sudden huge spikes (still needed for catastrophic issues)
+	// 2. Detect consistent growth pattern over multiple samples
+	
 	// Detect rapid growth (possible leak)
-	if (memGrowthMB > 100) { // 100MB sudden growth
-		if (!this._spikeDetected) {
-			console.warn(`Memory spike detected: +${memGrowthMB.toFixed(2)}MB - possible memory leak`);
+	const isHugeSpike = memGrowthMB > 200; // 200MB sudden growth (was 100MB)
+	
+	// Detect consistent growth pattern
+	let consistentGrowth = false;
+	
+	if (this._memoryHistory.length >= 5) {
+		// Count consecutive growth samples
+		let growthCount = 0;
+		for (let i = this._memoryHistory.length - 5; i < this._memoryHistory.length; i++) {
+			if (this._memoryHistory[i].change > 1024 * 1024 * 5) { // 5MB+ growth
+				growthCount++;
+			}
+		}
+		
+		// If we've had growth in 4+ of the last 5 samples, it's concerning
+		consistentGrowth = growthCount >= 4;
+		
+		// If we detect a consistent leak, log more comprehensive info
+		if (consistentGrowth && !this._leakDetected) {
+			console.warn('Consistent memory growth detected - possible memory leak');
+			console.warn('Memory history (last 5 samples):');
 			
-			// Log currently active resource counts
-			console.warn('Active resources:', this.resourceManager ? 
-				JSON.stringify(getMemoryStats().resourceCounts) : 'Resource manager not available');
-			
-			// Log recently allocated large buffers
-			if (this._largeBufferLog && this._largeBufferLog.length > 0) {
-				console.warn('Recent large buffer allocations:');
-				this._largeBufferLog.forEach(entry => {
-					console.warn(`- ${formatBytes(entry.size)} - ${entry.description}`);
-				});
+			// Show the growth pattern
+			for (let i = Math.max(0, this._memoryHistory.length - 5); i < this._memoryHistory.length; i++) {
+				const sample = this._memoryHistory[i];
+				console.warn(`Sample ${i}: ${formatBytes(sample.size)} (${formatBytes(sample.change)} change) - Surface: ${sample.surfaceType || 'unknown'}`);
 			}
 			
-			this._spikeDetected = true;
+			// Flag that we've detected a leak
+			this._leakDetected = true;
 			
-			// Reset spike detector after a while
+			// Reset leak detector after a reasonable time
 			setTimeout(() => {
-				this._spikeDetected = false;
-			}, 10000);
+				this._leakDetected = false;
+			}, 30000); // 30 seconds
 		}
+	}
+	
+	// Report sudden spikes (different than consistent growth)
+	if (isHugeSpike && !this._spikeDetected) {
+		console.warn(`Memory spike detected: +${memGrowthMB.toFixed(2)}MB - possible memory leak`);
+		
+		// Log currently active resource counts
+		console.warn('Active resources:', this.resourceManager ? 
+			JSON.stringify(getMemoryStats().resourceCounts) : 'Resource manager not available');
+		
+		// Log recently allocated large buffers
+		if (this._largeBufferLog && this._largeBufferLog.length > 0) {
+			console.warn('Recent large buffer allocations:');
+			this._largeBufferLog.forEach(entry => {
+				console.warn(`- ${formatBytes(entry.size)} - ${entry.description}`);
+			});
+		}
+		
+		this._spikeDetected = true;
+		
+		// Reset spike detector after a while
+		setTimeout(() => {
+			this._spikeDetected = false;
+		}, 10000);
 	}
 	
 	this._lastMemSize = currentMem;
