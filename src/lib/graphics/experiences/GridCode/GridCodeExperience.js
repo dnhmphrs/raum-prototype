@@ -17,6 +17,9 @@ class GridCodeExperience extends Experience {
         this.loadingProgress = 0;
         this.loadingMessage = "Initializing...";
         
+        // Active state - track if experience is active
+        this.isActive = true;
+        
         // Register this experience with the resource manager
         if (this.resourceManager) {
             if (!this.resourceManager.experiences) {
@@ -202,19 +205,25 @@ class GridCodeExperience extends Experience {
     }
     
     render(commandEncoder, textureView) {
-        if (!this.pipeline || !this.pipeline.isInitialized) {
+        // Skip rendering if not active or pipeline not initialized
+        if (!this.isActive || !this.pipeline || !this.pipeline.isInitialized) {
             return;
         }
         
         try {
             // Get depth texture view
-            const depthTextureView = this.resourceManager.getDepthTextureView?.();
+            const depthTextureView = this.resourceManager?.getDepthTextureView?.();
             if (!depthTextureView) {
                 return;
             }
             
             // Update time (for subtle animation)
             this.time += 0.01;
+            
+            // Skip buffer updates if we're not active
+            if (!this.isActive || !this.uniformBuffer) {
+                return;
+            }
             
             // Update uniform buffer with time
             this.device.queue.writeBuffer(
@@ -251,8 +260,33 @@ class GridCodeExperience extends Experience {
         }
     }
     
+    // Add a shutdown method to properly sequence cleanup
+    shutdown() {
+        // Mark as inactive first to prevent further rendering
+        this.isActive = false;
+        this.isLoading = true;
+        
+        // Dispatch an event to notify UI components that we're shutting down
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('gridcode-shutdown', { 
+                detail: { experience: 'gridcode' } 
+            });
+            window.dispatchEvent(event);
+        }
+        
+        // Return a promise that resolves after a short delay
+        // This gives any in-progress renders time to complete
+        return new Promise(resolve => {
+            setTimeout(() => {
+                // console.log("GridCodeExperience: Shutdown complete, proceeding with cleanup");
+                resolve();
+            }, 100); // 100ms delay should be enough for any in-progress frame to complete
+        });
+    }
+    
     cleanup() {
-        // First, mark as loading to prevent further rendering
+        // First, mark as inactive to prevent further rendering
+        this.isActive = false;
         this.isLoading = true;
         
         // Clean up pipeline

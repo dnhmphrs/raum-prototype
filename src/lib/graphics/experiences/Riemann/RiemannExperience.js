@@ -442,10 +442,10 @@ class RiemannExperience extends Experience {
                 this.generateComplexSurface(vertices, this.time);
                 this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
                 
-                // Log time value occasionally to verify it's changing
-                if (Math.floor(this.time * 10) % 100 === 0) {
-                    console.log("Current time:", this.time);
-                }
+                // // Log time value occasionally to verify it's changing
+                // if (Math.floor(this.time * 10) % 100 === 0) {
+                //     console.log("Current time:", this.time);
+                // }
             }
             
             // Update uniform buffer with time and additional parameters

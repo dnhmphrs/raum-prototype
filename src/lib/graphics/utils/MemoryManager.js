@@ -237,14 +237,14 @@ export function forceGarbageCollection() {
         
         // Instead of trying to force GC with large arrays (which can cause more problems),
         // we'll just log memory stats and let the browser's GC do its job
-        if (window.performance && window.performance.memory) {
-            const memoryInfo = window.performance.memory;
-            console.log('Memory before cleanup:', {
-                usedJSHeapSize: formatBytes(memoryInfo.usedJSHeapSize),
-                totalJSHeapSize: formatBytes(memoryInfo.totalJSHeapSize),
-                jsHeapSizeLimit: formatBytes(memoryInfo.jsHeapSizeLimit)
-            });
-        }
+        // if (window.performance && window.performance.memory) {
+        //     const memoryInfo = window.performance.memory;
+        //     console.log('Memory before cleanup:', {
+        //         usedJSHeapSize: formatBytes(memoryInfo.usedJSHeapSize),
+        //         totalJSHeapSize: formatBytes(memoryInfo.totalJSHeapSize),
+        //         jsHeapSizeLimit: formatBytes(memoryInfo.jsHeapSizeLimit)
+        //     });
+        // }
     }
 }
 

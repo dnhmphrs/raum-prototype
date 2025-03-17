@@ -9,6 +9,7 @@ export default class Camera {
 		this.viewMatrix = mat4.create();
 		this.position = vec3.fromValues(0, 0, 0); // Positioned along the z-axis
 		this.aspect = width / height;
+		this.isActive = true; // Flag to track if camera is active
 		
 		// Resource tracking
 		this.resources = {
@@ -88,17 +89,16 @@ export default class Camera {
 	}
 
 	updateBuffers() {
-		if (!this.device) {
-			console.warn("Cannot update camera buffers: device is null");
+		if (!this.device || !this.isActive) {
 			return;
 		}
 		
 		try {
-			if (this.projectionBuffer) {
+			if (this.projectionBuffer && this.isActive) {
 				this.device.queue.writeBuffer(this.projectionBuffer, 0, this.projectionMatrix);
 			}
 			
-			if (this.viewBuffer) {
+			if (this.viewBuffer && this.isActive) {
 				this.device.queue.writeBuffer(this.viewBuffer, 0, this.viewMatrix);
 			}
 		} catch (error) {
@@ -106,7 +106,10 @@ export default class Camera {
 		}
 	}
 
-	cleanup() {		
+	cleanup() {
+		// Mark as inactive first to prevent further buffer updates
+		this.isActive = false;
+		
 		// Clean up all tracked resources
 		for (const type in this.resources) {
 			const resources = this.resources[type];
@@ -139,6 +142,5 @@ export default class Camera {
 		
 		// Unregister from memory manager
 		unregisterResource(this, 'others');
-	
 	}
 }

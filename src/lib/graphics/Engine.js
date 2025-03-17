@@ -37,14 +37,6 @@ class Engine {
 			others: []
 		};
 		
-		// Memory management
-		this.memoryStats = {
-			startTime: Date.now(),
-			lastCleanupTime: 0,
-			resourceCount: 0,
-			cleanupCount: 0
-		};
-		
 		// Register with memory manager
 		registerResource(this, 'others');
 	}
@@ -150,9 +142,6 @@ class Engine {
 			this.interactionManager = new InteractionManager(this.canvas, this);
 			this.trackResource(this.interactionManager, 'others');
 			this.interactionManager.initialize();
-
-			// Set up periodic garbage collection (every 60 seconds)
-			this.setupPeriodicGarbageCollection(60000);
 	
 			// Start rendering loop
 			this.render();
@@ -193,21 +182,30 @@ class Engine {
 		}
 	}
 
-	cleanup() {
+	async cleanup() {
 		// Stop animation frame if it's running
 		if (this.animationFrameId) {
 			cancelAnimationFrame(this.animationFrameId);
 			this.animationFrameId = null;
 		}
 		
-		// Clean up experience
+		// Properly shutdown experience if it exists
 		if (this.experience) {
-			if (typeof this.experience.cleanup === 'function') {
-				try {
-					this.experience.cleanup();
-				} catch (error) {
-					console.error("Error cleaning up experience:", error);
+			try {
+				// Check if the experience has a shutdown method
+				if (typeof this.experience.shutdown === 'function') {
+					// console.log(`Shutting down ${this.experience.constructor.name} experience...`);
+					// Wait for shutdown to complete before proceeding with cleanup
+					await this.experience.shutdown();
 				}
+				
+				// Now perform cleanup
+				if (typeof this.experience.cleanup === 'function') {
+					// console.log(`Performing cleanup for ${this.experience.constructor.name} experience`);
+					this.experience.cleanup();
+				}
+			} catch (error) {
+				console.error("Error cleaning up experience:", error);
 			}
 			this.experience = null;
 		}
@@ -396,34 +394,8 @@ class Engine {
 	}
 
 	// Add a stop method that calls cleanup for compatibility
-	stop() {
-		this.cleanup();
-	}
-
-	// Add a method to force garbage collection and memory cleanup
-	performGarbageCollection() {
-		// Update memory stats
-		this.memoryStats.lastCleanupTime = Date.now();
-		this.memoryStats.cleanupCount++;
-		
-		// First, make sure any pending operations are complete
-		this.device?.queue.onSubmittedWorkDone();
-		
-		// If we have an active experience but we're just garbage collecting, 
-		// make sure its resources are properly tracked
-		if (this.experience && typeof this.experience.cleanup === 'function') {
-			console.log(`Performing cleanup for ${this.experience.name || 'current'} experience`);
-			this.experience.cleanup();
-		}
-		
-		// Use the MemoryManager to get and log memory stats
-		const memoryStats = getMemoryStats();
-		
-		// Force garbage collection
-		forceGarbageCollection();
-		
-		// Return memory stats for monitoring
-		return memoryStats;
+	async stop() {
+		await this.cleanup();
 	}
 	
 	// Helper method to format bytes to human-readable format
@@ -441,30 +413,6 @@ class Engine {
 		
 		// Force garbage collection
 		forceGarbageCollection();
-	}
-
-	// Add a method to set up periodic garbage collection
-	setupPeriodicGarbageCollection(intervalMs = 60000) {
-		// Clear any existing interval
-		if (this._gcIntervalId) {
-			clearInterval(this._gcIntervalId);
-			this._gcIntervalId = null;
-		}
-		
-		// Set up new interval for garbage collection
-		this._gcIntervalId = setInterval(() => {
-			this.performGarbageCollection();
-		}, intervalMs);
-		
-		return this._gcIntervalId;
-	}
-
-	// Add a method to stop periodic garbage collection
-	stopPeriodicGarbageCollection() {
-		if (this._gcIntervalId) {
-			clearInterval(this._gcIntervalId);
-			this._gcIntervalId = null;
-		}
 	}
 }
 

@@ -113,7 +113,6 @@
         videoBitsPerSecond: quality.fallbackBitrate
       });
     } else {
-      console.log(`Using codec: ${options.mimeType} with bitrate: ${options.videoBitsPerSecond}`);
       return new MediaRecorder(stream, options);
     }
   }
@@ -149,9 +148,6 @@
       
       // Add a small buffer to ensure we capture the full requested duration
       const actualDuration = captureDuration + 0.5; // Add 0.5 seconds buffer
-      
-      console.log(`Capturing canvas: ${width}x${height} at ${quality.fps} FPS (${captureQuality} quality)`);
-      console.log(`Requested duration: ${captureDuration}s, Actual duration: ${actualDuration}s`);
       
       // For all quality levels, try to use the canvas directly without scaling
       let stream;
@@ -207,7 +203,6 @@
         if (event.data && event.data.size > 0) {
           // Check if we're approaching memory limits
           totalRecordedSize += event.data.size;
-          console.log(`Data available: ${formatBytes(event.data.size)}, Total: ${formatBytes(totalRecordedSize)}`);
           
           recordedChunks.push(event.data);
           
@@ -216,14 +211,12 @@
           
           // If individual chunk is too large, process it immediately
           if (event.data.size > maxChunkSize && !processingChunks) {
-            console.log(`Large chunk detected (${formatBytes(event.data.size)}), processing immediately`);
             processLargeChunks();
           }
         }
       };
       
       mediaRecorder.onstop = () => {
-        console.log('Recording completed');
         finalizeRecording(width, height, stream);
       };
       
@@ -247,7 +240,6 @@
       // Schedule the stop after the specified duration (with buffer)
       setTimeout(() => {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
-          console.log('Stopping recording after duration');
           stopRecording();
         }
       }, actualDuration * 1000);
@@ -286,7 +278,6 @@
     if (processingChunks || recordedChunks.length === 0) return;
     
     processingChunks = true;
-    console.log(`Processing ${recordedChunks.length} chunks to free memory`);
     
     try {
       // Create a temporary blob from current chunks
@@ -297,8 +288,6 @@
       
       // Replace multiple chunks with a single chunk
       recordedChunks = [new Blob([arrayBuffer], { type: 'video/webm' })];
-      
-      console.log(`Processed chunks: ${recordedChunks.length}, Size: ${formatBytes(recordedChunks[0].size)}`);
     } catch (error) {
       console.error('Error processing chunks:', error);
     } finally {
@@ -308,8 +297,6 @@
   
   // Function to finalize the recording and create the download
   async function finalizeRecording(width, height, stream) {
-    console.log(`Finalizing recording: ${recordedChunks.length} chunks collected`);
-    
     if (recordedChunks.length === 0) {
       console.error('No chunks recorded, cannot create video');
       isRecording = false;
@@ -330,8 +317,6 @@
       if (!MediaRecorder.isTypeSupported(mimeType)) {
         mimeType = 'video/webm;codecs=vp9';
       }
-      
-      console.log(`Final video size: ${formatBytes(recordedChunks[0].size)}`);
       
       // Create a blob from the recorded chunks
       const blob = new Blob(recordedChunks, { type: mimeType });
@@ -467,11 +452,6 @@
       const memoryUsage = window.performance.memory.usedJSHeapSize;
       const memoryLimit = window.performance.memory.jsHeapSizeLimit;
       const memoryPercentage = (memoryUsage / memoryLimit) * 100;
-      
-      // Log memory usage every 5 seconds
-      if (Date.now() - recordingStartTime > 5000 && (Date.now() - recordingStartTime) % 5000 < 100) {
-        console.log(`Memory usage: ${formatBytes(memoryUsage)} / ${formatBytes(memoryLimit)} (${memoryPercentage.toFixed(1)}%)`);
-      }
       
       // Critical memory pressure - stop recording immediately
       if (memoryPercentage > 85) {

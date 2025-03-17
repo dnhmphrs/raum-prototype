@@ -7,6 +7,7 @@ class GridCodePipeline {
         this.device = device;
         this.resourceManager = resourceManager;
         this.isInitialized = false;
+        this.isActive = true; // Flag to track if pipeline is active
         this.shaderModule = null;
         this.renderPipeline = null;
         this.bindGroup = null;
@@ -167,7 +168,7 @@ class GridCodePipeline {
     }
     
     render(commandEncoder, textureView, depthTextureView, vertexBuffer, indexBuffer, uniformBuffer, indexCount) {
-        if (!this.isInitialized || !this.renderPipeline) {
+        if (!this.isInitialized || !this.renderPipeline || !this.isActive) {
             return;
         }
         
@@ -243,6 +244,7 @@ class GridCodePipeline {
     cleanup() {
         // Mark as not initialized first to prevent further rendering
         this.isInitialized = false;
+        this.isActive = false;
         
         try {
             // Clean up resources - explicitly nullify WebGPU resources
