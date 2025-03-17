@@ -531,153 +531,80 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     runComputePasses(commandEncoder) {
-        // Early return if command encoder not available
-        if (!commandEncoder) return;
-        
-        // Update delta time in GPU buffer
-        this.device.queue.writeBuffer(this.deltaTimeBuffer, 0, new Float32Array([this.deltaTime]));
-        
-        // Begin flocking compute pass
-        const flockingComputePass = commandEncoder.beginComputePass();
-        flockingComputePass.setPipeline(this.flockingComputePipeline);
-        flockingComputePass.setBindGroup(0, this.flockingComputeBindGroup);
-        
-        // Calculate dispatch size based on workgroup size (64 threads per group)
-        // Only dispatch enough workgroups for visible birds
-        const numGroups = Math.ceil(this.birdCount / 64);
-        flockingComputePass.dispatchWorkgroups(numGroups, 1, 1);
-        
-        // End flocking compute pass
-        flockingComputePass.end();
-        
-        // Begin hunting compute pass
-        const huntingComputePass = commandEncoder.beginComputePass();
-        huntingComputePass.setPipeline(this.huntingComputePipeline);
-        huntingComputePass.setBindGroup(0, this.huntingComputeBindGroup);
-        
-        // Only need 1 workgroup for the predator
-        huntingComputePass.dispatchWorkgroups(1, 1, 1);
-        
-        // End hunting compute pass
-        huntingComputePass.end();
+        // Update flocking and positions via compute shader
+        const flockingPass = commandEncoder.beginComputePass();
+        flockingPass.setPipeline(this.flockingComputePipeline);
+        flockingPass.setBindGroup(0, this.flockingComputeBindGroup);
+        const workgroupSize = 64;
+        const workgroups = Math.ceil(this.birdCount / workgroupSize);
+        flockingPass.dispatchWorkgroups(workgroups);
+        flockingPass.end();
+
+        // Update predator via. hunting shader
+        const huntingPass = commandEncoder.beginComputePass();
+        huntingPass.setPipeline(this.huntingComputePipeline);
+        huntingPass.setBindGroup(0, this.huntingComputeBindGroup);
+        huntingPass.dispatchWorkgroups(1); // Single workgroup as per shader
+        huntingPass.end();
     }
 
     render(commandEncoder, passDescriptor, birds, predator, textureView, depthView) {
-        // Skip rendering if no command encoder or visible birds
-        if (!commandEncoder || !birds || birds.length === 0) {
-            return;
-        }
-        
-        const activeBirdCount = birds.filter(bird => bird.isVisible !== false).length;
-        
-        // Run compute passes for physics simulation
+        // Update time for background shader
+        this.updateTimeBuffer();
+
+        // Execute compute passes
         this.runComputePasses(commandEncoder);
-        
-        // Skip rendering if no textureView or no visible birds
-        if (!textureView || activeBirdCount === 0) {
-            return;
-        }
-        
-        // Create render pass encoder
+
+        // Begin main render pass
         const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
+
+        // Render main scene
+        passEncoder.setViewport(0, 0, this.canvasWidth, this.canvasHeight, 0.0, 1.0);
         
-        // Set pipeline
+        // -----------------------
+        // 1. Render Background
+        // -----------------------
         passEncoder.setPipeline(this.backgroundPipeline);
         passEncoder.setBindGroup(0, this.backgroundBindGroup);
-        
-        // Set the time buffer
-        this.updateTimeBuffer();
-        
-        // Render all birds
-        for (let i = 0; i < birds.length; i++) {
-            // Skip rendering if bird is hidden
-            if (birds[i].isVisible === false) {
-                continue;
-            }
-            
-            // Set index in bird positions buffer
-            const instanceOffset = i * 4; // vec3 position + float phase = 4 floats
-            
-            // Create instance buffer for this bird's position
-            if (!birds[i].instanceBuffer) {
-                birds[i].instanceBuffer = this.device.createBuffer({
-                    size: 16, // vec3 + float = 4 floats = 16 bytes
-                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-                    label: `Bird ${i} Instance Buffer`
-                });
-            }
-            
-            // Extract position and phase from buffers
-            const positionArray = new Float32Array(3);
-            this.device.queue.writeBuffer(
-                this.readbackBuffer,
-                0,
-                this.positionBuffer,
-                instanceOffset * 4, // Offset in bytes (4 bytes per float)
-                12 // 3 floats = 12 bytes for position
-            );
-            
-            const phaseValue = new Float32Array(1);
-            this.device.queue.writeBuffer(
-                this.readbackBuffer,
-                12, // Offset after position
-                this.phaseBuffer,
-                i * 4, // Offset in phase buffer (4 bytes per float)
-                4 // 1 float = 4 bytes for phase
-            );
-            
-            // Combine position and phase into instance data
-            const instanceData = new Float32Array(4);
-            instanceData.set(positionArray, 0);
-            instanceData[3] = phaseValue[0]; // Add phase as 4th component
-            
-            // Upload instance data to GPU
-            this.device.queue.writeBuffer(birds[i].instanceBuffer, 0, instanceData);
-            
-            // Render bird instance
-            passEncoder.setVertexBuffer(0, birds[i].vertexBuffer);
-            passEncoder.setVertexBuffer(1, birds[i].instanceBuffer);
-            passEncoder.setIndexBuffer(birds[i].indexBuffer, 'uint16');
-            passEncoder.drawIndexed(birds[i].indexCount, 1, 0, 0, 0);
+        passEncoder.draw(3, 1, 0, 0);
+
+        // -----------------------
+        // 2. Render Birds
+        // -----------------------
+        passEncoder.setPipeline(this.birdPipeline);
+        passEncoder.setBindGroup(0, this.birdBindGroup);
+
+        // Assuming all birds share the same geometry
+        if (birds.length > 0) {
+            const firstBird = birds[0];
+            passEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
+            passEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
+
+            // Use instancing to draw all birds in a single call
+            passEncoder.drawIndexed(firstBird.getIndexCount(), this.birdCount, 0, 0, 0);
         }
-        
-        // Render predator if available
-        if (predator && predator.vertexBuffer && predator.indexBuffer) {
-            // Create predator instance buffer if not already created
-            if (!predator.instanceBuffer) {
-                predator.instanceBuffer = this.device.createBuffer({
-                    size: 16, // vec3 position + padding = 16 bytes
-                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-                    label: 'Predator Instance Buffer'
-                });
-            }
-            
-            // Extract predator position from buffer
-            const predatorPositionArray = new Float32Array(3);
-            this.device.queue.writeBuffer(
-                this.readbackBuffer,
-                0,
-                this.predatorPositionBuffer,
-                0,
-                12 // 3 floats = 12 bytes
-            );
-            
-            // Create instance data with position and 0 phase
-            const instanceData = new Float32Array(4);
-            instanceData.set(predatorPositionArray, 0);
-            instanceData[3] = 0; // No phase for predator
-            
-            // Upload instance data to GPU
-            this.device.queue.writeBuffer(predator.instanceBuffer, 0, instanceData);
-            
-            // Set predator vertex buffers and draw
-            passEncoder.setVertexBuffer(0, predator.vertexBuffer);
-            passEncoder.setVertexBuffer(1, predator.instanceBuffer);
-            passEncoder.setIndexBuffer(predator.indexBuffer, 'uint16');
-            passEncoder.drawIndexed(predator.indexCount, 1, 0, 0, 0);
+
+        // -----------------------
+        // 3. Render Predator
+        // -----------------------
+        passEncoder.setPipeline(this.predatorPipeline);
+        passEncoder.setBindGroup(0, this.predatorBindGroup);
+
+        if (predator) {
+            passEncoder.setVertexBuffer(0, predator.getVertexBuffer());
+            passEncoder.setIndexBuffer(predator.getIndexBuffer(), 'uint16');
+
+            // Single instance for predator
+            passEncoder.drawIndexed(predator.getIndexCount(), 1, 0, 0, 0);
         }
-        
-        // End render pass
+
+        // -----------------------
+        // 4. Render Guiding Line
+        // -----------------------
+        passEncoder.setPipeline(this.guidingLinePipeline);
+        passEncoder.setBindGroup(0, this.guidingLineBindGroup);
+        passEncoder.draw(2, 1, 0, 0); // Draw two vertices
+
         passEncoder.end();
     }
 
@@ -744,19 +671,15 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     cleanup() {
-        // Clean up all buffers
+        // Destroy all buffers
         const buffers = [
             'phaseBuffer', 'positionBuffer', 'velocityBuffer', 
             'predatorPositionBuffer', 'predatorVelocityBuffer', 
-            'flockingParamsBuffer', 'deltaTimeBuffer', 'targetIndexBuffer',
-            'timeBuffer', 'readbackBuffer' // Additional buffers
+            'flockingParamsBuffer', 'deltaTimeBuffer', 'targetIndexBuffer'
         ];
         
         buffers.forEach(bufferName => {
             if (this[bufferName]) {
-                if (typeof this[bufferName].destroy === 'function') {
-                    this[bufferName].destroy();
-                }
                 this[bufferName] = null;
             }
         });
@@ -765,7 +688,7 @@ export default class FlockingPipeline extends Pipeline {
         const bindGroups = [
             'flockingComputeBindGroup', 'huntingComputeBindGroup',
             'birdBindGroup', 'predatorBindGroup', 'guidingLineBindGroup',
-            'backgroundBindGroup', 'uniformBindGroup'
+            'backgroundBindGroup'
         ];
         
         bindGroups.forEach(groupName => {
@@ -777,8 +700,7 @@ export default class FlockingPipeline extends Pipeline {
         // Clean up pipelines
         const pipelines = [
             'flockingComputePipeline', 'huntingComputePipeline',
-            'birdPipeline', 'predatorPipeline', 'backgroundPipeline',
-            'renderPipeline', 'guidingLinePipeline'
+            'birdPipeline', 'predatorPipeline'
         ];
         
         pipelines.forEach(pipelineName => {
@@ -792,7 +714,7 @@ export default class FlockingPipeline extends Pipeline {
         this.viewportBuffer = null;
         this.mouseBuffer = null;
         
-        // Call parent cleanup to handle resources tracked via trackResource
+        // Call parent cleanup
         super.cleanup();
     }
 
@@ -821,18 +743,9 @@ export default class FlockingPipeline extends Pipeline {
     }
 
     // Method to toggle performance mode
-    updatePerformanceMode(isLowPerformance) {
-        // Store the current performance mode
-        this.lowPerformanceMode = isLowPerformance;
-        
-        // Adjust buffer sizes and quality settings based on performance mode
-        if (isLowPerformance) {
-            // Reduce workgroup dispatch in compute shaders
-            // NOTE: We don't recreate buffers here since that would be expensive
-        } else {
-            // Return to normal performance mode
-        }
-        
-        // We could adjust shader complexity, texture quality, etc. here
+    updatePerformanceMode(lowPerformanceMode) {
+        this.lowPerformanceMode = lowPerformanceMode;
+        const data = new Uint32Array([lowPerformanceMode ? 1 : 0]);
+        this.device.queue.writeBuffer(this.performanceModeBuffer, 0, data);
     }
 }

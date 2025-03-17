@@ -574,13 +574,8 @@ class RiemannExperience extends Experience {
         // Reset the current surface to what it was
         this.updateSurface(currentSurfaceType);
         
-        // Clear any existing recovery timer
-        if (this._recoveryTimer) {
-            clearTimeout(this._recoveryTimer);
-        }
-        
         // Schedule resolution recovery after memory pressure subsides
-        this._recoveryTimer = setTimeout(() => {
+        setTimeout(() => {
             if (window.performance && window.performance.memory) {
                 const memUsage = window.performance.memory.usedJSHeapSize;
                 const memLimit = window.performance.memory.jsHeapSizeLimit;
@@ -605,9 +600,6 @@ class RiemannExperience extends Experience {
                     
                     // Reset the current surface
                     this.updateSurface(currentSurfaceType);
-                    
-                    // Clear the recovery timer reference
-                    this._recoveryTimer = null;
                 }
             }
         }, 30000); // Check after 30 seconds
@@ -615,12 +607,6 @@ class RiemannExperience extends Experience {
     
     // Add to cleanup method
     cleanup() {
-        // Clear any recovery timers
-        if (this._recoveryTimer) {
-            clearTimeout(this._recoveryTimer);
-            this._recoveryTimer = null;
-        }
-        
         // Clean up pipeline
         if (this.pipeline) {
             this.pipeline.cleanup();
@@ -630,28 +616,21 @@ class RiemannExperience extends Experience {
         // Clean up all vertex buffers
         if (this.vertexBuffers) {
             for (const [_, buffer] of this.vertexBuffers) {
-                if (buffer && typeof buffer.destroy === 'function') {
-                    buffer.destroy();
-                }
+                // Can't reassign buffer parameter, just remove the reference
             }
             this.vertexBuffers.clear();
         }
         
         // Clear current vertex buffer reference
-        if (this.vertexBuffer && typeof this.vertexBuffer.destroy === 'function') {
-            this.vertexBuffer.destroy();
-        }
         this.vertexBuffer = null;
         
-        if (this.indexBuffer && typeof this.indexBuffer.destroy === 'function') {
-            this.indexBuffer.destroy();
+        if (this.indexBuffer) {
+            this.indexBuffer = null;
         }
-        this.indexBuffer = null;
         
-        if (this.uniformBuffer && typeof this.uniformBuffer.destroy === 'function') {
-            this.uniformBuffer.destroy();
+        if (this.uniformBuffer) {
+            this.uniformBuffer = null;
         }
-        this.uniformBuffer = null;
         
         // Clean up cached arrays we added to prevent memory leaks
         this._verticesCache = null;
@@ -669,6 +648,10 @@ class RiemannExperience extends Experience {
                 this.resourceManager.experiences.riemann = null;
             }
         }
+        
+        // Clear device and resource manager references
+        this.device = null;
+        this.resourceManager = null;
         
         // Call parent cleanup
         super.cleanup();

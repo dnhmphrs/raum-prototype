@@ -205,12 +205,14 @@ class Engine {
 			try {
 				// Check if the experience has a shutdown method
 				if (typeof this.experience.shutdown === 'function') {
+					// console.log(`Shutting down ${this.experience.constructor.name} experience...`);
 					// Wait for shutdown to complete before proceeding with cleanup
 					await this.experience.shutdown();
 				}
 				
 				// Now perform cleanup
 				if (typeof this.experience.cleanup === 'function') {
+					// console.log(`Performing cleanup for ${this.experience.constructor.name} experience`);
 					this.experience.cleanup();
 				}
 			} catch (error) {
@@ -359,11 +361,13 @@ class Engine {
 				const memLimit = window.performance.memory.jsHeapSizeLimit;
 				const percentUsed = (memUsage / memLimit) * 100;
 				
-				if (percentUsed > 90) { // Check against high memory threshold
-					this.handleHighMemoryUsage(percentUsed);
-					
-					// If we're paused due to memory, don't continue rendering
-					if (this.renderingPaused) {
+				if (memUsage > memLimit * 0.9) { // Increased from 0.85 to match new threshold
+					// Memory usage is too high - manage with our smart system
+					if (this.handleHighMemoryUsage(percentUsed)) {
+						// Memory management took action, continue the render loop if appropriate
+						if (!this.renderingPaused) {
+							this.animationFrameId = requestAnimationFrame(this.render);
+						}
 						return;
 					}
 				}
@@ -395,45 +399,34 @@ class Engine {
 
 	// Smart memory management - implements a progressive throttling strategy
 	handleHighMemoryUsage(percentUsed) {
-		// Skip if already paused
-		if (this.renderingPaused) return;
+		// Increase thresholds to prevent over-triggering
+		const isHighMemory = percentUsed > 90; // Increased from 85%
+		const isCriticalMemory = percentUsed > 97; // Increased from 95%
 		
-		if (percentUsed > 97) { // Critical threshold
-			console.warn(`Critical memory usage detected: ${percentUsed.toFixed(1)}% - Pausing rendering`);
-			this.renderingPaused = true;
-			this._pauseReason = 'memory';
-			
-			// Notify any active experience about critical memory
-			window.dispatchEvent(new CustomEvent('memory-warning', {
-				detail: { percentUsed, isCritical: true }
-			}));
-			
-			// Show toast notification
-			this.dispatchEvent(new CustomEvent('show-toast', {
-				detail: {
-					message: 'Memory usage critical - Rendering paused',
-					type: 'error',
-					duration: 10000
-				}
-			}));
+		// Dispatch memory warning event for the UI
+		const event = new CustomEvent('memory-warning', {
+			detail: {
+				usedJSHeapSize: window.performance.memory.usedJSHeapSize,
+				jsHeapSizeLimit: window.performance.memory.jsHeapSizeLimit,
+				percentUsed: percentUsed,
+				isCritical: isCriticalMemory
+			}
+		});
+		window.dispatchEvent(event);
+		
+		if (isCriticalMemory) {
+			// Enter emergency mode - pause rendering and reduce quality
+			console.warn(`Critical memory usage detected (${percentUsed.toFixed(1)}%). Entering emergency mode.`);
+			this.pauseRendering(true);
+			return true;
+		} else if (isHighMemory) {
+			// Throttle rendering and reduce quality
+			console.warn(`High memory usage detected (${percentUsed.toFixed(1)}%). Throttling rendering.`);
+			this.reduceRenderingQuality();
+			return true;
 		}
-		else if (percentUsed > 90) { // High threshold
-			console.warn(`High memory usage detected: ${percentUsed.toFixed(1)}% - Performance may be degraded`);
-			
-			// Notify any active experience about high memory
-			window.dispatchEvent(new CustomEvent('memory-warning', {
-				detail: { percentUsed, isCritical: false }
-			}));
-			
-			// Show toast notification
-			this.dispatchEvent(new CustomEvent('show-toast', {
-				detail: {
-					message: 'High memory usage - Performance may be degraded',
-					type: 'warning',
-					duration: 5000
-				}
-			}));
-		}
+		
+		return false;
 	}
 	
 	// Pause/resume rendering
