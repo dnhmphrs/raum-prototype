@@ -138,8 +138,8 @@ fn createMultiColorFractal(value: f32, t: f32, params: vec4f) -> vec3f {
 
 // Function to create a glitch effect on UV coordinates
 fn glitchUV(uv: vec2f, t: f32) -> vec2f {
-    // Create rhythmic glitch pattern over time
-    let glitchPhase = floor(t * 1.7); // Control frequency of glitches
+    // Create rhythmic glitch pattern over time - SLOWED DOWN
+    let glitchPhase = floor(t * 0.4); // Reduced from 1.7 to 0.4 - much slower glitches
     let glitchSeed = hash(glitchPhase);
     
     // Only apply glitch sometimes (30% of the time)
@@ -147,19 +147,33 @@ fn glitchUV(uv: vec2f, t: f32) -> vec2f {
         // Create horizontal line glitches
         let lineCount = 15.0;
         let lineIndex = floor(uv.y * lineCount);
-        let lineSeed = hash(lineIndex + glitchPhase * 13.5);
+        let lineSeed = hash(lineIndex + glitchPhase * 6.5); // Reduced from 13.5 to 6.5
         
         // Apply horizontal offset to certain lines
         if (lineSeed > 0.75) {
             // Calculate glitch intensity and direction
             let glitchAmount = (lineSeed - 0.75) * 4.0 * 0.1; // Max 10% shift
             
-            // Apply horizontal shift
-            return vec2f(uv.x + glitchAmount * sin(t * 10.0 + uv.y * 5.0), uv.y);
+            // Apply horizontal shift - SLOWED DOWN
+            return vec2f(uv.x + glitchAmount * sin(t * 2.5 + uv.y * 2.0), uv.y); // Reduced from 10.0 to 2.5
         }
     }
     
     return uv;
+}
+
+// Apply post-processing to create more dramatic effects
+// Use logarithmic function to create discrete banding
+fn applyDiscreteBanding(value: f32, bands: f32, t: f32) -> f32 {
+    // Apply logarithmic transform to create more distinct bands
+    let logValue = log(1.0 + value * 10.0) / log(11.0); // Normalized log transform
+    
+    // Create time-based band shifting - SLOWED DOWN
+    let shiftedValue = logValue + sin(t * 0.05) * 0.1; // Reduced from 0.3 to 0.05
+    
+    // Apply discrete banding with time-varying band count - SLOWED DOWN
+    let dynamicBands = bands * (0.8 + sin(t * 0.03) * 0.2); // Reduced from 0.17 to 0.03
+    return floor(shiftedValue * dynamicBands) / dynamicBands;
 }
 
 @fragment
@@ -172,13 +186,12 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
     // Apply glitch effect to UV coordinates
     let glitchedUV = glitchUV(uv, time);
     
-    // Calculate base speed for time-based effects
-    let baseSpeed = 0.8; // Medium-fast for good dynamic effects
+    // Calculate base speed for time-based effects - SLOWED DOWN
+    let baseSpeed = 0.2; // Reduced from 0.8 to 0.2 - much slower overall pace
     let slowTime = time * baseSpeed;
     
-    // Create automatic zoom pattern that cycles between zooming in and out
-    // Using a triangular wave function for zoom
-    let zoomCycleTime = 15.0; // Full zoom cycle in seconds
+    // Create automatic zoom pattern that cycles between zooming in and out - SLOWED DOWN
+    let zoomCycleTime = 40.0; // Increased from 15 to 40 seconds - slower zoom cycle
     let zoomPhase = fract(slowTime / zoomCycleTime);
     let triangleWave = abs(2.0 * zoomPhase - 1.0); // 0->1->0 triangular pattern
     
@@ -187,21 +200,21 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
     let maxZoom = 0.3;   // Wider view when zoomed out
     let currentZoom = mix(minZoom, maxZoom, triangleWave);
     
-    // Add some zoom jitter during transitions for a more glitchy feel
+    // Add some zoom jitter during transitions for a more glitchy feel - SLOWED DOWN
     let jitterAmount = 0.02 * (1.0 - abs(2.0 * zoomPhase - 1.0)); // Max jitter at middle of transition
-    let jitter = hash(floor(slowTime * 20.0)) * jitterAmount;
+    let jitter = hash(floor(slowTime * 5.0)) * jitterAmount; // Reduced from 20.0 to 5.0
     let zoom = currentZoom + jitter;
     
-    // Create dynamic position that moves through interesting regions
+    // Create dynamic position that moves through interesting regions - SLOWED DOWN
     // Use Lissajous patterns for smooth but complex movement
-    let lissajousX = sin(slowTime * 0.42) * cos(slowTime * 0.27) * 0.2;
-    let lissajousY = sin(slowTime * 0.38) * cos(slowTime * 0.23) * 0.2;
+    let lissajousX = sin(slowTime * 0.12) * cos(slowTime * 0.09) * 0.2; // Reduced from 0.42/0.27 to 0.12/0.09
+    let lissajousY = sin(slowTime * 0.08) * cos(slowTime * 0.07) * 0.2; // Reduced from 0.38/0.23 to 0.08/0.07
     
     // Calculate aspect ratio for Julia set
     let aspect = rect.size.x / rect.size.y;
     
-    // Apply occasional position jumps for "teleportation" effects
-    let jumpTime = floor(slowTime * 0.8); // Control frequency of jumps
+    // Apply occasional position jumps for "teleportation" effects - SLOWED DOWN
+    let jumpTime = floor(slowTime * 0.15); // Reduced from 0.8 to 0.15 - much less frequent jumps
     let jumpSeed = hash(jumpTime);
     
     // Jump to different parts of the fractal occasionally (20% of the time)
@@ -230,38 +243,51 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
         }
     }
     
+    // Add rapid small-scale oscillation to position for more variation - SLOWED DOWN
+    let rapidOscX = sin(slowTime * 0.7) * 0.02; // Reduced from 2.5 to 0.7
+    let rapidOscY = cos(slowTime * 0.8) * 0.02; // Reduced from 2.7 to 0.8
+    
     // Map UV to dynamic zoomed complex coordinates
     let z = vec2f(
-        (glitchedUV.x - 0.5 + offsetX) * zoom * 2.0 * aspect,
-        (glitchedUV.y - 0.5 + offsetY) * zoom * 2.0
+        (glitchedUV.x - 0.5 + offsetX + rapidOscX) * zoom * 2.0 * aspect,
+        (glitchedUV.y - 0.5 + offsetY + rapidOscY) * zoom * 2.0
     );
     
-    // Use interesting C values that change over time
-    // Set values within ranges known to produce good Julia sets
-    let cVal = hash2D(vec2f(floor(slowTime * 0.2), 0.0));
+    // === JULIA SET VARIATION SPEED - INCREASED ===
+    // Switch between parameter sets more frequently
+    let cVal = hash2D(vec2f(floor(slowTime * 0.3), 0.0)); // INCREASED from 0.1 to 0.3 - more frequent switching
     var c = vec2f(0.0, 0.0); // Initialize with default value
     
+    // Create faster changing Julia set parameters - INCREASED SPEED
+    let tMod = slowTime * 0.4; // INCREASED from 0.15 to 0.4 - faster base parameter modulation
+    
     if (cVal < 0.25) {
-        // First parameter set: Classic
-        c = vec2f(-0.75 + sin(slowTime * 0.05) * 0.05, 0.13 + cos(slowTime * 0.06) * 0.05);
+        // First parameter set: Classic with more movement - INCREASED SPEED
+        c = vec2f(-0.75 + sin(tMod * 0.2) * 0.12, 0.13 + cos(tMod * 0.22) * 0.12); // INCREASED from 0.07/0.08 to 0.2/0.22
     } else if (cVal < 0.5) {
-        // Second parameter set: Dendrite-like
-        c = vec2f(0.285 + sin(slowTime * 0.07) * 0.025, 0.01 + cos(slowTime * 0.08) * 0.025);
+        // Second parameter set: Dendrite-like with more movement - INCREASED SPEED
+        c = vec2f(0.285 + sin(tMod * 0.18) * 0.06, 0.01 + cos(tMod * 0.19) * 0.06); // INCREASED from 0.06/0.07 to 0.18/0.19
     } else if (cVal < 0.75) {
-        // Third parameter set: Rabbit-like
-        c = vec2f(-0.123 + sin(slowTime * 0.06) * 0.03, 0.745 + cos(slowTime * 0.07) * 0.03);
+        // Third parameter set: Rabbit-like with more movement - INCREASED SPEED
+        c = vec2f(-0.123 + sin(tMod * 0.17) * 0.07, 0.745 + cos(tMod * 0.19) * 0.07); // INCREASED from 0.05/0.06 to 0.17/0.19
     } else {
-        // Fourth parameter set: Dragon-like
-        c = vec2f(0.36 + sin(slowTime * 0.08) * 0.04, 0.1 + cos(slowTime * 0.09) * 0.04);
+        // Fourth parameter set: Dragon-like with more movement - INCREASED SPEED
+        c = vec2f(0.36 + sin(tMod * 0.21) * 0.09, 0.1 + cos(tMod * 0.23) * 0.09); // INCREASED from 0.08/0.07 to 0.21/0.23
     }
     
-    // Occasional rapid variation in c parameter for dramatic changes
-    if (hash(floor(slowTime * 0.5)) > 0.9) {
+    // Add high-frequency wiggle to the parameters - INCREASED SPEED
+    let wiggleX = sin(slowTime * 2.4) * 0.015; // INCREASED from 0.8 to 2.4 and amplitude from 0.01 to 0.015
+    let wiggleY = cos(slowTime * 2.6) * 0.015; // INCREASED from 0.9 to 2.6 and amplitude from 0.01 to 0.015
+    c += vec2f(wiggleX, wiggleY);
+    
+    // Occasional rapid variation in c parameter for dramatic changes - INCREASED FREQUENCY
+    if (hash(floor(slowTime * 0.5)) > 0.75) { // INCREASED from 0.25 to 0.5 and threshold from 0.8 to 0.75
         c = vec2f(
-            c.x + sin(slowTime * 5.0) * 0.05,
-            c.y + cos(slowTime * 5.0) * 0.05
+            c.x + sin(slowTime * 3.5) * 0.12, // INCREASED from 2.0 to 3.5 and amplitude from 0.1 to 0.12
+            c.y + cos(slowTime * 3.7) * 0.12  // INCREASED from 2.2 to 3.7 and amplitude from 0.1 to 0.12
         );
     }
+    // === END JULIA SET VARIATION SPEED ADJUSTMENTS ===
     
     // Calculate Julia set with dynamic iteration count
     // More iterations when zoomed in deeper
@@ -273,16 +299,20 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
     // Enhance edges and boundaries for better visibility
     var enhancedValue = pow(value, 0.8); // Adjust gamma for more visible detail
     
+    // Apply discrete banding with 8-12 bands
+    let bandCount = 10.0;
+    enhancedValue = applyDiscreteBanding(enhancedValue, bandCount, slowTime);
+    
     // Create occasional "inversion" effect
-    if (hash(floor(slowTime * 0.7)) > 0.85) {
+    if (hash(floor(slowTime * 0.2)) > 0.75) {
         enhancedValue = 1.0 - enhancedValue;
     }
     
-    // Convert to vibrant colors
-    let baseColor = createMultiColorFractal(enhancedValue, time, params);
+    // Convert to vibrant colors - UNCHANGED slow color cycle
+    let baseColor = createMultiColorFractal(enhancedValue, time * 0.25, params);
     
-    // Add subtle scan lines
-    let scanLine = sin(glitchedUV.y * 150.0 + time * 3.0) * 0.02 + 0.98;
+    // Add subtle scan lines - UNCHANGED slow scan lines
+    let scanLine = sin(glitchedUV.y * 150.0 + time * 0.8) * 0.02 + 0.98;
     
     // Return final color with maximum brightness
     return vec4f(baseColor * 1.5 * scanLine, 1.0);

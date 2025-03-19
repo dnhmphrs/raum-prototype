@@ -270,8 +270,8 @@ class FlockingExperience extends Experience {
             // Calculate center of screen
             const centerY = 0.5;
             
-            // Width of the center (largest) strip - with subtle breathing - INCREASED SIZE
-            const centerStripHeight = 0.08 * (breatheAmount + 0.1); // 8% - moderate size
+            // Width of the center (largest) strip - with subtle breathing
+            const centerStripHeight = 0.065 * (breatheAmount + 0.1); // 6.5% - tighter size
             
             // Place the center strip first - with subtle position shift
             const centerIndex = Math.floor(totalStrips / 2);
@@ -287,10 +287,10 @@ class FlockingExperience extends Experience {
             // Create strips above center (going up)
             let posY = centerY - centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down by golden ratio - with subtle warping - SLOWER DECREASE
+                // Scale down more quickly - closer to original golden ratio
                 const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 0.4) * 0.04;
                 // Reduced shrinkage rate - more moderate
-                currentHeight *= (0.78 * warpFactor); 
+                currentHeight *= (0.7 * warpFactor); 
                 
                 // Individual strip wave effect - each strip moves differently
                 const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 + phaseShift);
@@ -312,10 +312,10 @@ class FlockingExperience extends Experience {
             // Create strips below center (going down)
             posY = centerY + centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down by golden ratio - with subtle warping in the opposite direction - SLOWER DECREASE
+                // Scale down more quickly - closer to original golden ratio
                 const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 0.4) * 0.04;
                 // Reduced shrinkage rate - more moderate
-                currentHeight *= (0.78 * warpFactor);
+                currentHeight *= (0.7 * warpFactor);
                 
                 // Individual strip wave effect - each strip moves differently
                 const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 - phaseShift);
@@ -338,8 +338,8 @@ class FlockingExperience extends Experience {
             // Calculate center of screen
             const centerX = 0.5;
             
-            // Width of the center (largest) strip - with subtle breathing - INCREASED SIZE
-            const centerStripWidth = 0.08 * (breatheAmount + 0.1); // 8% - moderate size
+            // Width of the center (largest) strip - with subtle breathing
+            const centerStripWidth = 0.065 * (breatheAmount + 0.1); // 6.5% - tighter size
             
             // Place the center strip first - with subtle position shift
             const centerIndex = Math.floor(totalStrips / 2);
@@ -355,10 +355,10 @@ class FlockingExperience extends Experience {
             // Create strips to the left of center
             let posX = centerX - centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down by golden ratio - with subtle warping - SLOWER DECREASE
+                // Scale down more quickly - closer to original golden ratio
                 const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 0.4) * 0.04;
                 // Reduced shrinkage rate - more moderate
-                currentWidth *= (0.78 * warpFactor);
+                currentWidth *= (0.7 * warpFactor);
                 
                 // Individual strip wave effect - each strip moves differently
                 const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 + phaseShift);
@@ -380,10 +380,10 @@ class FlockingExperience extends Experience {
             // Create strips to the right of center
             posX = centerX + centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down by golden ratio - with subtle warping in the opposite direction - SLOWER DECREASE
+                // Scale down more quickly - closer to original golden ratio
                 const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 0.4) * 0.04;
                 // Reduced shrinkage rate - more moderate
-                currentWidth *= (0.78 * warpFactor);
+                currentWidth *= (0.7 * warpFactor);
                 
                 // Individual strip wave effect - each strip moves differently
                 const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 - phaseShift);
