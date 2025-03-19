@@ -1,4 +1,4 @@
-// shaderRect.wgsl - Edgy London vibe overlays for FlockingExperience
+// shaderRect.wgsl - Simplified to focus only on Julia set
 
 struct RectData {
     position: vec2f,
@@ -63,88 +63,103 @@ fn vertex_main(
     return output;
 }
 
-// Hash function for procedural noise
-fn hash21(p: vec2f) -> f32 {
-    var n = dot(p, vec2f(127.1, 311.7));
-    return fract(sin(n) * 43758.5453);
+// Function to compute julia set
+fn julia(z: vec2f, c: vec2f, maxIterations: f32) -> f32 {
+    var z_value = z;
+    var n = 0.0;
+    
+    for (var i = 0.0; i < maxIterations; i += 1.0) {
+        // z = z^2 + c
+        z_value = vec2f(
+            z_value.x * z_value.x - z_value.y * z_value.y,
+            2.0 * z_value.x * z_value.y
+        ) + c;
+        
+        if (dot(z_value, z_value) > 1.0) {
+            n = i;
+            break;
+        }
+    }
+    
+    // Smooth coloring formula
+    if (n < maxIterations) {
+        // Calculate fractional iteration count for smooth coloring
+        let log_zn = log(dot(z_value, z_value)) / 2.0;
+        let nu = log(log_zn / log(2.0)) / log(2.0);
+        n = n + 1.0 - nu;
+    }
+    
+    return n / maxIterations;
 }
 
-// Function to generate scanlines
-fn scanlines(uv: vec2f, time: f32, intensity: f32) -> f32 {
-    let lines = sin(uv.y * viewport.y * 0.5 - time * 2.0) * 0.5 + 0.5;
-    return mix(1.0, lines, intensity);
+// Fast hash function for glitch effects
+fn hash(p: f32) -> f32 {
+    return fract(sin(p * 123.456) * 43758.5453);
 }
 
-// Function to generate glitch effect
-fn glitchEffect(uv: vec2f, time: f32, params: vec4f) -> vec2f {
-    let glitchAmount = params.x * 0.05; // Scaled down for subtlety
-    
-    // Time-based blocks for glitch
-    let blockSize = 5.0 + params.y * 10.0;
-    let blockPos = floor(uv.y * blockSize) + floor(time * 5.0 * params.z);
-    
-    // Generate random displacement
-    let rand = hash21(vec2f(blockPos, floor(time * 4.0)));
-    
-    // Apply horizontal displacement only to certain blocks
-    let displaced = vec2f(
-        uv.x + (rand * 2.0 - 1.0) * glitchAmount * step(0.95, params.w),
-        uv.y
-    );
-    
-    return displaced;
+// Hash function for 2D input
+fn hash2D(p: vec2f) -> f32 {
+    return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 43758.5453);
 }
 
-// Function to generate noise pattern
-fn noisePattern(uv: vec2f, time: f32, scale: f32) -> f32 {
-    let noise = hash21(uv * scale + time * 0.1);
-    return noise;
-}
-
-// Function to create a CRT-like grid pattern
-fn crtGrid(uv: vec2f) -> f32 {
-    let gridX = sin(uv.x * viewport.x * 0.25) * 0.5 + 0.5;
-    let gridY = sin(uv.y * viewport.y * 0.25) * 0.5 + 0.5;
-    return gridX * gridY;
-}
-
-// Function for static noise pattern
-fn staticNoise(uv: vec2f, time: f32) -> f32 {
-    return hash21(uv * 100.0 + vec2f(time * 10.0, time * 15.0)) * 0.15;
-}
-
-// Vignette effect with configurable intensity
-fn vignette(uv: vec2f, intensity: f32) -> f32 {
-    let center = vec2f(0.5, 0.5);
-    let dist = distance(uv, center) * 2.0;
-    return 1.0 - smoothstep(0.8, 1.8 * intensity, dist);
-}
-
-// Function to create trippy color cycling
-fn trippyColors(time: f32, params: vec4f) -> vec3f {
-    // Base color cycling
-    let r = sin(time * 2.0 + params.x * 10.0) * 0.5 + 0.5;
-    let g = sin(time * 2.5 + params.y * 10.0) * 0.5 + 0.5;
-    let b = sin(time * 3.0 + params.z * 10.0) * 0.5 + 0.5;
+// Enhanced multi-color fractal coloring
+fn createMultiColorFractal(value: f32, t: f32, params: vec4f) -> vec3f {
+    // Create 4 color palette with vibrant colors
+    let color1 = vec3f(1.0, 0.1, 0.3); // Bright red
+    let color2 = vec3f(0.2, 0.4, 1.0); // Bright blue
+    let color3 = vec3f(1.0, 0.7, 0.0); // Bright gold
+    let color4 = vec3f(0.0, 1.0, 0.7); // Bright turquoise
     
-    return vec3f(r, g, b);
+    // Exponential time mapping for non-linear transitions
+    let expTime = exp(sin(t * 0.2)) * 0.5;
+    
+    // Create a smooth interpolation between colors with wider bands
+    let t1 = fract(expTime * 0.67 + value * 0.4);
+    let t2 = fract(expTime * 0.67 + value * 0.4 + 0.25);
+    let t3 = fract(expTime * 0.67 + value * 0.4 + 0.5);
+    let t4 = fract(expTime * 0.67 + value * 0.4 + 0.75);
+    
+    // Weight the 4 colors based on value
+    let w1 = smoothstep(0.0, 0.5, t1) * (1.0 - smoothstep(0.5, 1.0, t1));
+    let w2 = smoothstep(0.0, 0.5, t2) * (1.0 - smoothstep(0.5, 1.0, t2));
+    let w3 = smoothstep(0.0, 0.5, t3) * (1.0 - smoothstep(0.5, 1.0, t3));
+    let w4 = smoothstep(0.0, 0.5, t4) * (1.0 - smoothstep(0.5, 1.0, t4));
+    
+    // Normalize weights
+    let totalWeight = w1 + w2 + w3 + w4;
+    let nw1 = w1 / totalWeight;
+    let nw2 = w2 / totalWeight;
+    let nw3 = w3 / totalWeight;
+    let nw4 = w4 / totalWeight;
+    
+    // Blend the colors based on weights
+    return (color1 * nw1 + color2 * nw2 + color3 * nw3 + color4 * nw4) * 1.5; // Increased brightness
 }
 
-// Function to create flashing behavior
-fn flashEffect(time: f32, params: vec4f) -> f32 {
-    // Fast flashing that varies with params
-    let flashSpeed = 4.0 + params.x * 8.0; // 4-12 Hz flashing
+// Function to create a glitch effect on UV coordinates
+fn glitchUV(uv: vec2f, t: f32) -> vec2f {
+    // Create rhythmic glitch pattern over time
+    let glitchPhase = floor(t * 1.7); // Control frequency of glitches
+    let glitchSeed = hash(glitchPhase);
     
-    // Mix of different frequencies for unpredictable flashing
-    let flash1 = step(0.5, sin(time * flashSpeed));
-    let flash2 = step(0.6, sin(time * (flashSpeed * 0.7 + params.y * 5.0)));
-    let flash3 = step(0.7, sin(time * (flashSpeed * 1.3 + params.z * 3.0)));
+    // Only apply glitch sometimes (30% of the time)
+    if (glitchSeed > 0.7) {
+        // Create horizontal line glitches
+        let lineCount = 15.0;
+        let lineIndex = floor(uv.y * lineCount);
+        let lineSeed = hash(lineIndex + glitchPhase * 13.5);
+        
+        // Apply horizontal offset to certain lines
+        if (lineSeed > 0.75) {
+            // Calculate glitch intensity and direction
+            let glitchAmount = (lineSeed - 0.75) * 4.0 * 0.1; // Max 10% shift
+            
+            // Apply horizontal shift
+            return vec2f(uv.x + glitchAmount * sin(t * 10.0 + uv.y * 5.0), uv.y);
+        }
+    }
     
-    // Combine different flash patterns
-    let combinedFlash = flash1 * 0.7 + flash2 * 0.5 + flash3 * 0.3;
-    
-    // Ensure we don't go completely black too often
-    return mix(0.4, 1.0, combinedFlash);
+    return uv;
 }
 
 @fragment
@@ -154,79 +169,121 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
     let params = customData[rectIndex].params;
     let uv = input.uv;
     
-    // Use shader type to determine appearance
-    let shaderType = u32(rect.shaderType);
+    // Apply glitch effect to UV coordinates
+    let glitchedUV = glitchUV(uv, time);
     
-    // Apply common glitch effect - more extreme
-    let glitchAmount = params.x * 0.15; // Increased for more trippiness
-    let glitchedUV = glitchEffect(uv, time, params);
+    // Calculate base speed for time-based effects
+    let baseSpeed = 0.8; // Medium-fast for good dynamic effects
+    let slowTime = time * baseSpeed;
     
-    // Get flashing intensity for the rectangle
-    let flashIntensity = flashEffect(time, params);
+    // Create automatic zoom pattern that cycles between zooming in and out
+    // Using a triangular wave function for zoom
+    let zoomCycleTime = 15.0; // Full zoom cycle in seconds
+    let zoomPhase = fract(slowTime / zoomCycleTime);
+    let triangleWave = abs(2.0 * zoomPhase - 1.0); // 0->1->0 triangular pattern
     
-    // Base colors - more vibrant for tripped out feel
-    var color: vec4f;
+    // Create a fluctuating zoom level that gets very small during "diving in" phases
+    let minZoom = 0.003; // Very deep zoom when fully zoomed in
+    let maxZoom = 0.3;   // Wider view when zoomed out
+    let currentZoom = mix(minZoom, maxZoom, triangleWave);
     
-    // Shader variations - tripped out vibes
-    switch shaderType {
-        case 0u: {
-            // Trippy color cycling with scanlines
-            let scanlineIntensity = 0.2 + params.x * 0.3;
-            let scan = scanlines(glitchedUV, time, scanlineIntensity);
-            
-            // Dynamic color cycling
-            let baseColor = trippyColors(time, params);
-            
-            // Add intense noise texture
-            let noise = noisePattern(glitchedUV, time, 100.0) * 0.1;
-            
-            color = vec4f(baseColor * scan + noise, 1.0);
-        }
+    // Add some zoom jitter during transitions for a more glitchy feel
+    let jitterAmount = 0.02 * (1.0 - abs(2.0 * zoomPhase - 1.0)); // Max jitter at middle of transition
+    let jitter = hash(floor(slowTime * 20.0)) * jitterAmount;
+    let zoom = currentZoom + jitter;
+    
+    // Create dynamic position that moves through interesting regions
+    // Use Lissajous patterns for smooth but complex movement
+    let lissajousX = sin(slowTime * 0.42) * cos(slowTime * 0.27) * 0.2;
+    let lissajousY = sin(slowTime * 0.38) * cos(slowTime * 0.23) * 0.2;
+    
+    // Calculate aspect ratio for Julia set
+    let aspect = rect.size.x / rect.size.y;
+    
+    // Apply occasional position jumps for "teleportation" effects
+    let jumpTime = floor(slowTime * 0.8); // Control frequency of jumps
+    let jumpSeed = hash(jumpTime);
+    
+    // Jump to different parts of the fractal occasionally (20% of the time)
+    var offsetX = lissajousX;
+    var offsetY = lissajousY;
+    if (jumpSeed > 0.8) {
+        // Create sudden jumps to hand-picked interesting locations
+        let jumpId = floor(jumpSeed * 4.0); // Choose from 4 destinations
         
-        case 1u: {
-            // Intense, tinted display with static and scanlines
-            let staticVal = staticNoise(glitchedUV, time * 2.0) * 0.3; // More static
-            let scan = scanlines(glitchedUV, time * 1.5, 0.4); // More intense scanlines
-            let vig = vignette(glitchedUV, 1.2);
-            
-            // High contrast colors
-            color = vec4f(0.0, 0.5 + staticVal * 2.0, 0.8 + staticVal, 1.0) * scan * vig;
-        }
-        
-        case 2u: {
-            // Glitchy "terminal" look with rapidly changing blocks
-            
-            // Create a grid-like pattern for "text" - smaller cells for more detail
-            let cellSize = 0.03 + params.y * 0.05;
-            let cellX = floor(glitchedUV.x / cellSize);
-            let cellY = floor(glitchedUV.y / cellSize);
-            
-            // Make cells change rapidly based on time
-            let cellBrightness = step(0.65, hash21(vec2f(cellX, cellY) + time * 0.3));
-            
-            // Intense static behind the "text"
-            let staticVal = staticNoise(uv, time * 3.0) * 0.15;
-            
-            // Rapidly changing colors
-            let termColors = trippyColors(time * 0.5, params) * 0.5;
-            
-            // Combine effects
-            color = vec4f(termColors + vec3f(staticVal + cellBrightness * 0.4), 1.0);
-        }
-        
-        default: {
-            // Default - intense cycling colors
-            let cycleColors = trippyColors(time, params);
-            let noise = staticNoise(glitchedUV, time) * 0.1;
-            color = vec4f(cycleColors + noise, 1.0);
+        if (jumpId < 1.0) {
+            // Jump to first special location
+            offsetX = 0.3;
+            offsetY = -0.2;
+        } else if (jumpId < 2.0) {
+            // Jump to second special location
+            offsetX = -0.4;
+            offsetY = 0.1;
+        } else if (jumpId < 3.0) {
+            // Jump to third special location
+            offsetX = 0.1;
+            offsetY = 0.3;
+        } else {
+            // Jump to fourth special location
+            offsetX = -0.2;
+            offsetY = -0.3;
         }
     }
     
-    // Apply flash effect globally - makes rectangles appear/disappear
-    color = color * flashIntensity;
+    // Map UV to dynamic zoomed complex coordinates
+    let z = vec2f(
+        (glitchedUV.x - 0.5 + offsetX) * zoom * 2.0 * aspect,
+        (glitchedUV.y - 0.5 + offsetY) * zoom * 2.0
+    );
     
-    // Ensure full opacity
-    color.a = 1.0;
+    // Use interesting C values that change over time
+    // Set values within ranges known to produce good Julia sets
+    let cVal = hash2D(vec2f(floor(slowTime * 0.2), 0.0));
+    var c = vec2f(0.0, 0.0); // Initialize with default value
     
-    return color;
+    if (cVal < 0.25) {
+        // First parameter set: Classic
+        c = vec2f(-0.75 + sin(slowTime * 0.05) * 0.05, 0.13 + cos(slowTime * 0.06) * 0.05);
+    } else if (cVal < 0.5) {
+        // Second parameter set: Dendrite-like
+        c = vec2f(0.285 + sin(slowTime * 0.07) * 0.025, 0.01 + cos(slowTime * 0.08) * 0.025);
+    } else if (cVal < 0.75) {
+        // Third parameter set: Rabbit-like
+        c = vec2f(-0.123 + sin(slowTime * 0.06) * 0.03, 0.745 + cos(slowTime * 0.07) * 0.03);
+    } else {
+        // Fourth parameter set: Dragon-like
+        c = vec2f(0.36 + sin(slowTime * 0.08) * 0.04, 0.1 + cos(slowTime * 0.09) * 0.04);
+    }
+    
+    // Occasional rapid variation in c parameter for dramatic changes
+    if (hash(floor(slowTime * 0.5)) > 0.9) {
+        c = vec2f(
+            c.x + sin(slowTime * 5.0) * 0.05,
+            c.y + cos(slowTime * 5.0) * 0.05
+        );
+    }
+    
+    // Calculate Julia set with dynamic iteration count
+    // More iterations when zoomed in deeper
+    let baseIterations = 400.0;
+    let iterations = baseIterations + (baseIterations * 2.0 * (1.0 - triangleWave));
+    let value = julia(z, c, iterations);
+    
+    // Apply post-processing to create more dramatic effects
+    // Enhance edges and boundaries for better visibility
+    var enhancedValue = pow(value, 0.8); // Adjust gamma for more visible detail
+    
+    // Create occasional "inversion" effect
+    if (hash(floor(slowTime * 0.7)) > 0.85) {
+        enhancedValue = 1.0 - enhancedValue;
+    }
+    
+    // Convert to vibrant colors
+    let baseColor = createMultiColorFractal(enhancedValue, time, params);
+    
+    // Add subtle scan lines
+    let scanLine = sin(glitchedUV.y * 150.0 + time * 3.0) * 0.02 + 0.98;
+    
+    // Return final color with maximum brightness
+    return vec4f(baseColor * 1.5 * scanLine, 1.0);
 } 

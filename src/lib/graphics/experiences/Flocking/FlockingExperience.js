@@ -30,16 +30,46 @@ class FlockingExperience extends Experience {
         this.birds = []; // Array to hold all bird geometries
         this.predator = null; // Single reference for the predator
 
-        // Shader rectangle configuration
-        this.shaderRectCount = 3; // Fewer but larger rectangles
-        this.maxShaderRectCount = 8; // Maximum number of rectangles to show
-        this.shaderRectChangeInterval = 800; // Much faster changes - only 0.8 seconds
+        // Shader rectangle configuration - more minimal, aesthetic approach
+        this.shaderRectCount = 2; // Fewer, more intentional rectangles
+        this.maxShaderRectCount = 5; // Keep max count lower for cleaner aesthetics
+        
+        // Much slower changes for more intentional, sustained visual impact
+        this.shaderRectChangeInterval = 3500; // 3.5 seconds - more deliberate pacing
         this.lastShaderRectChangeTime = this.lastTime;
         this.accumulatedShaderRectTime = 0;
         
-        // Grid layout settings for potential shader rect placement
-        this.gridCols = 3; // Fewer columns for larger cells
-        this.gridRows = 2; // Fewer rows for larger cells
+        // Design constants
+        this.goldenRatio = 1.618; // Golden ratio for aesthetically pleasing proportions
+        this.phi = 0.618; // 1/golden ratio, used for sizing and positioning
+        
+        // Grid layout - more refined placement using golden ratio divisions
+        this.gridCols = 8; // More granular grid for precise positioning
+        this.gridRows = 5; // Based on golden ratio proportions
+        
+        // Key points for rectangle positioning (rule of thirds + golden ratio points)
+        this.keyPoints = [
+            [this.phi * 0.5, this.phi * 0.3], // Left golden ratio point
+            [1 - this.phi * 0.5, this.phi * 0.3], // Right golden ratio point
+            [this.phi * 0.5, 1 - this.phi * 0.3], // Bottom left golden ratio
+            [1 - this.phi * 0.5, 1 - this.phi * 0.3], // Bottom right golden ratio
+            [1/3, 1/3], // Top left third
+            [2/3, 1/3], // Top right third
+            [1/3, 2/3], // Bottom left third
+            [2/3, 2/3], // Bottom right third
+            [0.5, this.phi], // Center golden point
+            [this.phi, 0.5]  // Right golden point
+        ];
+        
+        // Rectangle size variations - more precise proportions
+        this.sizeVariations = [
+            [0.38, 0.235], // Golden ratio width:height
+            [0.235, 0.38], // Golden ratio height:width
+            [0.5, 0.309], // Wider golden ratio
+            [0.26, 0.158], // Smaller golden ratio
+            [0.62, 0.062], // Very wide, thin bar
+            [0.092, 0.42]  // Very tall, thin bar
+        ];
 
         // Get initial dimensions from the viewport buffer
         const viewportArray = new Float32Array(2);
@@ -176,13 +206,12 @@ class FlockingExperience extends Experience {
             return;
         }
     
-        // Always randomize count more aggressively - make more dynamic
-        if (forceUpdate || Math.random() < 0.65) { // 65% chance to change count
+        // Determine if we should update rectangles based on fixed interval and randomness
+        if (forceUpdate || Math.random() < 0.35) { // Lower chance of change for more stability
             const prevCount = this.shaderRectCount;
             
-            // Completely randomize count each time, but ensure at least 1 rectangle
-            this.shaderRectCount = Math.max(1, Math.min(this.maxShaderRectCount, 
-                Math.floor(Math.random() * this.maxShaderRectCount) + 1));
+            // Use 10-14 rectangles for a tighter array of strips
+            this.shaderRectCount = 10 + Math.floor(Math.random() * 5);
             
             // If count changed, update the pipeline
             if (prevCount !== this.shaderRectCount || forceUpdate) {
@@ -195,7 +224,7 @@ class FlockingExperience extends Experience {
             }
         }
         
-        // Generate randomized properties for each rectangle
+        // Generate aesthetically pleasing rectangle arrangements
         const rects = [];
         
         // Safety check - ensure we have at least one rectangle
@@ -203,93 +232,193 @@ class FlockingExperience extends Experience {
             this.shaderRectCount = 1;
         }
         
-        // Keep track of occupied grid cells to prevent overlap
-        const occupiedCells = new Set();
+        // Choose a composition style - either horizontal bars or vertical bars
+        const useHorizontalBars = Math.random() > 0.5;
         
-        // Define cell size and padding - less padding for larger elements
-        const cellWidth = 1.0 / this.gridCols;
-        const cellHeight = 1.0 / this.gridRows;
-        const cellPadding = 0.01; // Reduced padding for larger rects
+        // Generate golden ratio-based bar collection
+        this.createGoldenRatioBars(rects, useHorizontalBars);
         
-        try {
-            for (let i = 0; i < this.shaderRectCount; i++) {
-                // Try to find an unoccupied cell
-                let cellX, cellY, attempts = 0;
-                do {
-                    cellX = Math.floor(Math.random() * this.gridCols);
-                    cellY = Math.floor(Math.random() * this.gridRows);
-                    attempts++;
-                    
-                    // If we can't find an empty cell after many attempts, just use any cell
-                    if (attempts > 15) break;
-                } while (occupiedCells.has(`${cellX},${cellY}`));
+        // Update the rectangles in the pipeline
+        if (rects.length > 0) {
+            this.shaderRectPipeline.updateRectangles(rects);
+        }
+    }
+    
+    createGoldenRatioBars(rects, useHorizontalBars) {
+        // Golden ratio for proportions
+        const phi = this.phi; // 0.618
+        
+        // Choose a unified shader type for consistency
+        const shaderType = Math.floor(Math.random() * this.shaderRectPipeline.shaderTypeCount);
+        
+        // Calculate the number of strips for an extremely dense diffraction-like pattern
+        // Far more strips for a really tight array - but keep odd number for center symmetry
+        const totalStrips = this.shaderRectCount * 2 + 1; // Ensure odd number for center symmetry
+        
+        // Time-based warping factors - uses sine waves with different frequencies
+        // to create subtle organic movement
+        const timeNow = performance.now() / 1000;
+        const breatheAmount = Math.sin(timeNow * 0.2) * 0.15 + 0.85; // 0.7-1.0 range for breathing
+        const waveAmount = Math.sin(timeNow * 0.37) * 0.06; // Small sine wave for position warping
+        const phaseShift = Math.cos(timeNow * 0.13) * 0.1; // Phase shift for asymmetric warping
+        
+        if (useHorizontalBars) {
+            // Create horizontal bars - full width
+            // Nearly no gap - extremely tight packing like a diffraction grating
+            const minimalGap = 0.0005; // Extremely small gap between strips
+            
+            // Calculate center of screen
+            const centerY = 0.5;
+            
+            // Width of the center (largest) strip - with subtle breathing - INCREASED SIZE
+            const centerStripHeight = 0.08 * (breatheAmount + 0.1); // 8% - moderate size
+            
+            // Place the center strip first - with subtle position shift
+            const centerIndex = Math.floor(totalStrips / 2);
+            rects.push({
+                position: [0, centerY - centerStripHeight/2 + waveAmount],
+                size: [1.0, centerStripHeight],
+                shaderType: shaderType
+            });
+            
+            // Place strips above and below center, scaling by golden ratio
+            let currentHeight = centerStripHeight;
+            
+            // Create strips above center (going up)
+            let posY = centerY - centerStripHeight/2;
+            for (let i = 1; i <= centerIndex; i++) {
+                // Scale down by golden ratio - with subtle warping - SLOWER DECREASE
+                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 0.4) * 0.04;
+                // Reduced shrinkage rate - more moderate
+                currentHeight *= (0.78 * warpFactor); 
                 
-                // Mark this cell as occupied
-                occupiedCells.add(`${cellX},${cellY}`);
+                // Individual strip wave effect - each strip moves differently
+                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 + phaseShift);
                 
-                // Determine size within the cell (leave minimal padding)
-                const maxWidth = cellWidth - cellPadding * 2;
-                const maxHeight = cellHeight - cellPadding * 2;
+                // Move up by previous height plus minimal gap
+                posY -= (currentHeight + minimalGap);
                 
-                // Randomize size - much more aggressive spanning of cells
-                let width, height;
-                
-                // Visual variety: high chance to use larger rectangles that span multiple cells
-                if (Math.random() < 0.6 && cellX < this.gridCols - 1 && occupiedCells.has(`${cellX+1},${cellY}`) === false) {
-                    // Double-width rectangle (more common)
-                    width = maxWidth * 2 - cellPadding;
-                    height = maxHeight * (Math.random() < 0.6 ? 0.9 : 0.6);
-                    
-                    // Mark the second cell as occupied
-                    occupiedCells.add(`${cellX+1},${cellY}`);
-                    
-                    // Sometimes even triple-width
-                    if (Math.random() < 0.3 && cellX < this.gridCols - 2 && occupiedCells.has(`${cellX+2},${cellY}`) === false) {
-                        width = maxWidth * 3 - cellPadding * 2;
-                        occupiedCells.add(`${cellX+2},${cellY}`);
-                    }
-                } else if (Math.random() < 0.6 && cellY < this.gridRows - 1 && occupiedCells.has(`${cellX},${cellY+1}`) === false) {
-                    // Double-height rectangle (more common)
-                    width = maxWidth * (Math.random() < 0.6 ? 0.9 : 0.7);
-                    height = maxHeight * 2 - cellPadding;
-                    
-                    // Mark the second cell as occupied
-                    occupiedCells.add(`${cellX},${cellY+1}`);
-                    
-                    // Sometimes even triple-height
-                    if (Math.random() < 0.3 && cellY < this.gridRows - 2 && occupiedCells.has(`${cellX},${cellY+2}`) === false) {
-                        height = maxHeight * 3 - cellPadding * 2;
-                        occupiedCells.add(`${cellX},${cellY+2}`);
-                    }
-                } else {
-                    // Standard rectangle - still fairly large
-                    width = Math.max(0.1, Math.min(maxWidth, maxWidth * 0.8 + Math.random() * maxWidth * 0.2));
-                    height = Math.max(0.1, Math.min(maxHeight, maxHeight * 0.8 + Math.random() * maxHeight * 0.2));
-                }
-                
-                // Calculate position within the cell - more centered for stronger impact
-                const margin = cellPadding;
-                const x = cellX * cellWidth + margin;
-                const y = cellY * cellHeight + margin;
-                
-                // Shader type - randomize between available types
-                // Get this from the pipeline to ensure we don't exceed available types
-                const maxShaderTypes = this.shaderRectPipeline.shaderTypeCount || 1;
-                const shaderType = Math.floor(Math.random() * maxShaderTypes);
-                
+                // Add the strip with position warping
                 rects.push({
-                    position: [x, y],
-                    size: [width, height],
-                    shaderType
+                    position: [0, posY + stripWave],
+                    size: [1.0, currentHeight],
+                    shaderType: shaderType
                 });
             }
             
-            // Update the rectangles in the pipeline - only if we have valid rectangles
-            if (rects.length > 0) {
-                this.shaderRectPipeline.updateRectangles(rects);
+            // Reset for strips below center
+            currentHeight = centerStripHeight;
+            
+            // Create strips below center (going down)
+            posY = centerY + centerStripHeight/2;
+            for (let i = 1; i <= centerIndex; i++) {
+                // Scale down by golden ratio - with subtle warping in the opposite direction - SLOWER DECREASE
+                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 0.4) * 0.04;
+                // Reduced shrinkage rate - more moderate
+                currentHeight *= (0.78 * warpFactor);
+                
+                // Individual strip wave effect - each strip moves differently
+                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 - phaseShift);
+                
+                // Add the strip right after the previous one with position warping
+                rects.push({
+                    position: [0, posY + minimalGap + stripWave],
+                    size: [1.0, currentHeight],
+                    shaderType: shaderType
+                });
+                
+                // Move down by current height plus minimal gap
+                posY += (currentHeight + minimalGap);
             }
-        } catch (e) {
-            console.error("Error updating shader rects:", e);
+        } else {
+            // Create vertical bars - full height
+            // Nearly no gap - extremely tight packing like a diffraction grating
+            const minimalGap = 0.0005; // Extremely small gap between strips
+            
+            // Calculate center of screen
+            const centerX = 0.5;
+            
+            // Width of the center (largest) strip - with subtle breathing - INCREASED SIZE
+            const centerStripWidth = 0.08 * (breatheAmount + 0.1); // 8% - moderate size
+            
+            // Place the center strip first - with subtle position shift
+            const centerIndex = Math.floor(totalStrips / 2);
+            rects.push({
+                position: [centerX - centerStripWidth/2 + waveAmount, 0],
+                size: [centerStripWidth, 1.0],
+                shaderType: shaderType
+            });
+            
+            // Place strips to left and right of center, scaling by golden ratio
+            let currentWidth = centerStripWidth;
+            
+            // Create strips to the left of center
+            let posX = centerX - centerStripWidth/2;
+            for (let i = 1; i <= centerIndex; i++) {
+                // Scale down by golden ratio - with subtle warping - SLOWER DECREASE
+                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 0.4) * 0.04;
+                // Reduced shrinkage rate - more moderate
+                currentWidth *= (0.78 * warpFactor);
+                
+                // Individual strip wave effect - each strip moves differently
+                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 + phaseShift);
+                
+                // Move left by current width plus minimal gap
+                posX -= (currentWidth + minimalGap);
+                
+                // Add the strip with position warping
+                rects.push({
+                    position: [posX + stripWave, 0],
+                    size: [currentWidth, 1.0],
+                    shaderType: shaderType
+                });
+            }
+            
+            // Reset for strips to the right
+            currentWidth = centerStripWidth;
+            
+            // Create strips to the right of center
+            posX = centerX + centerStripWidth/2;
+            for (let i = 1; i <= centerIndex; i++) {
+                // Scale down by golden ratio - with subtle warping in the opposite direction - SLOWER DECREASE
+                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 0.4) * 0.04;
+                // Reduced shrinkage rate - more moderate
+                currentWidth *= (0.78 * warpFactor);
+                
+                // Individual strip wave effect - each strip moves differently
+                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 - phaseShift);
+                
+                // Add the strip right after the previous one with position warping
+                rects.push({
+                    position: [posX + minimalGap + stripWave, 0],
+                    size: [currentWidth, 1.0],
+                    shaderType: shaderType
+                });
+                
+                // Move right by current width plus minimal gap
+                posX += (currentWidth + minimalGap);
+            }
+        }
+        
+        // Sometimes create oscillating alternating shader types for visual rhythm
+        if (Math.random() > 0.5) {
+            const alternateShaderType = Math.floor(Math.random() * this.shaderRectPipeline.shaderTypeCount);
+            if (alternateShaderType !== shaderType) {
+                // Use Fibonacci-like pattern (1,1,2,3,5,8...) for shader type alternation
+                // to create a more interesting visual rhythm
+                let a = 1, b = 1;
+                for (let i = 0; i < rects.length; i++) {
+                    // Time-based oscillation for shader types
+                    const shaderOscillation = Math.sin(i * 0.5 + timeNow * 0.17) > 0;
+                    
+                    if (i === a && shaderOscillation) {
+                        rects[i].shaderType = alternateShaderType;
+                        const next = a + b;
+                        a = b;
+                        b = next;
+                    }
+                }
+            }
         }
     }
 
@@ -335,6 +464,23 @@ class FlockingExperience extends Experience {
                     console.error("Error in shader rect update:", e);
                 }
                 this.accumulatedShaderRectTime = 0;
+            } else {
+                // Continuous subtle updates between major changes
+                // This creates constant micro-movements in the strips
+                // Only do this if we have more than 10 frames since the last major update
+                if (this.accumulatedShaderRectTime > 100 && this.shaderRectPipeline && this.shaderRectPipeline.isInitialized) {
+                    const rects = [];
+                    // Choose the same bar orientation
+                    const useHorizontalBars = this.lastBarOrientation || Math.random() > 0.5;
+                    this.lastBarOrientation = useHorizontalBars;
+                    
+                    // Update with subtle shifts only - no complete change
+                    this.createGoldenRatioBars(rects, useHorizontalBars);
+                    
+                    if (rects.length > 0) {
+                        this.shaderRectPipeline.updateRectangles(rects);
+                    }
+                }
             }
 
             // Render the pipeline (includes compute pass and render pass)

@@ -610,25 +610,27 @@ export default class ShaderRectPipeline extends Pipeline {
     // Fallback shader code if loading from file fails
     getFallbackShaderCode() {
         return `
+        // Simple fallback shader that renders solid black
+        
         struct RectData {
-            position: vec2f,
-            size: vec2f,
+            position: vec2<f32>,
+            size: vec2<f32>,
             shaderType: f32,
-            padding: vec3f,
+            padding: vec3<f32>,
         };
         
         struct CustomData {
-            params: vec4f,
+            params: vec4<f32>,
         };
-        
+
         @group(0) @binding(0) var<storage, read> rectangles: array<RectData>;
         @group(0) @binding(1) var<uniform> time: f32;
-        @group(0) @binding(2) var<uniform> viewport: vec2f;
+        @group(0) @binding(2) var<uniform> viewport: vec2<f32>;
         @group(0) @binding(3) var<storage, read> customData: array<CustomData>;
         
         struct VertexOutput {
-            @builtin(position) position: vec4f,
-            @location(0) uv: vec2f,
+            @builtin(position) position: vec4<f32>,
+            @location(0) uv: vec2<f32>,
             @location(1) @interpolate(flat) rectIndex: u32,
         };
         
@@ -645,16 +647,16 @@ export default class ShaderRectPipeline extends Pipeline {
             let rect = rectangles[rectIndex];
             
             // Define the 6 vertices for a quad (2 triangles)
-            var localPos: vec2f;
+            var localPos: vec2<f32>;
             
             switch vertexInRect {
-                case 0u: { localPos = vec2f(0.0, 0.0); } // Bottom-left
-                case 1u: { localPos = vec2f(1.0, 0.0); } // Bottom-right
-                case 2u: { localPos = vec2f(0.0, 1.0); } // Top-left
-                case 3u: { localPos = vec2f(1.0, 0.0); } // Bottom-right
-                case 4u: { localPos = vec2f(1.0, 1.0); } // Top-right
-                case 5u: { localPos = vec2f(0.0, 1.0); } // Top-left
-                default: { localPos = vec2f(0.0, 0.0); } // Fallback
+                case 0u: { localPos = vec2<f32>(0.0, 0.0); } // Bottom-left
+                case 1u: { localPos = vec2<f32>(1.0, 0.0); } // Bottom-right
+                case 2u: { localPos = vec2<f32>(0.0, 1.0); } // Top-left
+                case 3u: { localPos = vec2<f32>(1.0, 0.0); } // Bottom-right
+                case 4u: { localPos = vec2<f32>(1.0, 1.0); } // Top-right
+                case 5u: { localPos = vec2<f32>(0.0, 1.0); } // Top-left
+                default: { localPos = vec2<f32>(0.0, 0.0); } // Fallback
             }
             
             // Transform to rectangle position and size
@@ -663,70 +665,20 @@ export default class ShaderRectPipeline extends Pipeline {
             // Adjust to clip space (-1 to 1)
             let clipPos = worldPos * 2.0 - 1.0;
             // Y is flipped in clip space
-            let adjustedClipPos = vec2f(clipPos.x, -clipPos.y);
+            let adjustedClipPos = vec2<f32>(clipPos.x, -clipPos.y);
             
             var output: VertexOutput;
-            output.position = vec4f(adjustedClipPos, 0.0, 1.0);
+            output.position = vec4<f32>(adjustedClipPos, 0.0, 1.0);
             output.uv = localPos;
             output.rectIndex = rectIndex;
             
             return output;
         }
         
-        // Hash function for procedural noise
-        fn hash21(p: vec2f) -> f32 {
-            var n = dot(p, vec2f(127.1, 311.7));
-            return fract(sin(n) * 43758.5453);
-        }
-        
-        // Function to create trippy color cycling
-        fn trippyColors(time: f32, params: vec4f) -> vec3f {
-            // Base color cycling
-            let r = sin(time * 2.0 + params.x * 10.0) * 0.5 + 0.5;
-            let g = sin(time * 2.5 + params.y * 10.0) * 0.5 + 0.5;
-            let b = sin(time * 3.0 + params.z * 10.0) * 0.5 + 0.5;
-            
-            return vec3f(r, g, b);
-        }
-        
-        // Function to create flashing behavior
-        fn flashEffect(time: f32, params: vec4f) -> f32 {
-            // Fast flashing that varies with params
-            let flashSpeed = 4.0 + params.x * 8.0; // 4-12 Hz flashing
-            
-            // Mix of different frequencies for unpredictable flashing
-            let flash1 = step(0.5, sin(time * flashSpeed));
-            let flash2 = step(0.6, sin(time * (flashSpeed * 0.7 + params.y * 5.0)));
-            
-            // Combine different flash patterns
-            let combinedFlash = flash1 * 0.7 + flash2 * 0.5;
-            
-            // Ensure we don't go completely black too often
-            return mix(0.4, 1.0, combinedFlash);
-        }
-        
         @fragment
-        fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
-            let rectIndex = input.rectIndex;
-            let rect = rectangles[rectIndex];
-            let params = customData[rectIndex].params;
-            
-            // Get flash intensity
-            let flashIntensity = flashEffect(time, params);
-            
-            // Trippy colors with noise
-            let colors = trippyColors(time, params);
-            
-            // Add noise texture
-            let noise = hash21(input.uv * 100.0 + time * 0.1) * 0.1;
-            
-            // Base color with full opacity
-            var color = vec4f(colors + vec3f(noise), 1.0);
-            
-            // Apply flash effect
-            color = color * flashIntensity;
-            
-            return color;
+        fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+            // Just return solid black to clearly indicate fallback is in use
+            return vec4<f32>(0.0, 0.0, 0.0, 1.0);
         }`;
     }
 } 
