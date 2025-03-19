@@ -51,7 +51,7 @@ fn glitch_effect(uv: vec2<f32>, t: f32) -> vec3<f32> {
     
     // Organic swirling patterns
     let swirl = vec2<f32>(
-        sin(dot(uv * 1.5, predDir + perpDir) * 7.0 + cos(length(uv - 0.5) * 6.0) * t * 0.02) +
+        sin(dot(uv * 2.5, predDir + perpDir) * 7.0 + cos(length(uv - 0.5) * 6.0) * t * 0.02) +
         sin(length(uv - 0.5) * 8.0 - t * 0.03) * 0.3,
         
         cos(dot(uv * 1.2, predDir - perpDir) * 5.0 + sin(length(uv - 0.5) * 7.0) * t * 0.01) +
@@ -114,7 +114,7 @@ fn scanlines(uv: vec2<f32>, t: f32) -> vec3<f32> {
     let scanFreq = 100.0 + speed * 5.0;
     
     // Create moving scanlines
-    let scan = step(0.1, sin(uv.y * scanFreq + t * 10.0) * 0.5 + 0.5);
+    let scan = step(0.8, sin(uv.y * scanFreq + t * 10.0) * 0.5 + 0.5);
     
     // Only show scanlines when predator is moving fast
     let intensity = smoothstep(1.0, 30.0, speed) * 0.05;
@@ -187,7 +187,7 @@ fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let uv = (fragPos + 1.0) * 0.5;
     
     // Smoother gradient base
-    let bottomColor = vec3<f32>(0.878, 0.914, 0.980);
+    let bottomColor = vec3<f32>(0.05, 0.05, 0.980);
     let topColor = vec3<f32>(0.380, 0.451, 0.702);
     
     // Flowing gradient
