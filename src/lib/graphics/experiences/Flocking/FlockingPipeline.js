@@ -548,6 +548,83 @@ export default class FlockingPipeline extends Pipeline {
         huntingPass.end();
     }
 
+    // Split the render process to allow rendering background and entities separately
+    renderBackground(commandEncoder, passDescriptor) {
+        // Update time for background shader
+        this.updateTimeBuffer();
+        
+        // Begin main render pass
+        const passEncoder = commandEncoder.beginRenderPass(passDescriptor);
+        
+        // -----------------------
+        // 1. Render Background Only
+        // -----------------------
+        passEncoder.setPipeline(this.backgroundPipeline);
+        passEncoder.setBindGroup(0, this.backgroundBindGroup);
+        passEncoder.draw(3, 1, 0, 0);
+        
+        // End the render pass
+        passEncoder.end();
+    }
+    
+    renderEntities(commandEncoder, textureView, depthView, birds, predator) {
+        // Begin main render pass (don't clear, we're drawing on top of existing content)
+        const passEncoder = commandEncoder.beginRenderPass({
+            colorAttachments: [
+                {
+                    view: textureView,
+                    loadOp: 'load', // Don't clear - we're drawing on top
+                    storeOp: 'store'
+                }
+            ],
+            depthStencilAttachment: {
+                view: depthView,
+                depthLoadOp: 'load', // Don't clear depth buffer
+                depthStoreOp: 'store'
+            }
+        });
+        
+        // -----------------------
+        // 2. Render Birds
+        // -----------------------
+        passEncoder.setPipeline(this.birdPipeline);
+        passEncoder.setBindGroup(0, this.birdBindGroup);
+
+        // Assuming all birds share the same geometry
+        if (birds.length > 0) {
+            const firstBird = birds[0];
+            passEncoder.setVertexBuffer(0, firstBird.getVertexBuffer());
+            passEncoder.setIndexBuffer(firstBird.getIndexBuffer(), 'uint16');
+
+            // Use instancing to draw all birds in a single call
+            passEncoder.drawIndexed(firstBird.getIndexCount(), this.birdCount, 0, 0, 0);
+        }
+
+        // -----------------------
+        // 3. Render Predator
+        // -----------------------
+        passEncoder.setPipeline(this.predatorPipeline);
+        passEncoder.setBindGroup(0, this.predatorBindGroup);
+
+        if (predator) {
+            passEncoder.setVertexBuffer(0, predator.getVertexBuffer());
+            passEncoder.setIndexBuffer(predator.getIndexBuffer(), 'uint16');
+
+            // Single instance for predator
+            passEncoder.drawIndexed(predator.getIndexCount(), 1, 0, 0, 0);
+        }
+
+        // -----------------------
+        // 4. Render Guiding Line
+        // -----------------------
+        passEncoder.setPipeline(this.guidingLinePipeline);
+        passEncoder.setBindGroup(0, this.guidingLineBindGroup);
+        passEncoder.draw(2, 1, 0, 0); // Draw two vertices
+
+        passEncoder.end();
+    }
+    
+    // Keep the original render method for backward compatibility
     render(commandEncoder, passDescriptor, birds, predator, textureView, depthView) {
         // Update time for background shader
         this.updateTimeBuffer();

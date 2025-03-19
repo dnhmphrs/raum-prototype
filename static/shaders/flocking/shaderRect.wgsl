@@ -120,6 +120,33 @@ fn vignette(uv: vec2f, intensity: f32) -> f32 {
     return 1.0 - smoothstep(0.8, 1.8 * intensity, dist);
 }
 
+// Function to create trippy color cycling
+fn trippyColors(time: f32, params: vec4f) -> vec3f {
+    // Base color cycling
+    let r = sin(time * 2.0 + params.x * 10.0) * 0.5 + 0.5;
+    let g = sin(time * 2.5 + params.y * 10.0) * 0.5 + 0.5;
+    let b = sin(time * 3.0 + params.z * 10.0) * 0.5 + 0.5;
+    
+    return vec3f(r, g, b);
+}
+
+// Function to create flashing behavior
+fn flashEffect(time: f32, params: vec4f) -> f32 {
+    // Fast flashing that varies with params
+    let flashSpeed = 4.0 + params.x * 8.0; // 4-12 Hz flashing
+    
+    // Mix of different frequencies for unpredictable flashing
+    let flash1 = step(0.5, sin(time * flashSpeed));
+    let flash2 = step(0.6, sin(time * (flashSpeed * 0.7 + params.y * 5.0)));
+    let flash3 = step(0.7, sin(time * (flashSpeed * 1.3 + params.z * 3.0)));
+    
+    // Combine different flash patterns
+    let combinedFlash = flash1 * 0.7 + flash2 * 0.5 + flash3 * 0.3;
+    
+    // Ensure we don't go completely black too often
+    return mix(0.4, 1.0, combinedFlash);
+}
+
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
     let rectIndex = input.rectIndex;
@@ -130,80 +157,76 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
     // Use shader type to determine appearance
     let shaderType = u32(rect.shaderType);
     
-    // Apply common glitch effect
+    // Apply common glitch effect - more extreme
+    let glitchAmount = params.x * 0.15; // Increased for more trippiness
     let glitchedUV = glitchEffect(uv, time, params);
     
-    // Base colors - dark and industrial
-    var color: vec4f;
-    var borderColor: vec4f;
+    // Get flashing intensity for the rectangle
+    let flashIntensity = flashEffect(time, params);
     
-    // Shader variations - modern edgy London vibes
+    // Base colors - more vibrant for tripped out feel
+    var color: vec4f;
+    
+    // Shader variations - tripped out vibes
     switch shaderType {
         case 0u: {
-            // Black base with thin white scanline
+            // Trippy color cycling with scanlines
             let scanlineIntensity = 0.2 + params.x * 0.3;
             let scan = scanlines(glitchedUV, time, scanlineIntensity);
             
-            // Subtle noise texture
-            let noise = noisePattern(glitchedUV, time, 100.0) * 0.05;
+            // Dynamic color cycling
+            let baseColor = trippyColors(time, params);
             
-            color = vec4f(vec3f(0.02 + noise) * scan, 0.85);
-            borderColor = vec4f(1.0, 1.0, 1.0, 0.9);
+            // Add intense noise texture
+            let noise = noisePattern(glitchedUV, time, 100.0) * 0.1;
+            
+            color = vec4f(baseColor * scan + noise, 1.0);
         }
         
         case 1u: {
-            // Dark, cyan-tinted display with static and scanlines
-            let staticVal = staticNoise(glitchedUV, time);
-            let scan = scanlines(glitchedUV, time, 0.3);
+            // Intense, tinted display with static and scanlines
+            let staticVal = staticNoise(glitchedUV, time * 2.0) * 0.3; // More static
+            let scan = scanlines(glitchedUV, time * 1.5, 0.4); // More intense scanlines
             let vig = vignette(glitchedUV, 1.2);
             
-            // Cyan tint
-            color = vec4f(0.0, 0.3 + staticVal, 0.4 + staticVal, 0.85) * scan * vig;
-            
-            // Glowing cyan border
-            borderColor = vec4f(0.0, 0.8, 1.0, 0.9);
+            // High contrast colors
+            color = vec4f(0.0, 0.5 + staticVal * 2.0, 0.8 + staticVal, 1.0) * scan * vig;
         }
         
         case 2u: {
-            // Minimal monochrome "terminal" look with glitching text blocks
+            // Glitchy "terminal" look with rapidly changing blocks
             
-            // Create a grid-like pattern for "text"
-            let cellSize = 0.05 + params.y * 0.05; // Size of each "character"
+            // Create a grid-like pattern for "text" - smaller cells for more detail
+            let cellSize = 0.03 + params.y * 0.05;
             let cellX = floor(glitchedUV.x / cellSize);
             let cellY = floor(glitchedUV.y / cellSize);
             
-            // Make some cells brighter based on a hash
-            let cellBrightness = step(0.75, hash21(vec2f(cellX, cellY) + time * 0.1));
+            // Make cells change rapidly based on time
+            let cellBrightness = step(0.65, hash21(vec2f(cellX, cellY) + time * 0.3));
             
-            // Static behind the "text"
-            let staticVal = staticNoise(uv, time) * 0.05;
+            // Intense static behind the "text"
+            let staticVal = staticNoise(uv, time * 3.0) * 0.15;
+            
+            // Rapidly changing colors
+            let termColors = trippyColors(time * 0.5, params) * 0.5;
             
             // Combine effects
-            color = vec4f(vec3f(0.1 + staticVal + cellBrightness * 0.2), 0.9);
-            
-            // Subtle terminal-green border
-            borderColor = vec4f(0.2, 0.8, 0.3, 0.95);
+            color = vec4f(termColors + vec3f(staticVal + cellBrightness * 0.4), 1.0);
         }
         
         default: {
-            // Default - solid black with subtle grain
-            color = vec4f(0.0, 0.0, 0.0, 0.85);
-            borderColor = vec4f(0.2, 0.2, 0.2, 0.9);
+            // Default - intense cycling colors
+            let cycleColors = trippyColors(time, params);
+            let noise = staticNoise(glitchedUV, time) * 0.1;
+            color = vec4f(cycleColors + noise, 1.0);
         }
     }
     
-    // Add thin precise border - edgy modern vibe
-    let borderWidth = 0.01;
-    if (glitchedUV.x < borderWidth || glitchedUV.x > (1.0 - borderWidth) || 
-        glitchedUV.y < borderWidth || glitchedUV.y > (1.0 - borderWidth)) {
-        // Subtle flicker effect on the border
-        let flicker = 0.8 + 0.2 * sin(time * 10.0 + params.y * 10.0);
-        return borderColor * flicker;
-    }
+    // Apply flash effect globally - makes rectangles appear/disappear
+    color = color * flashIntensity;
     
-    // Apply a pulsing opacity for all shader types
-    let opacity = color.a * (0.85 + 0.15 * sin(time + params.z * 10.0));
+    // Ensure full opacity
+    color.a = 1.0;
     
-    // Combine all effects
-    return vec4f(color.rgb, opacity);
+    return color;
 } 
