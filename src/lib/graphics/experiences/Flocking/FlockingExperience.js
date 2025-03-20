@@ -39,6 +39,24 @@ class FlockingExperience extends Experience {
         this.lastShaderRectChangeTime = this.lastTime;
         this.accumulatedShaderRectTime = 0;
         
+        // Orientation management with improved initialization
+        this.orientationState = {
+            isHorizontal: Math.random() > 0.5, // random starting orientation
+            periodDuration: 8000, // how long to stay in one orientation (ms)
+            glitchDuration: 1200,  // how long glitches last (ms) - increased from 300ms to 1.2s
+            glitchProbability: 0.02, // probability of glitches per second (2%)
+            lastMajorChange: performance.now(), // Initialize with current time
+            lastGlitchEnd: 0  // No glitches at start
+        };
+        
+        // Predator velocity tracking for bar variations
+        this.predatorVelocity = {
+            x: 0,
+            y: 0, 
+            magnitude: 0,
+            raw: { x: 0, y: 0, z: 0 }
+        };
+        
         // Design constants
         this.goldenRatio = 1.618; // Golden ratio for aesthetically pleasing proportions
         this.phi = 0.618; // 1/golden ratio, used for sizing and positioning
@@ -205,6 +223,11 @@ class FlockingExperience extends Experience {
             return;
         }
     
+        // Don't update if a buffer update is already in progress
+        if (this.shaderRectPipeline.bufferUpdateInProgress) {
+            return;
+        }
+    
         // Determine if we should update rectangles based on fixed interval and randomness
         if (forceUpdate || Math.random() < 0.35) { // Lower chance of change for more stability
             const prevCount = this.shaderRectCount;
@@ -223,32 +246,30 @@ class FlockingExperience extends Experience {
             }
         }
         
-        // Generate aesthetically pleasing rectangle arrangements
-        const rects = [];
-        
-        // Safety check - ensure we have at least one rectangle
-        if (this.shaderRectCount < 1) {
-            this.shaderRectCount = 1;
-        }
-        
-        // Choose a composition style - force alternating orientations
-        // For major updates, always switch orientation
-        if (forceUpdate) {
-            // Explicitly toggle orientation on forced updates
-            this.lastBarOrientation = this.lastBarOrientation === undefined ? 
-                true : !this.lastBarOrientation;
-        } else {
-            // For minor updates, use time-based alternation (switch every ~1.5 seconds)
-            const nowInSecs = Math.floor(performance.now() / 1500);
-            this.lastBarOrientation = (nowInSecs % 2 === 0);
-        }
-        
-        // Generate golden ratio-based bar collection
-        this.createGoldenRatioBars(rects, this.lastBarOrientation);
-        
-        // Update the rectangles in the pipeline
-        if (rects.length > 0) {
-            this.shaderRectPipeline.updateRectangles(rects);
+        // Try-catch the entire rect generation to prevent inconsistent state
+        try {
+            // Generate aesthetically pleasing rectangle arrangements
+            const rects = [];
+            
+            // Safety check - ensure we have at least one rectangle
+            if (this.shaderRectCount < 1) {
+                this.shaderRectCount = 1;
+            }
+            
+            // Get the current orientation using our orientation manager
+            // This will consider both long-term orientation and glitches
+            const useHorizontalBars = this.getCurrentOrientation(forceUpdate);
+            
+            // Generate golden ratio-based bar collection
+            this.createGoldenRatioBars(rects, useHorizontalBars);
+            
+            // Update the rectangles in the pipeline only if we have rectangles to update
+            if (rects.length > 0) {
+                this.shaderRectPipeline.updateRectangles(rects);
+            }
+        } catch (err) {
+            // Log error but don't crash
+            console.error("Error in updateShaderRects:", err);
         }
     }
     
@@ -264,27 +285,45 @@ class FlockingExperience extends Experience {
         const totalStrips = this.shaderRectCount * 2 + 1; // Ensure odd number for center symmetry
         
         // Time-based warping factors - uses sine waves with different frequencies
-        // Increase animation speed but REDUCE AMPLITUDE for tighter packing
+        // Now influenced by predator motion
         const timeNow = (performance.now() / 1000); // Normal speed time factor
-        const breatheAmount = Math.sin(timeNow * 0.35) * 0.10 + 0.85; // Reduced amplitude from 0.20 to 0.10
-        const waveAmount = Math.sin(timeNow * 0.5) * 0.05; // Reduced amplitude from 0.15 to 0.05
-        const phaseShift = Math.cos(timeNow * 0.22) * 0.07; // Reduced amplitude from 0.15 to 0.07
+        
+        // Get predator velocity influence - default to base values if no predator data
+        const predatorInfluence = this.predatorVelocity ? this.predatorVelocity.magnitude : 0;
+        const predatorDirectionX = this.predatorVelocity ? this.predatorVelocity.x : 0;
+        const predatorDirectionY = this.predatorVelocity ? this.predatorVelocity.y : 0;
+        
+        // Base animation values modified by predator movement
+        // Increase wave/breathing effects when predator moves faster
+        const predatorSpeedFactor = 0.5 + predatorInfluence * 0.5; // 0.5-1.0 range
+        
+        // Breathing effect increases with predator speed
+        const breatheAmount = (Math.sin(timeNow * 0.35) * 0.10 + 0.85) * predatorSpeedFactor;
+        
+        // Wave amount influenced by predator's lateral movement (X for horizontal bars, Y for vertical)
+        const waveMultiplier = useHorizontalBars ? Math.abs(predatorDirectionX) : Math.abs(predatorDirectionY);
+        const waveAmount = Math.sin(timeNow * 0.5) * 0.05 * (1.0 + waveMultiplier);
+        
+        // Phase shift influenced by predator's movement direction
+        const directionInfluence = useHorizontalBars ? predatorDirectionY : predatorDirectionX;
+        const phaseShift = Math.cos(timeNow * 0.22) * 0.07 + directionInfluence * 0.05;
         
         if (useHorizontalBars) {
             // Create horizontal bars - full width
             // Nearly no gap - extremely tight packing like a diffraction grating
             const minimalGap = 0.0003; // Even smaller gap between strips
             
-            // Calculate center of screen with less movement
-            const centerY = 0.5 + Math.sin(timeNow * 0.3) * 0.02; // Reduced from 0.04 to 0.02
+            // Calculate center of screen with movement influenced by predator's vertical movement
+            const centerYOffset = Math.sin(timeNow * 0.3) * 0.02 + predatorDirectionY * 0.02;
+            const centerY = 0.5 + centerYOffset;
             
-            // Width of the center (largest) strip - with more breathing
-            const centerStripHeight = 0.065 * (breatheAmount + 0.10); // Reduced variation
+            // Width of the center (largest) strip - with breathing influenced by predator speed
+            const centerStripHeight = 0.065 * (breatheAmount + 0.10);
             
-            // Place the center strip first - with enhanced position shift
+            // Place the center strip first - position influenced by predator movement
             const centerIndex = Math.floor(totalStrips / 2);
             rects.push({
-                position: [0, centerY - centerStripHeight/2 + waveAmount * 0.5], // Reduce wave effect
+                position: [0, centerY - centerStripHeight/2 + waveAmount * 0.5],
                 size: [1.0, centerStripHeight],
                 shaderType: shaderType
             });
@@ -295,18 +334,19 @@ class FlockingExperience extends Experience {
             // Create strips above center (going up)
             let posY = centerY - centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down with less dynamic warping
-                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
-                // More consistent shrinkage rate
-                currentHeight *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
+                // Scale down with warping influenced by predator speed
+                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
+                // Shrinkage rate varies slightly with predator movement
+                const shrinkRate = 0.75 + (predatorDirectionY * 0.05);
+                currentHeight *= (shrinkRate * warpFactor);
                 
-                // Individual strip wave effect - each strip moves less
-                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift); // Reduced multiplier and frequency
+                // Individual strip wave effect - influenced by predator motion
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift);
                 
                 // Move up by previous height plus minimal gap
                 posY -= (currentHeight + minimalGap);
                 
-                // Add the strip with reduced position warping
+                // Add the strip with position warping
                 rects.push({
                     position: [0, posY + stripWave],
                     size: [1.0, currentHeight],
@@ -320,15 +360,16 @@ class FlockingExperience extends Experience {
             // Create strips below center (going down)
             posY = centerY + centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down with less dynamic warping
-                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
-                // More consistent shrinkage rate
-                currentHeight *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
+                // Scale down with warping influenced by predator speed
+                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
+                // Shrinkage rate varies slightly with predator movement
+                const shrinkRate = 0.75 + (predatorDirectionY * 0.05);
+                currentHeight *= (shrinkRate * warpFactor);
                 
-                // Individual strip wave effect - each strip moves less
-                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift); // Reduced multiplier and frequency
+                // Individual strip wave effect - influenced by predator motion
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift);
                 
-                // Add the strip right after the previous one with reduced position warping
+                // Add the strip right after the previous one with position warping
                 rects.push({
                     position: [0, posY + minimalGap + stripWave],
                     size: [1.0, currentHeight],
@@ -343,16 +384,17 @@ class FlockingExperience extends Experience {
             // Nearly no gap - extremely tight packing like a diffraction grating
             const minimalGap = 0.0003; // Even smaller gap between strips
             
-            // Calculate center of screen with less movement
-            const centerX = 0.5 + Math.sin(timeNow * 0.3) * 0.02; // Reduced from 0.04 to 0.02
+            // Calculate center of screen with movement influenced by predator's horizontal movement
+            const centerXOffset = Math.sin(timeNow * 0.3) * 0.02 + predatorDirectionX * 0.02;
+            const centerX = 0.5 + centerXOffset;
             
-            // Width of the center (largest) strip - with more breathing
-            const centerStripWidth = 0.065 * (breatheAmount + 0.10); // Reduced variation
+            // Width of the center (largest) strip - with breathing influenced by predator speed
+            const centerStripWidth = 0.065 * (breatheAmount + 0.10);
             
-            // Place the center strip first - with enhanced position shift
+            // Place the center strip first - position influenced by predator movement
             const centerIndex = Math.floor(totalStrips / 2);
             rects.push({
-                position: [centerX - centerStripWidth/2 + waveAmount * 0.5, 0], // Reduce wave effect
+                position: [centerX - centerStripWidth/2 + waveAmount * 0.5, 0],
                 size: [centerStripWidth, 1.0],
                 shaderType: shaderType
             });
@@ -363,18 +405,19 @@ class FlockingExperience extends Experience {
             // Create strips to the left of center
             let posX = centerX - centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down with less dynamic warping
-                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
-                // More consistent shrinkage rate
-                currentWidth *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
+                // Scale down with warping influenced by predator speed
+                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
+                // Shrinkage rate varies slightly with predator movement
+                const shrinkRate = 0.75 + (predatorDirectionX * 0.05);
+                currentWidth *= (shrinkRate * warpFactor);
                 
-                // Individual strip wave effect - each strip moves less
-                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift); // Reduced multiplier and frequency
+                // Individual strip wave effect - influenced by predator motion
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift);
                 
                 // Move left by current width plus minimal gap
                 posX -= (currentWidth + minimalGap);
                 
-                // Add the strip with reduced position warping
+                // Add the strip with position warping
                 rects.push({
                     position: [posX + stripWave, 0],
                     size: [currentWidth, 1.0],
@@ -388,15 +431,16 @@ class FlockingExperience extends Experience {
             // Create strips to the right of center
             posX = centerX + centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down with less dynamic warping
-                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
-                // More consistent shrinkage rate
-                currentWidth *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
+                // Scale down with warping influenced by predator speed
+                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
+                // Shrinkage rate varies slightly with predator movement
+                const shrinkRate = 0.75 + (predatorDirectionX * 0.05);
+                currentWidth *= (shrinkRate * warpFactor);
                 
-                // Individual strip wave effect - each strip moves less
-                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift); // Reduced multiplier and frequency
+                // Individual strip wave effect - influenced by predator motion
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift);
                 
-                // Add the strip right after the previous one with reduced position warping
+                // Add the strip right after the previous one with position warping
                 rects.push({
                     position: [posX + minimalGap + stripWave, 0],
                     size: [currentWidth, 1.0],
@@ -479,6 +523,18 @@ class FlockingExperience extends Experience {
                 headingY = data[1] / length;
             }
             
+            // Store the predator velocity data for bar variations
+            this.predatorVelocity = {
+                x: headingX,
+                y: headingY,
+                magnitude: Math.min(1.0, length), // Clamp magnitude to 1.0 maximum
+                raw: {
+                    x: data[0],
+                    y: data[1],
+                    z: data[2]
+                }
+            };
+            
             // Create custom data with predator heading in the first two components
             const rectCount = this.shaderRectPipeline.rectCount;
             const customData = new Float32Array(rectCount * 4);
@@ -560,17 +616,26 @@ class FlockingExperience extends Experience {
                 // Continuous updates for constant movement
                 // Do this almost every frame for more dynamic movement
                 if (this.accumulatedShaderRectTime > 33 && this.shaderRectPipeline && this.shaderRectPipeline.isInitialized) {
-                    const rects = [];
-                    
-                    // Time-based orientation switching (check every 1.5 seconds)
-                    const nowInSecs = Math.floor(performance.now() / 1500);
-                    this.lastBarOrientation = (nowInSecs % 2 === 0);
-                    
-                    // Update with continuous movement
-                    this.createGoldenRatioBars(rects, this.lastBarOrientation);
-                    
-                    if (rects.length > 0) {
-                        this.shaderRectPipeline.updateRectangles(rects);
+                    // Only update if not currently in a buffer update process
+                    if (!this.shaderRectPipeline.bufferUpdateInProgress) {
+                        const rects = [];
+                        
+                        // Get current orientation using our orientation manager
+                        // This handles both lingering on orientations and occasional glitches
+                        const useHorizontalBars = this.getCurrentOrientation(false);
+                        
+                        // Only update if we have a valid shader rect pipeline
+                        try {
+                            // Update with continuous movement
+                            this.createGoldenRatioBars(rects, useHorizontalBars);
+                            
+                            if (rects.length > 0) {
+                                this.shaderRectPipeline.updateRectangles(rects);
+                            }
+                        } catch (e) {
+                            // Silently catch errors to prevent disruptions
+                            // We'll just skip this frame's update
+                        }
                     }
                 }
             }
@@ -706,6 +771,85 @@ class FlockingExperience extends Experience {
             const viewportArray = new Float32Array([width, height]);
             this.device.queue.writeBuffer(this.resourceManager.getViewportBuffer(), 0, viewportArray);
         }
+    }
+
+    // Determine the current bar orientation based on long periods with occasional glitches
+    getCurrentOrientation(forceUpdate = false) {
+        const now = performance.now();
+        const state = this.orientationState;
+        
+        // For forced updates (major changes), consider changing the base orientation
+        if (forceUpdate) {
+            // Only change base orientation if enough time has passed (at least one full period)
+            const timeSinceLastMajorChange = now - state.lastMajorChange;
+            
+            if (timeSinceLastMajorChange > state.periodDuration) {
+                // 30% chance to switch orientation on major updates
+                if (Math.random() < 0.3) {
+                    state.isHorizontal = !state.isHorizontal;
+                    state.lastMajorChange = now;
+                }
+            }
+            
+            // Return the base orientation (no glitches during forced updates)
+            return state.isHorizontal;
+        }
+        
+        // For regular updates, calculate normal orientation cycle
+        // Check which period we're in
+        const periodIndex = Math.floor(now / state.periodDuration);
+        const previousPeriodIndex = Math.floor(state.lastMajorChange / state.periodDuration);
+        
+        // If we've entered a new period, potentially change the base orientation
+        if (periodIndex > previousPeriodIndex) {
+            // 40% chance to change orientation when entering a new period
+            if (Math.random() < 0.4) {
+                state.isHorizontal = !state.isHorizontal;
+                state.lastMajorChange = now;
+            } else {
+                // Even if we don't change orientation, update the lastMajorChange time
+                // to prevent checking again until next period
+                state.lastMajorChange = now;
+            }
+        }
+        
+        // Check if we're currently in the middle of a glitch
+        // Fix: ensure the glitch end time is actually in the future
+        const currentGlitchEndTime = state.lastGlitchEnd;
+        if (currentGlitchEndTime > now) {
+            // We're in an active glitch period - return opposite orientation
+            return !state.isHorizontal;
+        }
+        
+        // Calculate if we should start a new glitch
+        // Only when we're not already in a glitch period
+        
+        // Fix: Use a more robust time-based random seed approach
+        // Use the current second as seed, with a prime multiplier for better distribution
+        const seconds = Math.floor(now / 1000);
+        const glitchSeed = seconds * 31; // Prime number multiplier
+        const glitchRandom = Math.abs(Math.sin(glitchSeed)) * 0.99; // 0-0.99 range
+        
+        // Determine if we should be in a glitch state (2% chance per second)
+        const shouldGlitch = glitchRandom < 0.02;
+        
+        // Don't allow glitches too close to each other (at least 7 seconds between)
+        // Or too close to a major orientation change (at least 4 seconds after)
+        const timeSinceLastGlitch = now - state.lastGlitchEnd;
+        const timeSinceLastMajorChange = now - state.lastMajorChange;
+        const canGlitch = timeSinceLastGlitch > 7000 && timeSinceLastMajorChange > 4000;
+        
+        // If we should start a new glitch
+        if (shouldGlitch && canGlitch) {
+            // Set when the current glitch will end
+            state.lastGlitchEnd = now + state.glitchDuration;
+            
+            // Return the opposite orientation
+            return !state.isHorizontal;
+        }
+        
+        // Otherwise return the base orientation
+        return state.isHorizontal;
     }
 }
 

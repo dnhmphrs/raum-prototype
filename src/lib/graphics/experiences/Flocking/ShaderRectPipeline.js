@@ -76,46 +76,53 @@ export default class ShaderRectPipeline extends Pipeline {
     }
     
     createBuffers() {
-        // Ensure we always have at least one rectangle
-        this.rectCount = Math.max(1, this.rectCount);
-        
-        // Ensure buffer size is sufficient - min 48 bytes as per error
-        const rectBufferSize = Math.max(
-            this.minBufferSize,
-            this.rectCount * 8 * Float32Array.BYTES_PER_ELEMENT
-        );
-        
-        // Buffer for rectangle data (position, size, shader type)
-        // Format per rectangle: x, y, width, height, shaderType, padding[3]
-        // Each rectangle takes 8 floats (32 bytes)
-        this.rectBuffer = this.device.createBuffer({
-            size: rectBufferSize,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            label: 'Rectangle Buffer'
-        });
-        
-        // Time buffer for animations
-        this.timeBuffer = this.device.createBuffer({
-            size: 4, // Single float
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            label: 'Time Buffer'
-        });
-        
-        // Additional per-rectangle data for complex shaders
-        // Each rectangle has 4 floats of custom data
-        const dataBufferSize = Math.max(
-            16, // Minimum 16 bytes (4 floats)
-            this.rectCount * 4 * Float32Array.BYTES_PER_ELEMENT
-        );
-        
-        this.rectDataBuffer = this.device.createBuffer({
-            size: dataBufferSize,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            label: 'Rectangle Data Buffer'
-        });
-        
-        // Initialize buffers with default values
-        this.initializeDefaultRectangles();
+        try {
+            // Ensure we always have at least one rectangle
+            this.rectCount = Math.max(1, this.rectCount);
+            
+            // Ensure buffer size is sufficient - min 48 bytes as per error
+            const rectBufferSize = Math.max(
+                this.minBufferSize,
+                this.rectCount * 8 * Float32Array.BYTES_PER_ELEMENT
+            );
+            
+            // Buffer for rectangle data (position, size, shader type)
+            // Format per rectangle: x, y, width, height, shaderType, padding[3]
+            // Each rectangle takes 8 floats (32 bytes)
+            this.rectBuffer = this.device.createBuffer({
+                size: rectBufferSize,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                label: 'Rectangle Buffer'
+            });
+            
+            // Time buffer for animations
+            this.timeBuffer = this.device.createBuffer({
+                size: 4, // Single float
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                label: 'Time Buffer'
+            });
+            
+            // Additional per-rectangle data for complex shaders
+            // Each rectangle has 4 floats of custom data
+            const dataBufferSize = Math.max(
+                16, // Minimum 16 bytes (4 floats)
+                this.rectCount * 4 * Float32Array.BYTES_PER_ELEMENT
+            );
+            
+            this.rectDataBuffer = this.device.createBuffer({
+                size: dataBufferSize,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                label: 'Rectangle Data Buffer'
+            });
+            
+            // Initialize buffers with default values
+            this.initializeDefaultRectangles();
+            return true;
+        } catch (e) {
+            console.error("Error creating buffers:", e);
+            this.isInitialized = false;
+            return false;
+        }
     }
     
     initializeDefaultRectangles() {
@@ -245,7 +252,7 @@ export default class ShaderRectPipeline extends Pipeline {
         // Don't update if already in progress, just mark as pending
         if (this.bufferUpdateInProgress) {
             this.pendingUpdates = true;
-            return;
+            return false;
         }
         
         this.bufferUpdateInProgress = true;
@@ -256,7 +263,7 @@ export default class ShaderRectPipeline extends Pipeline {
             
             if (safeCount === this.rectCount) {
                 this.bufferUpdateInProgress = false;
-                return;
+                return true;
             }
             
             this.rectCount = safeCount;
@@ -296,17 +303,24 @@ export default class ShaderRectPipeline extends Pipeline {
             );
             
             // Create new buffers with sufficient size
-            this.rectBuffer = this.device.createBuffer({
-                size: rectBufferSize,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                label: 'Rectangle Buffer'
-            });
-            
-            this.rectDataBuffer = this.device.createBuffer({
-                size: dataBufferSize,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                label: 'Rectangle Data Buffer'
-            });
+            try {
+                this.rectBuffer = this.device.createBuffer({
+                    size: rectBufferSize,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                    label: 'Rectangle Buffer'
+                });
+                
+                this.rectDataBuffer = this.device.createBuffer({
+                    size: dataBufferSize,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                    label: 'Rectangle Data Buffer'
+                });
+            } catch (e) {
+                console.error("Error creating new buffers:", e);
+                this.isInitialized = false;
+                this.bufferUpdateInProgress = false;
+                return false;
+            }
             
             // Only recreate bind group if we have a pipeline
             if (this.renderPipeline) {
@@ -324,14 +338,26 @@ export default class ShaderRectPipeline extends Pipeline {
                 } catch (e) {
                     console.error("Error creating bind group:", e);
                     this.isInitialized = false;
+                    this.bufferUpdateInProgress = false;
+                    return false;
                 }
             }
             
             // Initialize with default rectangles to ensure valid data
-            this.initializeDefaultRectangles();
+            try {
+                this.initializeDefaultRectangles();
+            } catch (e) {
+                console.error("Error initializing default rectangles:", e);
+                this.isInitialized = false;
+                this.bufferUpdateInProgress = false;
+                return false;
+            }
+            
+            return true;
         } catch (e) {
             console.error("Error updating rect count:", e);
             this.isInitialized = false;
+            return false;
         } finally {
             this.bufferUpdateInProgress = false;
             
