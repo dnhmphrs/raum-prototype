@@ -14,7 +14,8 @@ export default class ShaderRectPipeline extends Pipeline {
         // Buffers for shader rectangles
         this.rectBuffer = null; // Stores position, size, and shader type
         this.timeBuffer = null; // Global time for animations
-        this.rectDataBuffer = null; // Additional per-rectangle data
+        this.rectDataBuffer = null; // Additional per-rectangle data (customData)
+                                    // [0] and [1] now used for predator heading values
 
         // Pipeline related
         this.renderPipeline = null;
@@ -120,7 +121,8 @@ export default class ShaderRectPipeline extends Pipeline {
     initializeDefaultRectangles() {
         // Create default data for rectangles
         const rectData = new Float32Array(this.rectCount * 8);
-        const customData = new Float32Array(this.rectCount * 4);
+        // Note: We're no longer initializing customData here because
+        // it will be updated with predator heading in FlockingExperience.js
         
         // Safety padding for extremely small counts
         if (this.rectCount === 1) {
@@ -133,17 +135,10 @@ export default class ShaderRectPipeline extends Pipeline {
             rectData[5] = 0; // padding
             rectData[6] = 0; // padding
             rectData[7] = 0; // padding
-            
-            // Also ensure custom data is initialized
-            customData[0] = 0.5;
-            customData[1] = 0.5;
-            customData[2] = 0.5;
-            customData[3] = 0.5;
         } else {
             // Initialize multiple rectangles with default data
             for (let i = 0; i < this.rectCount; i++) {
                 const baseIndex = i * 8;
-                const dataIndex = i * 4;
                 
                 // Default positions (will be randomized later)
                 rectData[baseIndex] = 0.1 + (i * 0.15); // x
@@ -152,24 +147,19 @@ export default class ShaderRectPipeline extends Pipeline {
                 rectData[baseIndex + 3] = 0.15; // height
                 rectData[baseIndex + 4] = Math.floor(Math.random() * this.shaderTypeCount); // random shader type
                 // 3 padding values remain at 0
-                
-                // Custom data (for shader variations)
-                customData[dataIndex] = Math.random(); // random parameter 1
-                customData[dataIndex + 1] = Math.random(); // random parameter 2
-                customData[dataIndex + 2] = Math.random(); // random parameter 3
-                customData[dataIndex + 3] = Math.random(); // random parameter 4
             }
         }
         
-        // Safely write to device buffers
+        // Write to rect buffer
         try {
             this.device.queue.writeBuffer(this.rectBuffer, 0, rectData);
-            this.device.queue.writeBuffer(this.rectDataBuffer, 0, customData);
+            // Note: We're not initializing customData buffer here anymore as it's
+            // handled by updateShaderRectsWithPredatorData in FlockingExperience.js
             
             // Initialize time
             this.updateTimeBuffer();
         } catch (e) {
-            console.error("Error initializing default rectangles:", e);
+            console.error("Error writing to buffer in initializeDefaultRectangles:", e);
             this.isInitialized = false;
         }
     }
@@ -390,7 +380,8 @@ export default class ShaderRectPipeline extends Pipeline {
             }
             
             const rectData = new Float32Array(this.rectCount * 8);
-            const customData = new Float32Array(this.rectCount * 4);
+            // Note: customData [0] and [1] are now used for predator heading
+            // We don't set the customData here because it's handled separately
             
             // Fill with rectangles data
             for (let i = 0; i < this.rectCount; i++) {
@@ -401,7 +392,6 @@ export default class ShaderRectPipeline extends Pipeline {
                 };
                 
                 const baseIndex = i * 8;
-                const dataIndex = i * 4;
                 
                 rectData[baseIndex] = rect.position[0];
                 rectData[baseIndex + 1] = rect.position[1];
@@ -413,18 +403,13 @@ export default class ShaderRectPipeline extends Pipeline {
                     rect.shaderType : Math.floor(Math.random() * this.shaderTypeCount);
                 
                 // Padding indices 5-7 remain 0
-                
-                // Generate some random custom data for this rectangle
-                customData[dataIndex] = Math.random();
-                customData[dataIndex + 1] = Math.random();
-                customData[dataIndex + 2] = Math.random();
-                customData[dataIndex + 3] = Math.random();
             }
             
             // Write data to buffers
             try {
                 this.device.queue.writeBuffer(this.rectBuffer, 0, rectData);
-                this.device.queue.writeBuffer(this.rectDataBuffer, 0, customData);
+                // Note: We're not updating the rectDataBuffer here to avoid overwriting 
+                // the predator heading data that's set separately
             } catch (e) {
                 console.error("Error writing to buffers:", e);
                 this.isInitialized = false;

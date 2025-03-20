@@ -1,7 +1,7 @@
 // Camera configurations for all experiences
 export const cameraConfigs = {
   Flocking: {
-    position: { x: 0, y: 2000, z: 4000 },
+    position: { x: 0, y: 2000, z: 400 },
     fov: 40 * (Math.PI / 180),
     baseDistance: 4000.0  // Large distance for bird flocking view
   },

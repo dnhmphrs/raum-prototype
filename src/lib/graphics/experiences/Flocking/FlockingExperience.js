@@ -18,11 +18,11 @@ class FlockingExperience extends Experience {
         this.frameCount = 0;
         this.frameTimes = [];
         this.maxFrameHistory = 60; // Track last 60 frames for averaging
-        this.performanceScaleFactor = 1.0; // Initial scale factor
+        this.performanceScaleFactor = 0.5; // Initial scale factor - SLOWED DOWN from 1.0
         this.targetFrameTime = 4.0; // Target ~60fps (in ms)
 
         // Timer variables
-        this.targetChangeInterval = 10000; // 10 seconds in milliseconds
+        this.targetChangeInterval = 20000; // 20 seconds - SLOWED DOWN from 10 seconds
         this.lastTargetChangeTime = this.lastTime;
         this.accumulatedTargetTime = 0; // Accumulated time for target changes
 
@@ -34,8 +34,8 @@ class FlockingExperience extends Experience {
         this.shaderRectCount = 2; // Fewer, more intentional rectangles
         this.maxShaderRectCount = 5; // Keep max count lower for cleaner aesthetics
         
-        // Much slower changes for more intentional, sustained visual impact
-        this.shaderRectChangeInterval = 3500; // 3.5 seconds - more deliberate pacing
+        // More frequent changes for dynamic visuals
+        this.shaderRectChangeInterval = 3500; // 3.5 seconds - faster than previous 7 seconds
         this.lastShaderRectChangeTime = this.lastTime;
         this.accumulatedShaderRectTime = 0;
         
@@ -184,10 +184,9 @@ class FlockingExperience extends Experience {
         // Calculate average frame time
         const avgFrameTime = this.frameTimes.reduce((sum, time) => sum + time, 0) / this.frameTimes.length;
         
-        // Update performance scale factor
-        // If avgFrameTime > targetFrameTime, scale down (< 1.0)
-        // If avgFrameTime < targetFrameTime, scale up (> 1.0), but cap at 1.0 to avoid too fast simulation
-        this.performanceScaleFactor = Math.min(0.5, this.targetFrameTime / Math.max(1.0, avgFrameTime));
+        // Update performance scale factor - APPLY MAX SLOWDOWN FACTOR 
+        // Reduced max value from 0.5 to 0.25 to slow everything down
+        this.performanceScaleFactor = Math.min(0.25, this.targetFrameTime / Math.max(1.0, avgFrameTime));
 
         // If performance is consistently poor, switch to low performance mode
         if (avgFrameTime > 50.0 && !this.pipeline.lowPerformanceMode) { // 50ms = ~20fps
@@ -232,11 +231,20 @@ class FlockingExperience extends Experience {
             this.shaderRectCount = 1;
         }
         
-        // Choose a composition style - either horizontal bars or vertical bars
-        const useHorizontalBars = Math.random() > 0.5;
+        // Choose a composition style - force alternating orientations
+        // For major updates, always switch orientation
+        if (forceUpdate) {
+            // Explicitly toggle orientation on forced updates
+            this.lastBarOrientation = this.lastBarOrientation === undefined ? 
+                true : !this.lastBarOrientation;
+        } else {
+            // For minor updates, use time-based alternation (switch every ~1.5 seconds)
+            const nowInSecs = Math.floor(performance.now() / 1500);
+            this.lastBarOrientation = (nowInSecs % 2 === 0);
+        }
         
         // Generate golden ratio-based bar collection
-        this.createGoldenRatioBars(rects, useHorizontalBars);
+        this.createGoldenRatioBars(rects, this.lastBarOrientation);
         
         // Update the rectangles in the pipeline
         if (rects.length > 0) {
@@ -256,27 +264,27 @@ class FlockingExperience extends Experience {
         const totalStrips = this.shaderRectCount * 2 + 1; // Ensure odd number for center symmetry
         
         // Time-based warping factors - uses sine waves with different frequencies
-        // to create subtle organic movement
-        const timeNow = performance.now() / 1000;
-        const breatheAmount = Math.sin(timeNow * 0.2) * 0.15 + 0.85; // 0.7-1.0 range for breathing
-        const waveAmount = Math.sin(timeNow * 0.37) * 0.06; // Small sine wave for position warping
-        const phaseShift = Math.cos(timeNow * 0.13) * 0.1; // Phase shift for asymmetric warping
+        // Increase animation speed but REDUCE AMPLITUDE for tighter packing
+        const timeNow = (performance.now() / 1000); // Normal speed time factor
+        const breatheAmount = Math.sin(timeNow * 0.35) * 0.10 + 0.85; // Reduced amplitude from 0.20 to 0.10
+        const waveAmount = Math.sin(timeNow * 0.5) * 0.05; // Reduced amplitude from 0.15 to 0.05
+        const phaseShift = Math.cos(timeNow * 0.22) * 0.07; // Reduced amplitude from 0.15 to 0.07
         
         if (useHorizontalBars) {
             // Create horizontal bars - full width
             // Nearly no gap - extremely tight packing like a diffraction grating
-            const minimalGap = 0.0005; // Extremely small gap between strips
+            const minimalGap = 0.0003; // Even smaller gap between strips
             
-            // Calculate center of screen
-            const centerY = 0.5;
+            // Calculate center of screen with less movement
+            const centerY = 0.5 + Math.sin(timeNow * 0.3) * 0.02; // Reduced from 0.04 to 0.02
             
-            // Width of the center (largest) strip - with subtle breathing
-            const centerStripHeight = 0.065 * (breatheAmount + 0.1); // 6.5% - tighter size
+            // Width of the center (largest) strip - with more breathing
+            const centerStripHeight = 0.065 * (breatheAmount + 0.10); // Reduced variation
             
-            // Place the center strip first - with subtle position shift
+            // Place the center strip first - with enhanced position shift
             const centerIndex = Math.floor(totalStrips / 2);
             rects.push({
-                position: [0, centerY - centerStripHeight/2 + waveAmount],
+                position: [0, centerY - centerStripHeight/2 + waveAmount * 0.5], // Reduce wave effect
                 size: [1.0, centerStripHeight],
                 shaderType: shaderType
             });
@@ -287,18 +295,18 @@ class FlockingExperience extends Experience {
             // Create strips above center (going up)
             let posY = centerY - centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down more quickly - closer to original golden ratio
-                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 0.4) * 0.04;
-                // Reduced shrinkage rate - more moderate
-                currentHeight *= (0.7 * warpFactor); 
+                // Scale down with less dynamic warping
+                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
+                // More consistent shrinkage rate
+                currentHeight *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
                 
-                // Individual strip wave effect - each strip moves differently
-                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 + phaseShift);
+                // Individual strip wave effect - each strip moves less
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift); // Reduced multiplier and frequency
                 
                 // Move up by previous height plus minimal gap
                 posY -= (currentHeight + minimalGap);
                 
-                // Add the strip with position warping
+                // Add the strip with reduced position warping
                 rects.push({
                     position: [0, posY + stripWave],
                     size: [1.0, currentHeight],
@@ -312,15 +320,15 @@ class FlockingExperience extends Experience {
             // Create strips below center (going down)
             posY = centerY + centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down more quickly - closer to original golden ratio
-                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 0.4) * 0.04;
-                // Reduced shrinkage rate - more moderate
-                currentHeight *= (0.7 * warpFactor);
+                // Scale down with less dynamic warping
+                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
+                // More consistent shrinkage rate
+                currentHeight *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
                 
-                // Individual strip wave effect - each strip moves differently
-                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 - phaseShift);
+                // Individual strip wave effect - each strip moves less
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift); // Reduced multiplier and frequency
                 
-                // Add the strip right after the previous one with position warping
+                // Add the strip right after the previous one with reduced position warping
                 rects.push({
                     position: [0, posY + minimalGap + stripWave],
                     size: [1.0, currentHeight],
@@ -333,18 +341,18 @@ class FlockingExperience extends Experience {
         } else {
             // Create vertical bars - full height
             // Nearly no gap - extremely tight packing like a diffraction grating
-            const minimalGap = 0.0005; // Extremely small gap between strips
+            const minimalGap = 0.0003; // Even smaller gap between strips
             
-            // Calculate center of screen
-            const centerX = 0.5;
+            // Calculate center of screen with less movement
+            const centerX = 0.5 + Math.sin(timeNow * 0.3) * 0.02; // Reduced from 0.04 to 0.02
             
-            // Width of the center (largest) strip - with subtle breathing
-            const centerStripWidth = 0.065 * (breatheAmount + 0.1); // 6.5% - tighter size
+            // Width of the center (largest) strip - with more breathing
+            const centerStripWidth = 0.065 * (breatheAmount + 0.10); // Reduced variation
             
-            // Place the center strip first - with subtle position shift
+            // Place the center strip first - with enhanced position shift
             const centerIndex = Math.floor(totalStrips / 2);
             rects.push({
-                position: [centerX - centerStripWidth/2 + waveAmount, 0],
+                position: [centerX - centerStripWidth/2 + waveAmount * 0.5, 0], // Reduce wave effect
                 size: [centerStripWidth, 1.0],
                 shaderType: shaderType
             });
@@ -355,18 +363,18 @@ class FlockingExperience extends Experience {
             // Create strips to the left of center
             let posX = centerX - centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down more quickly - closer to original golden ratio
-                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 0.4) * 0.04;
-                // Reduced shrinkage rate - more moderate
-                currentWidth *= (0.7 * warpFactor);
+                // Scale down with less dynamic warping
+                const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
+                // More consistent shrinkage rate
+                currentWidth *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
                 
-                // Individual strip wave effect - each strip moves differently
-                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 + phaseShift);
+                // Individual strip wave effect - each strip moves less
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift); // Reduced multiplier and frequency
                 
                 // Move left by current width plus minimal gap
                 posX -= (currentWidth + minimalGap);
                 
-                // Add the strip with position warping
+                // Add the strip with reduced position warping
                 rects.push({
                     position: [posX + stripWave, 0],
                     size: [currentWidth, 1.0],
@@ -380,15 +388,15 @@ class FlockingExperience extends Experience {
             // Create strips to the right of center
             posX = centerX + centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
-                // Scale down more quickly - closer to original golden ratio
-                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 0.4) * 0.04;
-                // Reduced shrinkage rate - more moderate
-                currentWidth *= (0.7 * warpFactor);
+                // Scale down with less dynamic warping
+                const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * 0.05; // Reduced from 0.12 to 0.05
+                // More consistent shrinkage rate
+                currentWidth *= (0.75 * warpFactor); // More consistent (from 0.7 to 0.75)
                 
-                // Individual strip wave effect - each strip moves differently
-                const stripWave = waveAmount * Math.sin(i * 0.8 + timeNow * 0.3 - phaseShift);
+                // Individual strip wave effect - each strip moves less
+                const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift); // Reduced multiplier and frequency
                 
-                // Add the strip right after the previous one with position warping
+                // Add the strip right after the previous one with reduced position warping
                 rects.push({
                     position: [posX + minimalGap + stripWave, 0],
                     size: [currentWidth, 1.0],
@@ -422,6 +430,83 @@ class FlockingExperience extends Experience {
         }
     }
 
+    // New method to update shader rectangles with predator velocity
+    updateShaderRectsWithPredatorData() {
+        // Safety check - make sure pipeline exists and is initialized
+        if (!this.shaderRectPipeline || !this.shaderRectPipeline.isInitialized || this.bufferUpdateInProgress) {
+            return;
+        }
+        
+        // Get predator velocity from the pipeline's buffer
+        if (!this.pipeline || !this.pipeline.predatorVelocityBuffer) {
+            return;
+        }
+        
+        // Create a buffer to read predator velocity data
+        const readBuffer = this.device.createBuffer({
+            size: 12, // 3 floats (vec3)
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+        
+        // Create command encoder
+        const encoder = this.device.createCommandEncoder();
+        
+        // Copy data from predator velocity buffer to read buffer
+        encoder.copyBufferToBuffer(
+            this.pipeline.predatorVelocityBuffer, 0,
+            readBuffer, 0,
+            12
+        );
+        
+        // Submit commands
+        this.device.queue.submit([encoder.finish()]);
+        
+        // Map the buffer to read the data
+        readBuffer.mapAsync(GPUMapMode.READ).then(() => {
+            // Get data as Float32Array
+            const data = new Float32Array(readBuffer.getMappedRange());
+            
+            // Normalize the velocity for use as Julia set parameters
+            const length = Math.sqrt(data[0] * data[0] + data[1] * data[1] + data[2] * data[2]);
+            
+            // Default heading if velocity is near zero
+            let headingX = 0;
+            let headingY = 0;
+            
+            if (length > 0.001) {
+                // Normalize and get just the X and Y components for the 2D Julia set
+                headingX = data[0] / length;
+                headingY = data[1] / length;
+            }
+            
+            // Create custom data with predator heading in the first two components
+            const rectCount = this.shaderRectPipeline.rectCount;
+            const customData = new Float32Array(rectCount * 4);
+            
+            // Set the same predator heading values for all rectangles
+            for (let i = 0; i < rectCount; i++) {
+                const dataIndex = i * 4;
+                customData[dataIndex] = headingX;       // predator heading X
+                customData[dataIndex + 1] = headingY;   // predator heading Y
+                customData[dataIndex + 2] = Math.random(); // random parameter 3
+                customData[dataIndex + 3] = Math.random(); // random parameter 4
+            }
+            
+            // Update custom data in shader rect pipeline
+            this.device.queue.writeBuffer(
+                this.shaderRectPipeline.rectDataBuffer,
+                0,
+                customData
+            );
+            
+            // Unmap the buffer
+            readBuffer.unmap();
+        }).catch(error => {
+            console.error("Error mapping predator velocity buffer:", error);
+            readBuffer.unmap();
+        });
+    }
+
     render(commandEncoder, textureView) {
         try {
             // Calculate deltaTime
@@ -432,8 +517,8 @@ class FlockingExperience extends Experience {
             // Update performance metrics
             this.updatePerformanceMetrics(rawDeltaTime * 1000); // Convert to ms for metrics
             
-            // Apply performance scaling to deltaTime
-            let deltaTime = rawDeltaTime * this.performanceScaleFactor;
+            // Apply performance scaling to deltaTime and ADDITIONAL SLOWDOWN factor
+            let deltaTime = rawDeltaTime * this.performanceScaleFactor * 0.5; // SLOWED DOWN by applying additional 0.5 factor
             
             // Cap maximum deltaTime to prevent large jumps after pauses
             const MAX_DELTA = 0.1; // 100ms maximum
@@ -454,28 +539,35 @@ class FlockingExperience extends Experience {
                 this.accumulatedTargetTime = 0;
             }
             
+            // First execute the compute passes (for both birds and predator)
+            this.pipeline.runComputePasses(commandEncoder);
+            
+            // NEW: Update shader rects with predator velocity data 
+            // This ensures the Julia set is influenced by the predator's actual heading
+            this.updateShaderRectsWithPredatorData();
+            
             // Handle shader rect changes - only if more than 3 frames have passed since last change
             this.accumulatedShaderRectTime += rawDeltaTime * 1000;
             if (this.accumulatedShaderRectTime >= this.shaderRectChangeInterval) {
                 // Wrap in try/catch to prevent rendering issues if this fails
                 try {
-                    this.updateShaderRects();
+                    this.updateShaderRects(true); // Force update for major changes
                 } catch (e) {
                     console.error("Error in shader rect update:", e);
                 }
                 this.accumulatedShaderRectTime = 0;
             } else {
-                // Continuous subtle updates between major changes
-                // This creates constant micro-movements in the strips
-                // Only do this if we have more than 10 frames since the last major update
-                if (this.accumulatedShaderRectTime > 100 && this.shaderRectPipeline && this.shaderRectPipeline.isInitialized) {
+                // Continuous updates for constant movement
+                // Do this almost every frame for more dynamic movement
+                if (this.accumulatedShaderRectTime > 33 && this.shaderRectPipeline && this.shaderRectPipeline.isInitialized) {
                     const rects = [];
-                    // Choose the same bar orientation
-                    const useHorizontalBars = this.lastBarOrientation || Math.random() > 0.5;
-                    this.lastBarOrientation = useHorizontalBars;
                     
-                    // Update with subtle shifts only - no complete change
-                    this.createGoldenRatioBars(rects, useHorizontalBars);
+                    // Time-based orientation switching (check every 1.5 seconds)
+                    const nowInSecs = Math.floor(performance.now() / 1500);
+                    this.lastBarOrientation = (nowInSecs % 2 === 0);
+                    
+                    // Update with continuous movement
+                    this.createGoldenRatioBars(rects, this.lastBarOrientation);
                     
                     if (rects.length > 0) {
                         this.shaderRectPipeline.updateRectangles(rects);
@@ -486,9 +578,6 @@ class FlockingExperience extends Experience {
             // Render the pipeline (includes compute pass and render pass)
             const depthView = this.resourceManager.getDepthTextureView();
 
-            // First execute the compute passes (for both birds and predator)
-            this.pipeline.runComputePasses(commandEncoder);
-            
             // Setup render pass descriptor with a clear color
             const passDescriptor = {
                 colorAttachments: [

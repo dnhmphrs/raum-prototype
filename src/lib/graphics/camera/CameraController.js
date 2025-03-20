@@ -122,27 +122,3 @@ export default class CameraController {
 	
 	}
 }
-
-// Camera configurations for each experience
-const cameraConfigs = {
-	Bird: {
-		position: { x: 0, y: 0, z: 30 },
-		fov: 40 * (Math.PI / 180),
-		baseDistance: 50
-	},
-	Cube: {
-		position: { x: 0, y: 0, z: 5 },
-		fov: 60 * (Math.PI / 180),
-		baseDistance: 10
-	},
-	NeuralNet: {
-		position: { x: 0, y: 0, z: 15 },
-		fov: 45 * (Math.PI / 180),
-		baseDistance: 30
-	},
-	Poincare: {
-		position: { x: 0, y: 0, z: 10 },
-		fov: 50 * (Math.PI / 180),
-		baseDistance: 20
-	}
-};

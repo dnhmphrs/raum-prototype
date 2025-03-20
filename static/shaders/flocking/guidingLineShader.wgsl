@@ -22,6 +22,6 @@ fn vertex_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
 
 @fragment
 fn fragment_main() -> @location(0) vec4<f32> {
-    // Solid red color for the line
-    return vec4<f32>(0.941, 0.941, 0.941, 1.0);
+    // Pink color for the line
+    return vec4<f32>(1.0, 0.41, 0.71, 1.0);
 }
