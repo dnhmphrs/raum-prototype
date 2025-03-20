@@ -7,6 +7,7 @@ import GuidingLineGeometry from './GuidingLineGeometry'
 import FlockingPipeline from './FlockingPipeline';
 import ShaderRectPipeline from './ShaderRectPipeline';
 import DitherPostProcessPipeline from './DitherPostProcessPipeline';
+import TextOverlayPipeline from './TextOverlayPipeline';
 
 class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
@@ -123,6 +124,15 @@ class FlockingExperience extends Experience {
             this.canvas ? this.canvas.height : 600
         );
 
+        // Initialize the TextOverlay pipeline
+        this.textOverlayPipeline = new TextOverlayPipeline(
+            this.device,
+            resourceManager.getViewportBuffer(),
+            this.pipeline ? this.pipeline.predatorVelocityBuffer : null,
+            this.canvas ? this.canvas.width : 800,
+            this.canvas ? this.canvas.height : 600
+        );
+
         // Post-processing render textures
         this.intermediateTexture = null;
         this.intermediateTextureView = null;
@@ -148,10 +158,13 @@ class FlockingExperience extends Experience {
     }
 
     async initialize() {
-        // Initialize the pipeline
+        // Initialize the FlockingPipeline first
         await this.pipeline.initialize();
+        
+        // Now initialize the other pipelines
         await this.shaderRectPipeline.initialize();
         await this.ditherPostProcessPipeline.initialize();
+        await this.textOverlayPipeline.initialize();
 
         // Create intermediate render textures for post-processing
         this.createPostProcessingTextures();
@@ -195,6 +208,14 @@ class FlockingExperience extends Experience {
         // Set initial targetIndex to a random bird
         const initialTargetIndex = Math.floor(Math.random() * this.birdCount);
         this.pipeline.updateTargetIndex(initialTargetIndex);
+
+        // Now that everything is initialized and the predator buffer is ready,
+        // update the reference in the TextOverlayPipeline
+        if (this.textOverlayPipeline && this.pipeline && this.pipeline.predatorVelocityBuffer) {
+            this.textOverlayPipeline.updatePredatorVelocityBuffer(this.pipeline.predatorVelocityBuffer);
+        } else {
+            console.warn("Unable to update predatorVelocityBuffer in TextOverlayPipeline");
+        }
 
         // Initialize shader rectangles with randomized positions and dimensions
         this.updateShaderRects(true);
@@ -736,6 +757,12 @@ class FlockingExperience extends Experience {
             if (this.ditherSettings.enabled && this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
                 this.ditherPostProcessPipeline.render(commandEncoder, this.intermediateTextureView, textureView);
             }
+
+            // 5. Render the text overlay as the final layer (on top of everything)
+            const finalTextureView = this.ditherSettings.enabled ? textureView : renderTarget;
+            if (this.textOverlayPipeline && this.textOverlayPipeline.isInitialized) {
+                this.textOverlayPipeline.render(commandEncoder, finalTextureView);
+            }
         } catch (e) {
             console.error("Error in FlockingExperience render:", e);
         }
@@ -776,6 +803,12 @@ class FlockingExperience extends Experience {
         if (this.ditherPostProcessPipeline) {
             this.ditherPostProcessPipeline.cleanup();
             this.ditherPostProcessPipeline = null;
+        }
+        
+        // Cleanup text overlay pipeline
+        if (this.textOverlayPipeline) {
+            this.textOverlayPipeline.cleanup();
+            this.textOverlayPipeline = null;
         }
         
         // Cleanup intermediate textures
@@ -836,6 +869,11 @@ class FlockingExperience extends Experience {
         // Update dither post-process pipeline dimensions
         if (this.ditherPostProcessPipeline) {
             this.ditherPostProcessPipeline.updateViewportDimensions(width, height);
+        }
+        
+        // Update text overlay pipeline dimensions
+        if (this.textOverlayPipeline) {
+            this.textOverlayPipeline.updateViewportDimensions(width, height);
         }
         
         // Update post-processing textures
