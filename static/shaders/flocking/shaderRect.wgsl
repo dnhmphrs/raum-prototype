@@ -162,7 +162,7 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
     let ZOOM = baseZoom + sin(time * 0.2) * zoomVariation;  // Subtle breathing effect
     
     // ITERATIONS: Higher values = more detail
-    let MAX_ITERATIONS = 50.0;
+    let MAX_ITERATIONS = 60.0;
     
     // Position of the center of the Julia set - add subtle drift
     let driftAmount = 0.005;

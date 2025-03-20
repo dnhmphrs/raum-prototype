@@ -6,12 +6,13 @@ import PredatorGeometry from './PredatorGeometry';
 import GuidingLineGeometry from './GuidingLineGeometry'
 import FlockingPipeline from './FlockingPipeline';
 import ShaderRectPipeline from './ShaderRectPipeline';
+import DitherPostProcessPipeline from './DitherPostProcessPipeline';
 
 class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
-        this.birdCount = 4096; // Adjusted for performance
+        this.birdCount = 2048; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
         
         // Performance tracking variables
@@ -114,6 +115,27 @@ class FlockingExperience extends Experience {
             this.canvas ? this.canvas.height : 600
         );
 
+        // Initialize the DitherPostProcess pipeline
+        this.ditherPostProcessPipeline = new DitherPostProcessPipeline(
+            this.device,
+            resourceManager.getViewportBuffer(),
+            this.canvas ? this.canvas.width : 800,
+            this.canvas ? this.canvas.height : 600
+        );
+
+        // Post-processing render textures
+        this.intermediateTexture = null;
+        this.intermediateTextureView = null;
+
+        // Dither effect settings - optimized for extreme pixelation
+        this.ditherSettings = {
+            patternScale: 1.0,       // Controls pixel size (lower = larger pixels)
+            thresholdOffset: -0.05,   // Slight negative offset for stronger contrast
+            noiseIntensity: 0.08,     // Just a bit of noise to break up patterns
+            colorReduction: 2.0,      // Very low value for extreme color banding 
+            enabled: true             // Enabled by default
+        };
+
         this.addBirds();
         this.addPredator();
 
@@ -129,6 +151,13 @@ class FlockingExperience extends Experience {
         // Initialize the pipeline
         await this.pipeline.initialize();
         await this.shaderRectPipeline.initialize();
+        await this.ditherPostProcessPipeline.initialize();
+
+        // Create intermediate render textures for post-processing
+        this.createPostProcessingTextures();
+
+        // Apply initial dither settings
+        this.updateDitherSettings();
 
         // Generate initial positions and velocities for birds
         const initialPositions = [];
@@ -169,6 +198,33 @@ class FlockingExperience extends Experience {
 
         // Initialize shader rectangles with randomized positions and dimensions
         this.updateShaderRects(true);
+    }
+
+    createPostProcessingTextures() {
+        // Get the canvas dimensions (or use defaults)
+        const width = this.canvas ? this.canvas.width : 800;
+        const height = this.canvas ? this.canvas.height : 600;
+        
+        // Create a texture for intermediate rendering
+        this.intermediateTexture = this.device.createTexture({
+            size: [width, height],
+            format: navigator.gpu.getPreferredCanvasFormat(),
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+        });
+        
+        // Create the texture view
+        this.intermediateTextureView = this.intermediateTexture.createView();
+    }
+
+    updateDitherSettings() {
+        if (this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
+            this.ditherPostProcessPipeline.setSettings(
+                this.ditherSettings.patternScale,
+                this.ditherSettings.thresholdOffset,
+                this.ditherSettings.noiseIntensity,
+                this.ditherSettings.colorReduction
+            );
+        }
     }
 
     addBirds() {
@@ -640,14 +696,17 @@ class FlockingExperience extends Experience {
                 }
             }
 
-            // Render the pipeline (includes compute pass and render pass)
+            // Get the depth texture view
             const depthView = this.resourceManager.getDepthTextureView();
+
+            // Determine which texture view to render to (intermediate or final)
+            const renderTarget = this.ditherSettings.enabled ? this.intermediateTextureView : textureView;
 
             // Setup render pass descriptor with a clear color
             const passDescriptor = {
                 colorAttachments: [
                     {
-                        view: textureView,
+                        view: renderTarget,
                         loadOp: 'clear',
                         storeOp: 'store',
                         clearValue: { r: 0.2, g: 0.5, b: 0.9, a: 1.0 }
@@ -661,17 +720,22 @@ class FlockingExperience extends Experience {
                 }
             };
             
-            // NEW RENDERING ORDER:
+            // RENDERING ORDER:
             // 1. First render just the background
             this.pipeline.renderBackground(commandEncoder, passDescriptor);
             
             // 2. Now render shader rectangles on top of the background
             if (this.shaderRectPipeline && this.shaderRectPipeline.isInitialized && !this.shaderRectPipeline.bufferUpdateInProgress) {
-                this.shaderRectPipeline.render(commandEncoder, textureView);
+                this.shaderRectPipeline.render(commandEncoder, renderTarget);
             }
             
-            // 3. Finally render the birds and predator
-            this.pipeline.renderEntities(commandEncoder, textureView, depthView, this.birds, this.predator);
+            // 3. Render the birds and predator
+            this.pipeline.renderEntities(commandEncoder, renderTarget, depthView, this.birds, this.predator);
+
+            // 4. Apply post-processing dither effect if enabled
+            if (this.ditherSettings.enabled && this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
+                this.ditherPostProcessPipeline.render(commandEncoder, this.intermediateTextureView, textureView);
+            }
         } catch (e) {
             console.error("Error in FlockingExperience render:", e);
         }
@@ -706,6 +770,19 @@ class FlockingExperience extends Experience {
         if (this.shaderRectPipeline) {
             this.shaderRectPipeline.cleanup();
             this.shaderRectPipeline = null;
+        }
+        
+        // Cleanup dither post-process pipeline
+        if (this.ditherPostProcessPipeline) {
+            this.ditherPostProcessPipeline.cleanup();
+            this.ditherPostProcessPipeline = null;
+        }
+        
+        // Cleanup intermediate textures
+        if (this.intermediateTexture) {
+            this.intermediateTexture.destroy();
+            this.intermediateTexture = null;
+            this.intermediateTextureView = null;
         }
 
         // Cleanup birds
@@ -756,6 +833,14 @@ class FlockingExperience extends Experience {
             this.shaderRectPipeline.updateViewportDimensions(width, height);
         }
         
+        // Update dither post-process pipeline dimensions
+        if (this.ditherPostProcessPipeline) {
+            this.ditherPostProcessPipeline.updateViewportDimensions(width, height);
+        }
+        
+        // Update post-processing textures
+        this.recreatePostProcessingTextures(width, height);
+        
         // Update camera aspect ratio if needed
         if (this.resourceManager && this.resourceManager.camera) {
             this.resourceManager.camera.updateAspect(width, height);
@@ -771,6 +856,37 @@ class FlockingExperience extends Experience {
             const viewportArray = new Float32Array([width, height]);
             this.device.queue.writeBuffer(this.resourceManager.getViewportBuffer(), 0, viewportArray);
         }
+    }
+
+    recreatePostProcessingTextures(width, height) {
+        // Clean up existing textures if they exist
+        if (this.intermediateTexture) {
+            this.intermediateTexture.destroy();
+        }
+        
+        // Create new textures with updated dimensions
+        this.intermediateTexture = this.device.createTexture({
+            size: [width, height],
+            format: navigator.gpu.getPreferredCanvasFormat(),
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+        });
+        
+        // Create new texture view
+        this.intermediateTextureView = this.intermediateTexture.createView();
+    }
+
+    // Method to toggle the dither effect on/off
+    toggleDitherEffect(enabled) {
+        this.ditherSettings.enabled = enabled;
+    }
+
+    // Method to update dither effect settings
+    updateDitherEffectSettings(patternScale, thresholdOffset, noiseIntensity, colorReduction) {
+        this.ditherSettings.patternScale = patternScale;
+        this.ditherSettings.thresholdOffset = thresholdOffset;
+        this.ditherSettings.noiseIntensity = noiseIntensity;
+        this.ditherSettings.colorReduction = colorReduction;
+        this.updateDitherSettings();
     }
 
     // Determine the current bar orientation based on long periods with occasional glitches
