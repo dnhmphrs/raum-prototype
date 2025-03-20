@@ -19,9 +19,9 @@ export default class DitherPostProcessPipeline extends Pipeline {
         // Settings for dithering effect - increased values for more pronounced effect
         this.settingsBuffer = null;
         this.settings = {
-            patternScale: 2.0,       // Higher value = smaller pixels, more dither pattern
-            thresholdOffset: 0.05,    // Slight offset for better contrast
-            noiseIntensity: 0.12,     // More noise for rougher edges
+            patternScale: 1.0,       // Higher value = smaller pixels, more dither pattern
+            thresholdOffset: -0.05,   // Negative offset makes more pixels dark (bolder text)
+            noiseIntensity: 0.1,     // More noise for rougher edges
             colorReduction: 3.0,      // Fewer colors for more pronounced banding
         };
         

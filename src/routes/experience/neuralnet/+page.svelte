@@ -5,6 +5,7 @@
   import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import { getExperienceColor } from '$lib/store/experienceStore.js';
+  import BackButton from '$lib/components/BackButton.svelte';
   
   let canvas;
   let engine;
@@ -84,7 +85,7 @@
     progress={loadingProgress}
   />
   
-  <a href="/" class="back-button">⏎ Back</a>
+  <BackButton />
 </div>
 
 <style>
@@ -99,23 +100,5 @@
     width: 100%;
     height: 100%;
     display: block;
-  }
-  
-  .back-button {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    padding: 8px 16px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: background-color 0.3s;
-    z-index: 100;
-  }
-  
-  .back-button:hover {
-    background-color: rgba(0, 0, 0, 0.9);
   }
 </style> 

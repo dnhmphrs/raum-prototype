@@ -5,6 +5,8 @@
   import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import { getExperienceColor } from '$lib/store/experienceStore.js';
+  import { showUI } from '$lib/store/store';
+  import BackButton from '$lib/components/BackButton.svelte';
   
   let canvas;
   let engine;
@@ -122,7 +124,7 @@
 </svelte:head>
 
 <!-- <div class="music">
-  <iframe title="music" style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/album=1967289637/size=small/bgcol=333333/linkcol=ffffff/track=2440001588/transparent=true/" seamless><a href="https://masayoshifujita.bandcamp.com/album/bird-ambience">Bird Ambience by Masayoshi Fujita</a></iframe>
+  <iframe title="music" style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/album=1967289637/size=small/bgcol=333333/linkcol=ffffff/track=2440001588/transparent=true/" seamless><a href="https://masayoshifujita.bandcamp.com/album/bird-ambience">Bird Ambience by Masayoshi</a></iframe>
 </div> -->
 
 <div class="experience-container">
@@ -135,87 +137,89 @@
     progress={loadingProgress}
   />
   
-  <a href="/" class="back-button">⏎ Back</a>
+  <BackButton />
   
-  <!-- Dither Controls -->
-  <div class="control-panel">
-    <button class="control-toggle" on:click={toggleControls}>
-      {showControls ? '✕' : '⚙'}
-    </button>
-    
-    {#if showControls}
-      <div class="controls-container">
-        <div class="control-group">
-          <label class="control-label">
-            <input type="checkbox" checked={ditherEnabled} on:change={toggleDither} />
-            Dither Effect
-          </label>
+  {#if $showUI}
+    <!-- Dither Controls -->
+    <div class="control-panel">
+      <button class="control-toggle" on:click={toggleControls}>
+        {showControls ? '✕' : '⚙'}
+      </button>
+      
+      {#if showControls}
+        <div class="controls-container">
+          <div class="control-group">
+            <label class="control-label">
+              <input type="checkbox" checked={ditherEnabled} on:change={toggleDither} />
+              Dither Effect
+            </label>
+          </div>
+          
+          {#if ditherEnabled}
+            <div class="control-group">
+              <label>
+                Pattern Scale: {ditherSettings.patternScale.toFixed(1)}
+                <input 
+                  type="range" 
+                  min="0.5" 
+                  max="3.0" 
+                  step="0.1" 
+                  bind:value={ditherSettings.patternScale} 
+                  on:change={updateDitherSettings}
+                />
+              </label>
+              <span class="control-hint">Lower = larger pixels</span>
+            </div>
+            
+            <div class="control-group">
+              <label>
+                Threshold Offset: {ditherSettings.thresholdOffset.toFixed(2)}
+                <input 
+                  type="range" 
+                  min="-0.2" 
+                  max="0.2" 
+                  step="0.01" 
+                  bind:value={ditherSettings.thresholdOffset} 
+                  on:change={updateDitherSettings}
+                />
+              </label>
+              <span class="control-hint">Adjusts contrast in dither pattern</span>
+            </div>
+            
+            <div class="control-group">
+              <label>
+                Noise: {ditherSettings.noiseIntensity.toFixed(2)}
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="0.3" 
+                  step="0.01" 
+                  bind:value={ditherSettings.noiseIntensity} 
+                  on:change={updateDitherSettings}
+                />
+              </label>
+              <span class="control-hint">Adds random variation</span>
+            </div>
+            
+            <div class="control-group">
+              <label>
+                Color Reduction: {ditherSettings.colorReduction.toFixed(1)}
+                <input 
+                  type="range" 
+                  min="1.5" 
+                  max="5.0" 
+                  step="0.1" 
+                  bind:value={ditherSettings.colorReduction} 
+                  on:change={updateDitherSettings}
+                />
+              </label>
+              <span class="control-hint">Lower = fewer colors</span>
+            </div>
+          {/if}
         </div>
-        
-        {#if ditherEnabled}
-          <div class="control-group">
-            <label>
-              Pattern Scale: {ditherSettings.patternScale.toFixed(1)}
-              <input 
-                type="range" 
-                min="0.5" 
-                max="3.0" 
-                step="0.1" 
-                bind:value={ditherSettings.patternScale} 
-                on:change={updateDitherSettings}
-              />
-            </label>
-            <span class="control-hint">Lower = larger pixels</span>
-          </div>
-          
-          <div class="control-group">
-            <label>
-              Threshold Offset: {ditherSettings.thresholdOffset.toFixed(2)}
-              <input 
-                type="range" 
-                min="-0.2" 
-                max="0.2" 
-                step="0.01" 
-                bind:value={ditherSettings.thresholdOffset} 
-                on:change={updateDitherSettings}
-              />
-            </label>
-            <span class="control-hint">Adjusts contrast in dither pattern</span>
-          </div>
-          
-          <div class="control-group">
-            <label>
-              Noise: {ditherSettings.noiseIntensity.toFixed(2)}
-              <input 
-                type="range" 
-                min="0" 
-                max="0.3" 
-                step="0.01" 
-                bind:value={ditherSettings.noiseIntensity} 
-                on:change={updateDitherSettings}
-              />
-            </label>
-            <span class="control-hint">Adds random variation</span>
-          </div>
-          
-          <div class="control-group">
-            <label>
-              Color Reduction: {ditherSettings.colorReduction.toFixed(1)}
-              <input 
-                type="range" 
-                min="1.5" 
-                max="5.0" 
-                step="0.1" 
-                bind:value={ditherSettings.colorReduction} 
-                on:change={updateDitherSettings}
-              />
-            </label>
-            <span class="control-hint">Lower = fewer colors</span>
-          </div>
-        {/if}
-      </div>
-    {/if}
-  </div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -232,32 +236,11 @@
     display: block;
   }
   
-  .back-button {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    padding: 8px 16px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: background-color 0.3s;
-    z-index: 100;
-  }
-  
-  .back-button:hover {
-    background-color: rgba(0, 0, 0, 0.9);
-  }
-  
   .control-panel {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    top: 20px;
+    right: 80px; /* Positioned to leave space for the new UI toggle button */
     z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
   }
   
   .control-toggle {
@@ -267,10 +250,13 @@
     background-color: rgba(0, 0, 0, 0.7);
     color: white;
     border: none;
+    font-size: 14px;
     cursor: pointer;
-    font-size: 16px;
-    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: background-color 0.3s;
+    margin-left: auto;
   }
   
   .control-toggle:hover {
@@ -278,21 +264,28 @@
   }
   
   .controls-container {
-    background-color: rgba(0, 0, 0, 0.7);
+    position: absolute;
+    top: 50px;
+    right: 0;
+    width: 250px;
+    background-color: rgba(0, 0, 0, 0.8);
     border-radius: 8px;
     padding: 15px;
-    width: 250px;
     color: white;
+    font-size: 12px;
   }
   
   .control-group {
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .control-group:last-child {
+    margin-bottom: 0;
   }
   
   .control-group label {
     display: block;
     margin-bottom: 5px;
-    font-size: 14px;
   }
   
   .control-group input[type="range"] {
@@ -300,18 +293,16 @@
     margin-top: 5px;
   }
   
+  .control-hint {
+    display: block;
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 3px;
+  }
+  
   .control-label {
     display: flex;
     align-items: center;
     gap: 8px;
-    cursor: pointer;
-  }
-  
-  .control-hint {
-    display: block;
-    font-size: 11px;
-    opacity: 0.7;
-    margin-top: 2px;
-    font-style: italic;
   }
 </style> 

@@ -6,7 +6,7 @@
 	import { webVitals } from '$lib/vitals';
 
 	import { onMount, onDestroy } from 'svelte';
-	import { screenType, isIframe, screenSize } from '$lib/store/store';
+	import { screenType, isIframe, screenSize, showUI } from '$lib/store/store';
 	import { getDeviceType, getScreenSize } from '$lib/functions/utils';
 	import MemoryStats from '$lib/components/MemoryStats.svelte';
 
@@ -15,6 +15,11 @@
 	
 	// Memory stats
 	let showMemoryStats = true;
+
+	// Function to toggle UI visibility
+	function toggleUIVisibility() {
+		showUI.update(value => !value);
+	}
 
 	$: if (browser && data?.analyticsId) {
 		webVitals({
@@ -86,6 +91,16 @@
 
 <div class="app">
 	<main>
+		<!-- UI Toggle Button -->
+		<button 
+			class="ui-toggle-button" 
+			on:click={toggleUIVisibility} 
+			class:hidden={!$showUI}
+			aria-label={$showUI ? "Hide UI" : "Show UI"}
+		>
+			{$showUI ? "○" : "●"}
+		</button>
+		
 		<slot />
 	</main>
 	
@@ -94,7 +109,7 @@
 	{/if}
 	
 	<!-- Memory stats display -->
-	{#if showMemoryStats && browser}
+	{#if showMemoryStats && browser && $showUI}
 		<MemoryStats />
 	{/if}
 </div>
@@ -104,5 +119,38 @@
 		width: 100%;
 		height: 100%;
 		position: relative;
+	}
+	
+	.ui-toggle-button {
+		position: fixed;
+		top: 20px;
+		right: 20px;
+		z-index: 1000;
+		background-color: rgba(0, 0, 0, 0.7);
+		color: white;
+		border: none;
+		border-radius: 50%;
+		width: 40px;
+		height: 40px;
+		font-size: 16px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: opacity 0.3s ease, transform 0.3s ease;
+		padding: 0;
+	}
+	
+	.ui-toggle-button:hover {
+		background-color: rgba(0, 0, 0, 0.9);
+		transform: scale(1.1);
+	}
+	
+	.ui-toggle-button.hidden {
+		opacity: 0.2;
+	}
+	
+	.ui-toggle-button.hidden:hover {
+		opacity: 0.8;
 	}
 </style>

@@ -753,15 +753,20 @@ class FlockingExperience extends Experience {
             // 3. Render the birds and predator
             this.pipeline.renderEntities(commandEncoder, renderTarget, depthView, this.birds, this.predator);
 
-            // 4. Apply post-processing dither effect if enabled
+            // 4. Render the text overlay BEFORE the dither effect
+            if (this.textOverlayPipeline && this.textOverlayPipeline.isInitialized) {
+                this.textOverlayPipeline.render(commandEncoder, renderTarget);
+            }
+
+            // 5. Apply post-processing dither effect if enabled
             if (this.ditherSettings.enabled && this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
                 this.ditherPostProcessPipeline.render(commandEncoder, this.intermediateTextureView, textureView);
             }
 
-            // 5. Render the text overlay as the final layer (on top of everything)
-            const finalTextureView = this.ditherSettings.enabled ? textureView : renderTarget;
-            if (this.textOverlayPipeline && this.textOverlayPipeline.isInitialized) {
-                this.textOverlayPipeline.render(commandEncoder, finalTextureView);
+            // Don't render text overlay again if dithering is enabled
+            // If dithering is disabled, still render text overlay as the final layer
+            if (!this.ditherSettings.enabled && this.textOverlayPipeline && this.textOverlayPipeline.isInitialized) {
+                this.textOverlayPipeline.render(commandEncoder, renderTarget);
             }
         } catch (e) {
             console.error("Error in FlockingExperience render:", e);

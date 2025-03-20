@@ -30,20 +30,31 @@ fn sdRoundBox(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
 
 // Function to apply dithering effect
 fn dither(color: vec3<f32>, uv: vec2<f32>, t: f32) -> vec3<f32> {
-    // Generate noise pattern
-    let pixelSize = 0.004; // Size of the dither pattern pixels
+    // Generate pixel pattern with MUCH larger pixels
+    let pixelSize = 0.0025; // Increased from 0.008 for much larger, cleaner pixels
     let noiseUV = floor(uv / pixelSize) * pixelSize;
     
-    // Time-varying noise
-    let noise = hash(noiseUV.x * 13.0 + noiseUV.y * 7.0 + t * 0.1);
+    // Use a more structured pattern based on pixel position
+    let cellX = floor(noiseUV.x / pixelSize);
+    let cellY = floor(noiseUV.y / pixelSize);
     
-    // Modulate the noise based on predator velocity
+    // Create a checkerboard-like pattern with time variation
+    // Simple alternating pattern with less time variation
+    let pattern = (cellX + cellY + floor(t * 0.2)) % 10.0;
+    
+    // Use almost pure pattern with very minimal noise
+    let noise = hash(cellX * 13.0 + cellY * 7.0 + t * 0.1);
+    
+    // Cleaner pattern with less noise influence (10% noise instead of 30%)
+    let combinedPattern = mix(pattern, noise, 0.3);
+    
+    // Modulate the effect based on predator velocity
     let speed = length(predatorVelocity.xy);
-    let noiseAmount = 0.08 + min(0.05, speed * 0.005); // Subtle noise amount
+    let ditherAmount = 0.06 + min(0.04, speed * 0.004); // Slightly reduced for cleaner look
     
-    // Apply dithering
-    let ditherPattern = step(0.5, noise) * noiseAmount;
-    return color + vec3<f32>(ditherPattern - noiseAmount/2.0);
+    // Apply the dithering
+    let ditherPattern = step(0.5, combinedPattern) * ditherAmount;
+    return color + vec3<f32>(ditherPattern - ditherAmount/2.0);
 }
 
 // Function to render cool, warped text "not crowded"
@@ -61,15 +72,12 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     var warpAmount = 0.008 + speed * 0.003;
     let phase = t * 0.4;
     
-    // Adjust positioning - move from +0.3 to +0.15 to center better
-    p.x += 0.15;
+    // Adjust positioning
+    p.x += 0.05;
     
-    // Scale for text size (make slightly smaller)
-    let textScale = 0.18; // Increased from 0.16 to make text smaller
+    // Make text MUCH smaller (approximately half the size)
+    let textScale = 0.1; // Doubled from 0.2 to make text half the size
     p /= textScale;
-    
-    // Base shape of the text (continuous flowing form)
-    var d = 1000.0; // Initial large distance
     
     // Time-based thickness warping
     let thicknessWarp = sin(t * 0.7) * 0.06 + speed * 0.02;
@@ -81,6 +89,9 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     // Circle factors
     let circleOuterFactor = 0.28;
     let circleInnerFactor = 0.17;
+    
+    // Initialize distance value - THIS MUST BE VAR NOT LET
+    var d = 1000.0; // Initial large distance
     
     // "n" with individual warping
     var nPos = vec2<f32>(-2.0, 0.0);
@@ -98,7 +109,7 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     n3Pos.y += cos(t * 0.75 + n3Pos.x) * warpAmount * 1.6;
     var n3 = length(p - n3Pos) - 0.17 * (1.0 + thicknessWarp);
     
-    d = min(d, max(-n3, min(n1, n2)));
+    d = min(max(-n3, min(n1, n2)), d);
     
     // "o" with individual warping
     var oPos = vec2<f32>(-1.4, 0.0);
@@ -229,14 +240,14 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     // Calculate edge distance for the combined shape
     let edge = smoothstep(0.01, -0.01, d);
     
-    // Create trippy color effects
+    // Create effects
     let innerGlow = smoothstep(0.1, -0.1, d);
     
-    // Use white/light-pink for the main color instead of rainbow
-    let baseColor = vec3<f32>(1.0, 0.95, 0.97); // White with a hint of pink
+    // Use off-white for the main color (no pink tint)
+    let baseColor = vec3<f32>(0.98, 0.98, 0.98); // Pure off-white
     
     // Add subtle shimmer effect
-    let shimmer = 0.05 * sin(d * 20.0 - t * 2.0); // Subtle shimmer effect
+    let shimmer = 0.05 * sin(d * 20.0 - t * 2.0);
     let finalBaseColor = baseColor + vec3<f32>(shimmer, shimmer, shimmer);
     
     // Funky glow effect
@@ -249,20 +260,20 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     
     // Create a shimmering outline effect
     let outline = smoothstep(0.05, 0.0, abs(d - 0.01)) * 0.8;
-    let outlineColor = vec3<f32>(1.0, 0.9, 0.95); // Light pink outline
+    let outlineColor = vec3<f32>(1.0, 1.0, 1.0); // Pure white outline (no pink)
     
-    // Color the glow based on predator velocity, but keep it pink-tinted
+    // Color the glow based on predator velocity, with white/off-white
     let velColor = vec3<f32>(
-        0.9 + 0.1 * predDir.x,
-        0.7 + 0.1 * sin(t * 0.7),
-        0.8 + 0.1 * predDir.y
+        0.95 + 0.05 * predDir.x,
+        0.95 + 0.05 * sin(t * 0.7),
+        0.95 + 0.05 * predDir.y
     );
     
     // Border effects
     let border = smoothstep(0.07, 0.0, abs(d)) * 0.8;
     let borderColor = vec3<f32>(0.0);
     
-    // Final pixel color
+    // Start with a zero color
     var color = vec3<f32>(0.0);
     
     // Compositing layers
@@ -270,9 +281,6 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     color = mix(color, outlineColor, outline); // Add outline
     color = mix(color, borderColor, border); // Add black border for visibility
     color = mix(color, velColor, glow * 0.3); // Colored glow
-    
-    // Apply dithering effect to the color
-    color = dither(color, uv, t);
     
     // Alpha increases with edge proximity
     let alpha = max(edge, glow * 0.7);

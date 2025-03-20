@@ -1,41 +1,45 @@
 <script>
-  import { page } from '$app/stores';
   import { onMount, onDestroy } from 'svelte';
+  import { page } from '$app/stores';
   import Engine from '$lib/graphics/Engine.js';
-  import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
+  import BackButton from '$lib/components/BackButton.svelte';
+  import { showUI } from '$lib/store/store';
+  
   export let data;
   
   let canvas;
   let engine;
   let mounted = false;
   
+  // Function to load the appropriate experience based on the URL parameter
   onMount(async () => {
-    if (!navigator.gpu) {
-      alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
+    if (!data.experience || !canvas || !navigator.gpu) {
+      if (!navigator.gpu) {
+        alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
+      }
       return;
     }
     
     try {
+      // Dynamically import the experience class
+      const experienceModule = await import(`../../../lib/graphics/experiences/${data.experience}/${data.experience}Experience.js`);
+      const ExperienceClass = experienceModule.default;
+      
+      // Import camera config
+      const { getCameraConfig } = await import('../../../lib/graphics/config/cameraConfigs.js');
+      
       // Initialize the engine with the canvas
       engine = new Engine(canvas);
       
-      // Dynamically import the experience
-      const experienceModule = await import(`../../../lib/graphics/experiences/${data.experience}/${data.experience}Experience.js`);
-      const Experience = experienceModule.default;
-      
       // Start the experience with camera config
-      await engine.start(Experience, getCameraConfig(data.experience));
+      await engine.start(ExperienceClass, getCameraConfig(data.experience));
       
       mounted = true;
       
       // Handle window resize
       const handleResize = () => {
         if (engine) {
-          try {
-            engine.handleResize();
-          } catch (error) {
-            console.warn("Error during resize:", error);
-          }
+          engine.handleResize();
         }
       };
       
@@ -49,7 +53,7 @@
       };
     } catch (error) {
       console.error(`Error loading ${data.experience} experience:`, error);
-      alert(`Failed to load experience: ${error.message}`);
+      alert(`Failed to load ${data.experience} experience: ${error.message}`);
     }
   });
   
@@ -61,14 +65,8 @@
 </script>
 
 <svelte:head>
-  <title>{data.experience} Experience</title>
+  <title>{data.experience ? `${data.experience} Experience` : 'Experience Not Found'}</title>
 </svelte:head>
-
-<div class="error-container">
-  <h2>Experience Not Found</h2>
-  <p>The experience "{$page.params.catchall}" doesn't exist or is not available.</p>
-  <a href="/">Return to Home</a>
-</div>
 
 {#if !data.experience}
   <div class="error-container">
@@ -86,7 +84,7 @@
       </div>
     {/if}
     
-    <a href="/" class="back-button">Back to Home</a>
+    <BackButton />
   </div>
 {/if}
 
@@ -140,23 +138,5 @@
     background-color: rgba(0, 0, 0, 0.7);
     color: white;
     font-size: 1.5rem;
-  }
-  
-  .back-button {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    padding: 8px 16px;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: background-color 0.3s;
-    z-index: 100;
-  }
-  
-  .back-button:hover {
-    background-color: rgba(0, 0, 0, 0.8);
   }
 </style> 

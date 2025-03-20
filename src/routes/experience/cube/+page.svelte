@@ -3,6 +3,7 @@
   import Engine from '$lib/graphics/Engine.js';
   import CubeExperience from '$lib/graphics/experiences/Cube/CubeExperience.js';
   import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
+  import BackButton from '$lib/components/BackButton.svelte';
   
   let canvas;
   let engine;
@@ -59,7 +60,7 @@
     </div>
   {/if}
   
-  <a href="/" class="back-button">⏎ Back</a>
+  <BackButton />
 </div>
 
 <style>
@@ -88,23 +89,5 @@
     background-color: rgba(0, 0, 0, 0.7);
     color: white;
     font-size: 1.5rem;
-  }
-  
-  .back-button {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    padding: 8px 16px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: background-color 0.3s;
-    z-index: 100;
-  }
-  
-  .back-button:hover {
-    background-color: rgba(0, 0, 0, 0.9);
   }
 </style> 
