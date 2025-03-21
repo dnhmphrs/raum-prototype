@@ -17,44 +17,10 @@ fn noise21(p: vec2<f32>) -> f32 {
     return fract((p3b.x + p3b.y) * p3b.z);
 }
 
-// Improved noise function for dithering
-fn hash(n: f32) -> f32 {
-    return fract(sin(n) * 43758.5453123);
-}
-
 // SDF for a rounded rectangle
 fn sdRoundBox(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
     let q = abs(p) - b + vec2<f32>(r);
     return length(max(q, vec2<f32>(0.0))) + min(max(q.x, q.y), 0.0) - r;
-}
-
-// Function to apply dithering effect
-fn dither(color: vec3<f32>, uv: vec2<f32>, t: f32) -> vec3<f32> {
-    // Generate pixel pattern with MUCH larger pixels
-    let pixelSize = 0.0025; // Increased from 0.008 for much larger, cleaner pixels
-    let noiseUV = floor(uv / pixelSize) * pixelSize;
-    
-    // Use a more structured pattern based on pixel position
-    let cellX = floor(noiseUV.x / pixelSize);
-    let cellY = floor(noiseUV.y / pixelSize);
-    
-    // Create a checkerboard-like pattern with time variation
-    // Simple alternating pattern with less time variation
-    let pattern = (cellX + cellY + floor(t * 0.2)) % 10.0;
-    
-    // Use almost pure pattern with very minimal noise
-    let noise = hash(cellX * 13.0 + cellY * 7.0 + t * 0.1);
-    
-    // Cleaner pattern with less noise influence (10% noise instead of 30%)
-    let combinedPattern = mix(pattern, noise, 0.3);
-    
-    // Modulate the effect based on predator velocity
-    let speed = length(predatorVelocity.xy);
-    let ditherAmount = 0.06 + min(0.04, speed * 0.004); // Slightly reduced for cleaner look
-    
-    // Apply the dithering
-    let ditherPattern = step(0.5, combinedPattern) * ditherAmount;
-    return color + vec3<f32>(ditherPattern - ditherAmount/2.0);
 }
 
 // Function to render cool, warped text "not crowded"
@@ -70,7 +36,6 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     
     // Apply subtle position warping (individual letters warp more)
     var warpAmount = 0.008 + speed * 0.003;
-    let phase = t * 0.4;
     
     // Adjust positioning
     p.x += 0.05;
@@ -237,53 +202,40 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     var d4 = sdRoundBox(p - d4Pos, vec2<f32>(warpedThickness, 0.35), 0.03);
     d = min(d, min(max(-d3i, d3), d4));
     
-    // Calculate edge distance for the combined shape
-    let edge = smoothstep(0.01, -0.01, d);
+    // Calculate edge distance for the combined shape with softer edge
+    let edge = smoothstep(0.015, -0.015, d);
     
-    // Create effects
-    let innerGlow = smoothstep(0.1, -0.1, d);
+    // Create a cleaner inner glow with less contrast
+    let innerGlow = smoothstep(0.05, -0.05, d);
     
-    // Use off-white for the main color (no pink tint)
-    let baseColor = vec3<f32>(0.98, 0.98, 0.98); // Pure off-white
+    // Pure white for better visibility through dithering
+    let baseColor = vec3<f32>(1.0, 1.0, 1.0);
     
-    // Add subtle shimmer effect
-    let shimmer = 0.05 * sin(d * 20.0 - t * 2.0);
-    let finalBaseColor = baseColor + vec3<f32>(shimmer, shimmer, shimmer);
+    // Simpler shimmer effect
+    let shimmer = 0.03 * sin(d * 15.0 - t * 1.5);
+    let finalBaseColor = baseColor + vec3<f32>(shimmer);
     
-    // Funky glow effect
-    let glowPulse = 0.5 + 0.5 * sin(t * 0.5);
-    let glowSize = 0.3 + 0.2 * glowPulse;
-    let glow = smoothstep(glowSize, -0.1, d);
+    // Simpler glow effect
+    let glowPulse = 0.5 + 0.5 * sin(t * 0.4);
+    let glowSize = 0.2 + 0.1 * glowPulse;
+    let glow = smoothstep(glowSize, -0.05, d);
     
-    // Combine inner and outer effects
-    let inner = mix(finalBaseColor * 0.95, finalBaseColor, innerGlow);
+    // Combine inner and outer effects - simplified
+    let inner = mix(finalBaseColor * 0.98, finalBaseColor, innerGlow);
     
-    // Create a shimmering outline effect
-    let outline = smoothstep(0.05, 0.0, abs(d - 0.01)) * 0.8;
-    let outlineColor = vec3<f32>(1.0, 1.0, 1.0); // Pure white outline (no pink)
-    
-    // Color the glow based on predator velocity, with white/off-white
-    let velColor = vec3<f32>(
-        0.95 + 0.05 * predDir.x,
-        0.95 + 0.05 * sin(t * 0.7),
-        0.95 + 0.05 * predDir.y
-    );
-    
-    // Border effects
-    let border = smoothstep(0.07, 0.0, abs(d)) * 0.8;
-    let borderColor = vec3<f32>(0.0);
+    // Soft white outline - no harsh borders
+    let outline = smoothstep(0.03, 0.0, abs(d - 0.01)) * 0.6;
+    let outlineColor = vec3<f32>(1.0);
     
     // Start with a zero color
     var color = vec3<f32>(0.0);
     
-    // Compositing layers
+    // Simpler compositing layers - no border effect
     color = mix(color, inner, innerGlow); // Inner color
-    color = mix(color, outlineColor, outline); // Add outline
-    color = mix(color, borderColor, border); // Add black border for visibility
-    color = mix(color, velColor, glow * 0.3); // Colored glow
+    color = mix(color, outlineColor, outline); // Add soft outline
     
-    // Alpha increases with edge proximity
-    let alpha = max(edge, glow * 0.7);
+    // Alpha increases with edge proximity - boosted for better visibility
+    let alpha = max(edge, glow * 0.5) * 0.9;
     
     // Pack color and alpha
     return vec4<f32>(color, alpha);
@@ -325,10 +277,10 @@ fn fragment_main(@location(0) texCoord: vec2<f32>) -> @location(0) vec4<f32> {
     
     // Apply predator velocity to influence transparency
     let speed = length(predatorVelocity.xy);
-    let speedBoost = min(1.0, speed * 0.05);
+    let speedBoost = min(0.7, speed * 0.04); // Slightly reduced for cleaner look
     
-    // Ensure there's always a visible edge
-    let finalAlpha = min(1.0, result.a + speedBoost);
+    // Use increased base alpha for better visibility
+    let finalAlpha = min(0.9, result.a + speedBoost);
     
     return vec4<f32>(result.rgb, finalAlpha);
 } 
