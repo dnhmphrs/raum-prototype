@@ -45,7 +45,7 @@ class FlockingExperience extends Experience {
         this.orientationState = {
             isHorizontal: Math.random() > 0.5, // random starting orientation
             periodDuration: 8000, // how long to stay in one orientation (ms)
-            glitchDuration: 10,  // MUCH shorter glitch duration (50ms) - just a quick flash
+            glitchDuration: 25,  // MUCH shorter glitch duration (50ms) - just a quick flash
             glitchProbability: 0.00, // Very low probability of glitches per second (1%)
             lastMajorChange: performance.now() - 7000, // Initialize near the end of a period to encourage early change
             lastGlitchEnd: 0,  // No glitches at start
@@ -452,53 +452,53 @@ class FlockingExperience extends Experience {
             }
             
             // Width of the center (largest) strip - with breathing influenced by predator speed
-            const centerStripHeight = 0.065 * (breatheAmount + 0.10);
+            const centerStripWidth = 0.085 * (breatheAmount + 0.10);
             
             // Place the center strip first - position influenced by predator movement
             const centerIndex = Math.floor(totalStrips / 2);
             rects.push({
-                position: [0, centerY - centerStripHeight/2 + waveAmount * 0.5],
-                size: [1.0, centerStripHeight],
+                position: [0, centerY - centerStripWidth/2 + waveAmount * 0.5],
+                size: [1.0, centerStripWidth],
                 shaderType: shaderType
             });
             
             // Place strips above and below center, scaling by golden ratio
-            let currentHeight = centerStripHeight;
+            let currentWidth = centerStripWidth;
             
             // Create strips above center (going up)
-            let posY = centerY - centerStripHeight/2;
+            let posY = centerY - centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
                 // Scale down with warping influenced by predator speed
                 const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
                 // Shrinkage rate varies slightly with predator movement
                 const shrinkRate = 0.75 + (predatorDirectionY * 0.05);
-                currentHeight *= (shrinkRate * warpFactor);
+                currentWidth *= (shrinkRate * warpFactor);
                 
                 // Individual strip wave effect - influenced by predator motion
                 const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift);
                 
-                // Move up by previous height plus minimal gap
-                posY -= (currentHeight + minimalGap);
+                // Move up by previous width plus minimal gap
+                posY -= (currentWidth + minimalGap);
                 
                 // Add the strip with position warping
                 rects.push({
                     position: [0, posY + stripWave],
-                    size: [1.0, currentHeight],
+                    size: [1.0, currentWidth],
                     shaderType: shaderType
                 });
             }
             
             // Reset for strips below center
-            currentHeight = centerStripHeight;
+            currentWidth = centerStripWidth;
             
             // Create strips below center (going down)
-            posY = centerY + centerStripHeight/2;
+            posY = centerY + centerStripWidth/2;
             for (let i = 1; i <= centerIndex; i++) {
                 // Scale down with warping influenced by predator speed
                 const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
                 // Shrinkage rate varies slightly with predator movement
                 const shrinkRate = 0.75 + (predatorDirectionY * 0.05);
-                currentHeight *= (shrinkRate * warpFactor);
+                currentWidth *= (shrinkRate * warpFactor);
                 
                 // Individual strip wave effect - influenced by predator motion
                 const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift);
@@ -506,12 +506,12 @@ class FlockingExperience extends Experience {
                 // Add the strip right after the previous one with position warping
                 rects.push({
                     position: [0, posY + minimalGap + stripWave],
-                    size: [1.0, currentHeight],
+                    size: [1.0, currentWidth],
                     shaderType: shaderType
                 });
                 
-                // Move down by current height plus minimal gap
-                posY += (currentHeight + minimalGap);
+                // Move down by current width plus minimal gap
+                posY += (currentWidth + minimalGap);
             }
         } else {
             // Create vertical bars - full height
@@ -529,53 +529,53 @@ class FlockingExperience extends Experience {
             }
             
             // Width of the center (largest) strip - with breathing influenced by predator speed
-            const centerStripWidth = 0.065 * (breatheAmount + 0.10);
+            const centerStripHeight = 0.065 * (breatheAmount + 0.10);
             
             // Place the center strip first - position influenced by predator movement
             const centerIndex = Math.floor(totalStrips / 2);
             rects.push({
-                position: [centerX - centerStripWidth/2 + waveAmount * 0.5, 0],
-                size: [centerStripWidth, 1.0],
+                position: [centerX - centerStripHeight/2 + waveAmount * 0.5, 0],
+                size: [centerStripHeight, 1.0],
                 shaderType: shaderType
             });
             
             // Place strips to left and right of center, scaling by golden ratio
-            let currentWidth = centerStripWidth;
+            let currentHeight = centerStripHeight;
             
             // Create strips to the left of center
-            let posX = centerX - centerStripWidth/2;
+            let posX = centerX - centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
                 // Scale down with warping influenced by predator speed
                 const warpFactor = 1.0 + Math.sin(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
                 // Shrinkage rate varies slightly with predator movement
                 const shrinkRate = 0.75 + (predatorDirectionX * 0.05);
-                currentWidth *= (shrinkRate * warpFactor);
+                currentHeight *= (shrinkRate * warpFactor);
                 
                 // Individual strip wave effect - influenced by predator motion
                 const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 + phaseShift);
                 
-                // Move left by current width plus minimal gap
-                posX -= (currentWidth + minimalGap);
+                // Move left by current height plus minimal gap
+                posX -= (currentHeight + minimalGap);
                 
                 // Add the strip with position warping
                 rects.push({
                     position: [posX + stripWave, 0],
-                    size: [currentWidth, 1.0],
+                    size: [currentHeight, 1.0],
                     shaderType: shaderType
                 });
             }
             
             // Reset for strips to the right
-            currentWidth = centerStripWidth;
+            currentHeight = centerStripHeight;
             
             // Create strips to the right of center
-            posX = centerX + centerStripWidth/2;
+            posX = centerX + centerStripHeight/2;
             for (let i = 1; i <= centerIndex; i++) {
                 // Scale down with warping influenced by predator speed
                 const warpFactor = 1.0 + Math.cos(i * 0.7 + timeNow * 1.2) * (0.05 + predatorInfluence * 0.05);
                 // Shrinkage rate varies slightly with predator movement
                 const shrinkRate = 0.75 + (predatorDirectionX * 0.05);
-                currentWidth *= (shrinkRate * warpFactor);
+                currentHeight *= (shrinkRate * warpFactor);
                 
                 // Individual strip wave effect - influenced by predator motion
                 const stripWave = waveAmount * 0.5 * Math.sin(i * 1.0 + timeNow * 0.8 - phaseShift);
@@ -583,12 +583,12 @@ class FlockingExperience extends Experience {
                 // Add the strip right after the previous one with position warping
                 rects.push({
                     position: [posX + minimalGap + stripWave, 0],
-                    size: [currentWidth, 1.0],
+                    size: [currentHeight, 1.0],
                     shaderType: shaderType
                 });
                 
-                // Move right by current width plus minimal gap
-                posX += (currentWidth + minimalGap);
+                // Move right by current height plus minimal gap
+                posX += (currentHeight + minimalGap);
             }
         }
         
