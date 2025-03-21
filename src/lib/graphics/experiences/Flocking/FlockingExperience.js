@@ -45,10 +45,34 @@ class FlockingExperience extends Experience {
         this.orientationState = {
             isHorizontal: Math.random() > 0.5, // random starting orientation
             periodDuration: 8000, // how long to stay in one orientation (ms)
-            glitchDuration: 1200,  // how long glitches last (ms) - increased from 300ms to 1.2s
-            glitchProbability: 0.02, // probability of glitches per second (2%)
-            lastMajorChange: performance.now(), // Initialize with current time
-            lastGlitchEnd: 0  // No glitches at start
+            glitchDuration: 10,  // MUCH shorter glitch duration (50ms) - just a quick flash
+            glitchProbability: 0.00, // Very low probability of glitches per second (1%)
+            lastMajorChange: performance.now() - 7000, // Initialize near the end of a period to encourage early change
+            lastGlitchEnd: 0,  // No glitches at start
+            forceGlitchOnOrientationChange: true, // Always glitch during orientation changes
+            // More chaotic timing with additional offsets based on irrational numbers
+            goldenRatioOffsets: [0, 0.382, 0.618, 1.0, 0.276, 0.472, 0.786, 0.944], // Expanded offsets for more variation
+            // Add Fibonacci sequence divisions for even more irregularity
+            fibonacciOffsets: [1/2, 1/3, 2/3, 1/5, 2/5, 3/5, 4/5, 1/8, 3/8, 5/8, 7/8],
+            primeOffsets: [1/2, 1/3, 1/5, 1/7, 1/11, 1/13, 1/17, 1/19],
+            currentOffsetIndex: 0, // Current index in the offsets array
+            currentFibIndex: Math.floor(Math.random() * 11), // Random start for fibonacci offsets
+            currentPrimeIndex: Math.floor(Math.random() * 8), // Random start for prime offsets
+            // Add randomness seeds that change occasionally
+            chaosSeed: Math.random(),
+            lastSeedChange: performance.now(),
+            seedChangePeriod: 4230, // Odd period to avoid synchronization with other cycles
+            orientationChangeOverdue: false, // Flag to force orientation change if it's been too long
+            // Track short, medium and long glitch cooldowns with different timers
+            shortCooldownEnd: 0,
+            mediumCooldownEnd: 0,
+            longCooldownEnd: 0,
+            // Add glitch clustering behavior
+            glitchClusterActive: false,
+            glitchClusterEnd: 0,
+            glitchClusterChance: 0.12, // Chance to enter cluster mode
+            maxClusterGlitches: 4, // Maximum number of glitches in a cluster
+            remainingClusterGlitches: 0,
         };
         
         // Predator velocity tracking for bar variations
@@ -166,6 +190,16 @@ class FlockingExperience extends Experience {
         await this.ditherPostProcessPipeline.initialize();
         await this.textOverlayPipeline.initialize();
 
+        // Adjust camera near and far planes to better handle the flocking space
+        if (this.resourceManager && this.resourceManager.camera) {
+            // Use a smaller near plane and larger far plane to prevent clipping
+            this.resourceManager.camera.updateProjection(
+                this.resourceManager.camera.fov || Math.PI / 4, 
+                0.01,  // Smaller near plane (was 0.1)
+                200000 // Larger far plane (was 100000)
+            );
+        }
+        
         // Create intermediate render textures for post-processing
         this.createPostProcessingTextures();
 
@@ -176,14 +210,18 @@ class FlockingExperience extends Experience {
         const initialPositions = [];
         const initialVelocities = [];
         const initialPhases = [];
-        const bounds = 5000;
+        const bounds = 6000; // Increased from 5000
         const boundsHalf = bounds / 2;
 
         for (let i = 0; i < this.birdCount; i++) {
-            // Random positions within bounds
+            // Random positions within bounds, but closer to camera position
+            // This ensures birds don't initialize behind a viewable plane
             const posX = Math.random() * bounds - boundsHalf;
-            const posY = Math.random() * bounds - boundsHalf;
-            const posZ = Math.random() * bounds - boundsHalf;
+            
+            // Create a spread of positions, but bias toward camera's field of view
+            const posY = (Math.random() * bounds - boundsHalf) * 0.8; // Y positions biased toward center
+            const posZ = (Math.random() * bounds - boundsHalf) * 0.8; // Z positions biased toward center
+            
             initialPositions.push([posX, posY, posZ]);
 
             // Random velocities with a small magnitude
@@ -193,7 +231,7 @@ class FlockingExperience extends Experience {
             initialVelocities.push([velX, velY, velZ]);
 
             // Random wing phases
-            initialPhases.push(0); // Initialize with 0 phase
+            initialPhases.push(Math.random() * Math.PI * 2); // Randomize initial wing flap positions
         }
 
         // Initialize position and velocity buffers in the pipeline
@@ -337,8 +375,13 @@ class FlockingExperience extends Experience {
             // This will consider both long-term orientation and glitches
             const useHorizontalBars = this.getCurrentOrientation(forceUpdate);
             
+            // Check if we're in a glitch - just for debugging
+            const now = performance.now();
+            const isInGlitchTransition = this.orientationState.lastGlitchEnd > now;
+            
             // Generate golden ratio-based bar collection
-            this.createGoldenRatioBars(rects, useHorizontalBars);
+            // The glitch effect is already handled by useHorizontalBars being temporarily flipped
+            this.createGoldenRatioBars(rects, useHorizontalBars, isInGlitchTransition);
             
             // Update the rectangles in the pipeline only if we have rectangles to update
             if (rects.length > 0) {
@@ -350,7 +393,7 @@ class FlockingExperience extends Experience {
         }
     }
     
-    createGoldenRatioBars(rects, useHorizontalBars) {
+    createGoldenRatioBars(rects, useHorizontalBars, isInGlitchTransition = false) {
         // Golden ratio for proportions
         const phi = this.phi; // 0.618
         
@@ -385,14 +428,28 @@ class FlockingExperience extends Experience {
         const directionInfluence = useHorizontalBars ? predatorDirectionY : predatorDirectionX;
         const phaseShift = Math.cos(timeNow * 0.22) * 0.07 + directionInfluence * 0.05;
         
+        // Determine if this is a glitch-induced temporary orientation
+        // If we're in a glitch, check if the current orientation is the opposite of the base orientation
+        const now = performance.now();
+        const isGlitchState = this.orientationState.lastGlitchEnd > now;
+        const isBaseOrientation = this.orientationState.isHorizontal === useHorizontalBars;
+        const isTemporaryOrientation = isGlitchState && !isBaseOrientation;
+        
+        // Create bars with the current orientation
         if (useHorizontalBars) {
             // Create horizontal bars - full width
-            // Nearly no gap - extremely tight packing like a diffraction grating
             const minimalGap = 0.0003; // Even smaller gap between strips
             
             // Calculate center of screen with movement influenced by predator's vertical movement
             const centerYOffset = Math.sin(timeNow * 0.3) * 0.02 + predatorDirectionY * 0.02;
-            const centerY = 0.5 + centerYOffset;
+            
+            // For temporary glitch orientations, shift bars toward top and bottom of screen
+            let centerY = 0.5 + centerYOffset;
+            if (isTemporaryOrientation) {
+                // Determine if we should favor top or bottom - alternate based on time
+                const favorTop = Math.sin(timeNow * 0.7) > 0;
+                centerY = favorTop ? 0.25 + centerYOffset * 0.5 : 0.75 + centerYOffset * 0.5;
+            }
             
             // Width of the center (largest) strip - with breathing influenced by predator speed
             const centerStripHeight = 0.065 * (breatheAmount + 0.10);
@@ -458,12 +515,18 @@ class FlockingExperience extends Experience {
             }
         } else {
             // Create vertical bars - full height
-            // Nearly no gap - extremely tight packing like a diffraction grating
             const minimalGap = 0.0003; // Even smaller gap between strips
             
             // Calculate center of screen with movement influenced by predator's horizontal movement
             const centerXOffset = Math.sin(timeNow * 0.3) * 0.02 + predatorDirectionX * 0.02;
-            const centerX = 0.5 + centerXOffset;
+            
+            // For temporary glitch orientations, shift bars toward sides of screen
+            let centerX = 0.5 + centerXOffset;
+            if (isTemporaryOrientation) {
+                // Determine if we should favor left or right side - alternate based on time
+                const favorLeft = Math.sin(timeNow * 0.7) > 0;
+                centerX = favorLeft ? 0.25 + centerXOffset * 0.5 : 0.75 + centerXOffset * 0.5;
+            }
             
             // Width of the center (largest) strip - with breathing influenced by predator speed
             const centerStripWidth = 0.065 * (breatheAmount + 0.10);
@@ -675,20 +738,66 @@ class FlockingExperience extends Experience {
             // First execute the compute passes (for both birds and predator)
             this.pipeline.runComputePasses(commandEncoder);
             
-            // NEW: Update shader rects with predator velocity data 
+            // Update shader rects with predator velocity data 
             // This ensures the Julia set is influenced by the predator's actual heading
             this.updateShaderRectsWithPredatorData();
             
-            // Handle shader rect changes - only if more than 3 frames have passed since last change
+            // Check if we're in a glitch - these should be very brief
+            const isInGlitch = this.orientationState.lastGlitchEnd > now;
+            
+            // Harmonically balanced glitch transitions based on golden ratio timing
+            if (!isInGlitch) {
+                // Base probability is very low
+                const baseProbability = 0.0015; // 0.15% base chance per frame
+                
+                // Calculate a time-based harmonic factor using phi
+                const phi = this.phi; // 0.618...
+                const timeFactor = Math.abs(Math.sin(now * 0.0003)); // Very slow oscillation
+                
+                // Use the golden offsets to create natural fibonacci-like timing
+                const offsetIndex = this.orientationState.currentOffsetIndex;
+                const offset = this.orientationState.goldenRatioOffsets[offsetIndex];
+                
+                // Calculate probability with golden ratio influence
+                const harmonicFactor = phi + (1-phi) * Math.sin(now * 0.0005 + offset * Math.PI * 2);
+                const glitchProbability = baseProbability * harmonicFactor;
+                
+                // Check if a glitch should occur
+                if (Math.random() < glitchProbability) {
+                    // Only if enough time has passed since last glitch
+                    const timeSinceLastGlitch = now - this.orientationState.lastGlitchEnd;
+                    if (timeSinceLastGlitch > 1000) { // At least 1 second between glitches
+                        // Schedule a quick glitch
+                        this.orientationState.lastGlitchEnd = now + this.orientationState.glitchDuration;
+                        
+                        // Move to the next offset in the sequence for next glitch
+                        this.orientationState.currentOffsetIndex = 
+                            (this.orientationState.currentOffsetIndex + 1) % 
+                            this.orientationState.goldenRatioOffsets.length;
+                    }
+                }
+            }
+            
+            // Handle shader rect changes - either on regular interval or during glitches
             this.accumulatedShaderRectTime += rawDeltaTime * 1000;
-            if (this.accumulatedShaderRectTime >= this.shaderRectChangeInterval) {
+            
+            // Always update during glitches for more responsive orientation changes
+            if (isInGlitch || this.accumulatedShaderRectTime >= this.shaderRectChangeInterval) {
                 // Wrap in try/catch to prevent rendering issues if this fails
                 try {
-                    this.updateShaderRects(true); // Force update for major changes
+                    // Only force update rect count on scheduled intervals, not during glitches
+                    const forceUpdate = !isInGlitch && this.accumulatedShaderRectTime >= this.shaderRectChangeInterval;
+                    
+                    // Update the shader rectangles
+                    this.updateShaderRects(forceUpdate);
+                    
+                    // Reset timer only for scheduled updates, not glitches
+                    if (forceUpdate) {
+                        this.accumulatedShaderRectTime = 0;
+                    }
                 } catch (e) {
                     console.error("Error in shader rect update:", e);
                 }
-                this.accumulatedShaderRectTime = 0;
             } else {
                 // Continuous updates for constant movement
                 // Do this almost every frame for more dynamic movement
@@ -698,13 +807,13 @@ class FlockingExperience extends Experience {
                         const rects = [];
                         
                         // Get current orientation using our orientation manager
-                        // This handles both lingering on orientations and occasional glitches
+                        // This handles both dominant orientation and brief glitches
                         const useHorizontalBars = this.getCurrentOrientation(false);
                         
                         // Only update if we have a valid shader rect pipeline
                         try {
                             // Update with continuous movement
-                            this.createGoldenRatioBars(rects, useHorizontalBars);
+                            this.createGoldenRatioBars(rects, useHorizontalBars, false);
                             
                             if (rects.length > 0) {
                                 this.shaderRectPipeline.updateRectangles(rects);
@@ -937,20 +1046,45 @@ class FlockingExperience extends Experience {
         const now = performance.now();
         const state = this.orientationState;
         
+        // Check if we're currently in the middle of a very brief glitch
+        // A glitch is active if lastGlitchEnd is in the future
+        if (state.lastGlitchEnd > now) {
+            // During a glitch, ALWAYS return the opposite orientation
+            return !state.isHorizontal;
+        }
+        
+        // Update chaos seed periodically for unpredictable patterns
+        if (now - state.lastSeedChange > state.seedChangePeriod) {
+            state.chaosSeed = Math.random();
+            state.lastSeedChange = now;
+            // Also randomly change the seed change period itself for even more chaos
+            state.seedChangePeriod = 3000 + Math.random() * 2000;
+        }
+        
         // For forced updates (major changes), consider changing the base orientation
         if (forceUpdate) {
             // Only change base orientation if enough time has passed (at least one full period)
             const timeSinceLastMajorChange = now - state.lastMajorChange;
             
+            // Higher chance to switch if it's been a long time since last change
+            // This ensures we don't get stuck in one orientation
+            const baseProb = timeSinceLastMajorChange > state.periodDuration * 2 ? 0.8 : 0.5;
+            
             if (timeSinceLastMajorChange > state.periodDuration) {
-                // 30% chance to switch orientation on major updates
-                if (Math.random() < 0.3) {
+                // Use golden ratio to determine probability of switch - more naturalistic
+                const switchProbability = baseProb * (1 + this.phi * Math.sin(now * 0.0001)) / 2;
+                
+                if (Math.random() < switchProbability || state.orientationChangeOverdue) {
+                    // Change the dominant orientation
                     state.isHorizontal = !state.isHorizontal;
                     state.lastMajorChange = now;
+                    state.orientationChangeOverdue = false;
+                    
+                    console.log(`Orientation changed to ${state.isHorizontal ? 'horizontal' : 'vertical'}`);
                 }
             }
             
-            // Return the base orientation (no glitches during forced updates)
+            // Return the base orientation
             return state.isHorizontal;
         }
         
@@ -961,50 +1095,145 @@ class FlockingExperience extends Experience {
         
         // If we've entered a new period, potentially change the base orientation
         if (periodIndex > previousPeriodIndex) {
-            // 40% chance to change orientation when entering a new period
-            if (Math.random() < 0.4) {
+            // Higher base probability for orientation changes
+            // Especially if it's been multiple periods since last change
+            const periodsElapsed = periodIndex - previousPeriodIndex;
+            const baseProb = periodsElapsed > 2 ? 0.9 : 0.65;
+            
+            // Use golden ratio to determine probability - more naturalistic rhythm
+            const switchProbability = baseProb * (1 + this.phi * Math.sin(now * 0.0001)) / 2;
+            
+            if (Math.random() < switchProbability || state.orientationChangeOverdue) {
+                // Change the dominant orientation
                 state.isHorizontal = !state.isHorizontal;
                 state.lastMajorChange = now;
+                state.orientationChangeOverdue = false;
+                
+                console.log(`Orientation changed to ${state.isHorizontal ? 'horizontal' : 'vertical'}`);
             } else {
                 // Even if we don't change orientation, update the lastMajorChange time
                 // to prevent checking again until next period
                 state.lastMajorChange = now;
+                
+                // If we've gone too many periods without a change, force one next time
+                if (periodsElapsed >= 3) {
+                    state.orientationChangeOverdue = true;
+                    console.log("Orientation change flagged as overdue");
+                }
             }
         }
         
-        // Check if we're currently in the middle of a glitch
-        // Fix: ensure the glitch end time is actually in the future
-        const currentGlitchEndTime = state.lastGlitchEnd;
-        if (currentGlitchEndTime > now) {
-            // We're in an active glitch period - return opposite orientation
-            return !state.isHorizontal;
+        // CHAOTIC GLITCH TIMING LOGIC
+        
+        // Check if we're in a glitch cluster mode (multiple glitches in quick succession)
+        if (state.glitchClusterActive && now < state.glitchClusterEnd) {
+            // In cluster mode, higher probability of glitches
+            if (state.remainingClusterGlitches > 0 && now > state.shortCooldownEnd) {
+                // Create a rhythmic yet chaotic pattern within the cluster
+                const clusterPulse = Math.sin(now * 0.01 * state.chaosSeed) * 0.5 + 0.5;
+                if (Math.random() < 0.15 * clusterPulse) {
+                    // Trigger another glitch in the cluster - use config duration as the base
+                    // Scale random component by the configured duration
+                    const durationBase = state.glitchDuration;
+                    const randomComponent = (durationBase * 0.6) * Math.random(); // Random component up to 60% of base duration
+                    const glitchDuration = durationBase * 0.7 + randomComponent; // 70-130% of configured duration
+                    
+                    state.lastGlitchEnd = now + glitchDuration;
+                    state.remainingClusterGlitches--;
+                    
+                    // Short cooldown between cluster glitches scales with glitch duration
+                    state.shortCooldownEnd = now + glitchDuration + (durationBase * 0.5) + (durationBase * Math.random());
+                    
+                    // Return opposite orientation during this glitch
+                    return !state.isHorizontal;
+                }
+            } else if (state.remainingClusterGlitches <= 0) {
+                // End of cluster, reset cluster state
+                state.glitchClusterActive = false;
+                // Set a medium cooldown before next possible glitch
+                state.mediumCooldownEnd = now + 1000 + Math.random() * 1500;
+            }
+        } else if (!state.glitchClusterActive) {
+            // Check if we should start a new glitch cluster - scale by config probability
+            // Higher probability values lead to more frequent clusters
+            const clusterChance = state.glitchClusterChance * (state.glitchProbability / 0.001) / 60; // Scale by config probability
+            if (now > state.longCooldownEnd && Math.random() < clusterChance) {
+                // Start a new glitch cluster
+                state.glitchClusterActive = true;
+                state.remainingClusterGlitches = 1 + Math.floor(Math.random() * state.maxClusterGlitches);
+                state.glitchClusterEnd = now + 500 + Math.random() * 1000; // Cluster lasts 0.5-1.5 seconds
+                state.longCooldownEnd = now + 3000 + Math.random() * 4000; // Long cooldown after clusters (3-7 seconds)
+            }
         }
         
-        // Calculate if we should start a new glitch
-        // Only when we're not already in a glitch period
-        
-        // Fix: Use a more robust time-based random seed approach
-        // Use the current second as seed, with a prime multiplier for better distribution
-        const seconds = Math.floor(now / 1000);
-        const glitchSeed = seconds * 31; // Prime number multiplier
-        const glitchRandom = Math.abs(Math.sin(glitchSeed)) * 0.99; // 0-0.99 range
-        
-        // Determine if we should be in a glitch state (2% chance per second)
-        const shouldGlitch = glitchRandom < 0.02;
-        
-        // Don't allow glitches too close to each other (at least 7 seconds between)
-        // Or too close to a major orientation change (at least 4 seconds after)
-        const timeSinceLastGlitch = now - state.lastGlitchEnd;
-        const timeSinceLastMajorChange = now - state.lastMajorChange;
-        const canGlitch = timeSinceLastGlitch > 7000 && timeSinceLastMajorChange > 4000;
-        
-        // If we should start a new glitch
-        if (shouldGlitch && canGlitch) {
-            // Set when the current glitch will end
-            state.lastGlitchEnd = now + state.glitchDuration;
+        // Check for regular isolated glitches outside of clusters
+        if (!state.glitchClusterActive && now > state.mediumCooldownEnd) {
+            // Create chaotic yet aesthetically pleasing timing using multiple layers
             
-            // Return the opposite orientation
-            return !state.isHorizontal;
+            // Layer 1: Basic probability directly scales with configuration value
+            const baseLayer = state.glitchProbability / 60; // Convert to per-frame probability
+            
+            // Layer 2: Multiple oscillations at different irrational frequencies
+            const oscillation1 = (Math.sin(now * 0.00027) * 0.5 + 0.5); // ~23 second cycle
+            const oscillation2 = (Math.sin(now * 0.00041) * 0.5 + 0.5); // ~15 second cycle
+            const oscillation3 = (Math.sin(now * 0.00069) * 0.5 + 0.5); // ~9 second cycle
+            
+            // Layer 3: Use selected offsets from our arrays to create irregular patterns
+            // Cycle through our offset arrays in different orders
+            let offsetIndex = (Math.floor(now / 111) % state.goldenRatioOffsets.length);
+            let fibIndex = (Math.floor(now / 173) % state.fibonacciOffsets.length);
+            let primeIndex = (Math.floor(now / 137) % state.primeOffsets.length);
+            
+            // Get values from each array
+            const goldenOffset = state.goldenRatioOffsets[offsetIndex];
+            const fibOffset = state.fibonacciOffsets[fibIndex];
+            const primeOffset = state.primeOffsets[primeIndex];
+            
+            // Combine the three offsets in a non-linear way
+            const combinedOffset = (goldenOffset * fibOffset + primeOffset) / (1 + goldenOffset); 
+            
+            // Layer 4: Add phase shifting based on our chaos seed
+            const phaseShift = Math.sin(now * 0.0002 * state.chaosSeed + combinedOffset * Math.PI * 2);
+            
+            // Combine all layers into a final probability
+            // Weight oscillations differently for complex, unpredictable patterns
+            const finalProbability = baseLayer * 
+                (oscillation1 * 0.4 + oscillation2 * 0.3 + oscillation3 * 0.3) * 
+                (0.7 + phaseShift * 0.3) * 
+                (0.8 + combinedOffset * 0.4);
+            
+            // Add "dry spell" and "active period" patterns - long stretches with different behaviors
+            const longCycle = Math.sin(now * 0.0001); // Very slow cycle (~63 second period)
+            const activeMultiplier = longCycle > 0 ? 1.5 : 0.5; // More active in positive half of cycle
+            
+            // Final chaotic probability that still has aesthetic rhythm
+            if (Math.random() < finalProbability * activeMultiplier) {
+                // Check there's been enough time since the last glitch
+                const timeSinceLastGlitch = now - state.lastGlitchEnd;
+                const timeSinceLastMajorChange = now - state.lastMajorChange;
+                
+                // Allow glitches if enough time has passed
+                if (timeSinceLastGlitch > 400 && timeSinceLastMajorChange > 400) {
+                    // Variable glitch duration based on config value
+                    const durationBase = state.glitchDuration;
+                    const randomComponent = (durationBase * 0.5) * Math.random(); // Random component up to 50% of base
+                    let glitchDuration = durationBase * 0.7 + randomComponent; // 70-120% of configured duration
+                    
+                    // Small chance (5%) of slightly longer glitches
+                    if (Math.random() < 0.05) {
+                        glitchDuration = durationBase * 2 + durationBase * Math.random(); // 200-300% of configured duration
+                    }
+                    
+                    // Set when the current glitch will end
+                    state.lastGlitchEnd = now + glitchDuration;
+                    
+                    // Set a short cooldown period that scales with duration
+                    state.shortCooldownEnd = now + glitchDuration + durationBase * 6 + durationBase * 8 * Math.random();
+                    
+                    // Return opposite orientation for a brief moment
+                    return !state.isHorizontal;
+                }
+            }
         }
         
         // Otherwise return the base orientation

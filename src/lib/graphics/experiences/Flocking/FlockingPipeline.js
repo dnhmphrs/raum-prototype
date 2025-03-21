@@ -415,7 +415,7 @@ export default class FlockingPipeline extends Pipeline {
             depthStencil: {
                 format: 'depth24plus',
                 depthWriteEnabled: true,
-                depthCompare: 'less'
+                depthCompare: 'less-equal'
             }
         });
 
@@ -443,7 +443,7 @@ export default class FlockingPipeline extends Pipeline {
             depthStencil: {
                 format: 'depth24plus',
                 depthWriteEnabled: true,
-                depthCompare: 'less'
+                depthCompare: 'less-equal'
             }
         });
 
@@ -515,7 +515,7 @@ export default class FlockingPipeline extends Pipeline {
             depthStencil: {
                 format: 'depth24plus',
                 depthWriteEnabled: true,
-                depthCompare: 'less'
+                depthCompare: 'less-equal'
             }
         });
 
@@ -707,6 +707,10 @@ export default class FlockingPipeline extends Pipeline {
 
         const phaseArray = new Float32Array(initialPhases.flat());
         this.device.queue.writeBuffer(this.phaseBuffer, 0, phaseArray);
+        
+        // Apply performance mode to ensure smoother rendering
+        // This prevents birds from potentially disappearing due to performance issues
+        this.updatePerformanceMode(true);
     }
 
     initializePredatorBuffers(initialPredatorPosition, initialPredatorVelocity) {
