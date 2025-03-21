@@ -186,9 +186,18 @@ fn vertex_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
 fn fragment_main(@location(0) fragPos: vec2<f32>) -> @location(0) vec4<f32> {
     let uv = (fragPos + 1.0) * 0.5;
     
-    // Smoother gradient base
-    let bottomColor = vec3<f32>(0.05, 0.05, 0.980);
-    let topColor = vec3<f32>(0.380, 0.451, 0.702);
+    // Define named colors
+    let strongBlue: vec3<f32> = vec3<f32>(0.05, 0.05, 0.980);         // Strong Blue
+    let steelBlue: vec3<f32> = vec3<f32>(0.380, 0.451, 0.702);        // Steel Blue
+    let softPink: vec3<f32> = vec3<f32>(1.0, 0.4, 0.7);      
+    let dustyBlue: vec3<f32> = vec3<f32>(0.357, 0.502, 0.741);   // dusty mid blue
+    let softPeach: vec3<f32> = vec3<f32>(1.0, 0.678, 0.678);     // light pinkish-peach
+            // Soft Pink
+
+    // Assign top and bottom gradient colors
+    let bottomColor: vec3<f32> = softPeach;
+    let topColor: vec3<f32> = softPink;
+
     
     // Flowing gradient
     let t = uv.y + sin(uv.x * 2.5 + time * 0.002) * 0.0004 +
