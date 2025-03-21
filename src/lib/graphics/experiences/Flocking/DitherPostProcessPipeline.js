@@ -16,14 +16,9 @@ export default class DitherPostProcessPipeline extends Pipeline {
         // Shader code
         this.ditherShaderCode = null;
         
-        // Settings for dithering effect - increased values for more pronounced effect
+        // Settings buffer for dithering effect
         this.settingsBuffer = null;
-        this.settings = {
-            patternScale: 1.0,       // Higher value = smaller pixels, more dither pattern
-            thresholdOffset: -0.05,   // Negative offset makes more pixels dark (bolder text)
-            noiseIntensity: 0.1,     // More noise for rougher edges
-            colorReduction: 3.0,      // Fewer colors for more pronounced banding
-        };
+        this.settings = null; // Will be initialized by setSettings
         
         // Track whether we're properly initialized
         this.isInitialized = false;
@@ -37,8 +32,8 @@ export default class DitherPostProcessPipeline extends Pipeline {
             label: 'Dither Settings Buffer'
         });
         
-        // Initialize settings
-        this.updateSettings();
+        // Don't update settings here - they'll be set from FlockingExperience
+        // this.updateSettings();
         
         // Use the built-in shader code directly
         this.ditherShaderCode = this.getShaderCode();
@@ -108,18 +103,44 @@ export default class DitherPostProcessPipeline extends Pipeline {
     }
     
     updateSettings() {
+        // Create settings object if it doesn't exist
+        if (!this.settings) {
+            this.settings = {
+                patternScale: 1.0,
+                thresholdOffset: -0.05,
+                noiseIntensity: 0.08,
+                colorReduction: 2.0
+            };
+        }
+        
+        // Ensure buffer exists
+        if (!this.settingsBuffer) {
+            console.warn("Cannot update dither settings: buffer not initialized");
+            return;
+        }
+            
         // Update the dither settings buffer
-        const settingsArray = new Float32Array([
-            this.settings.patternScale,
-            this.settings.thresholdOffset,
-            this.settings.noiseIntensity,
-            this.settings.colorReduction
-        ]);
-        this.device.queue.writeBuffer(this.settingsBuffer, 0, settingsArray);
+        try {
+            const settingsArray = new Float32Array([
+                this.settings.patternScale,
+                this.settings.thresholdOffset,
+                this.settings.noiseIntensity,
+                this.settings.colorReduction
+            ]);
+            console.log("Updating dither settings:", JSON.stringify(this.settings));
+            this.device.queue.writeBuffer(this.settingsBuffer, 0, settingsArray);
+        } catch (error) {
+            console.error("Error updating dither settings buffer:", error);
+        }
     }
     
     // Method to update settings from outside
     setSettings(patternScale, thresholdOffset, noiseIntensity, colorReduction) {
+        // Initialize settings object if it doesn't exist
+        if (!this.settings) {
+            this.settings = {};
+        }
+        
         this.settings.patternScale = patternScale;
         this.settings.thresholdOffset = thresholdOffset;
         this.settings.noiseIntensity = noiseIntensity;
@@ -143,7 +164,20 @@ export default class DitherPostProcessPipeline extends Pipeline {
     // Apply the dithering effect to the source texture and output to the destination texture
     render(commandEncoder, sourceTextureView, destinationTextureView) {
         if (!this.isInitialized || !this.renderPipeline) {
+            console.warn("Cannot render dither effect: pipeline not initialized");
             return;
+        }
+        
+        // Ensure settings are updated before rendering
+        if (!this.settings) {
+            console.warn("Dither settings not initialized, using defaults");
+            this.settings = {
+                patternScale: 1.0,
+                thresholdOffset: -0.05,
+                noiseIntensity: 0.08,
+                colorReduction: 2.0
+            };
+            this.updateSettings();
         }
         
         // Create bind group specifically for this texture view
@@ -176,6 +210,11 @@ export default class DitherPostProcessPipeline extends Pipeline {
         // Update stored dimensions
         this.canvasWidth = Math.max(1, width);
         this.canvasHeight = Math.max(1, height);
+        
+        // Important: Update the settings for proper pixelation based on new dimensions
+        if (this.settings && this.settingsBuffer) {
+            this.updateSettings();
+        }
     }
     
     cleanup() {

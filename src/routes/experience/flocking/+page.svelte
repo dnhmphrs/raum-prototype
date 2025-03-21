@@ -43,12 +43,26 @@
   // Function to update dither settings
   function updateDitherSettings() {
     if (engine && engine.experience) {
+      console.log("Sending settings to engine:", JSON.stringify(ditherSettings));
       engine.experience.updateDitherEffectSettings(
         ditherSettings.patternScale,
         ditherSettings.thresholdOffset,
         ditherSettings.noiseIntensity,
         ditherSettings.colorReduction
       );
+    }
+  }
+  
+  // Function to sync UI settings with engine settings
+  function syncSettingsFromEngine() {
+    if (engine && engine.experience && engine.experience.ditherSettings) {
+      const engineSettings = engine.experience.ditherSettings;
+      console.log("Syncing from engine settings:", JSON.stringify(engineSettings));
+      ditherEnabled = engineSettings.enabled;
+      ditherSettings.patternScale = engineSettings.patternScale;
+      ditherSettings.thresholdOffset = engineSettings.thresholdOffset;
+      ditherSettings.noiseIntensity = engineSettings.noiseIntensity;
+      ditherSettings.colorReduction = engineSettings.colorReduction;
     }
   }
   
@@ -68,17 +82,12 @@
     loadingProgress = 60;
     await engine.start(FlockingExperience, getCameraConfig('Flocking'));
     
-    // Initialize dither effect with our settings
-    if (engine.experience) {
-      // Apply our initial settings
-      engine.experience.toggleDitherEffect(ditherEnabled);
-      engine.experience.updateDitherEffectSettings(
-        ditherSettings.patternScale,
-        ditherSettings.thresholdOffset,
-        ditherSettings.noiseIntensity,
-        ditherSettings.colorReduction
-      );
-    }
+    // Sync settings from engine to UI to ensure consistency
+    syncSettingsFromEngine();
+    
+    // Apply our potentially modified settings back to the engine
+    engine.experience.toggleDitherEffect(ditherEnabled);
+    updateDitherSettings();
     
     loadingMessage = "Finalizing...";
     loadingProgress = 90;

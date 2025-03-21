@@ -139,9 +139,9 @@ class FlockingExperience extends Experience {
 
         // Dither effect settings - optimized for extreme pixelation
         this.ditherSettings = {
-            patternScale: 1.0,       // Controls pixel size (lower = larger pixels)
+            patternScale: 2.0,       // Controls pixel size (lower = larger pixels)
             thresholdOffset: -0.05,   // Slight negative offset for stronger contrast
-            noiseIntensity: 0.08,     // Just a bit of noise to break up patterns
+            noiseIntensity: 0.05,     // Just a bit of noise to break up patterns
             colorReduction: 2.0,      // Very low value for extreme color banding 
             enabled: true             // Enabled by default
         };
@@ -158,6 +158,16 @@ class FlockingExperience extends Experience {
     }
 
     async initialize() {
+        // Get the canvas dimensions properly before initializing pipelines
+        const canvasWidth = this.canvas ? this.canvas.width : 800;
+        const canvasHeight = this.canvas ? this.canvas.height : 600;
+        
+        // Ensure viewport buffer has the correct dimensions from the start
+        if (this.resourceManager && this.resourceManager.getViewportBuffer()) {
+            const viewportArray = new Float32Array([canvasWidth, canvasHeight]);
+            this.device.queue.writeBuffer(this.resourceManager.getViewportBuffer(), 0, viewportArray);
+        }
+
         // Initialize the FlockingPipeline first
         await this.pipeline.initialize();
         
@@ -169,7 +179,27 @@ class FlockingExperience extends Experience {
         // Create intermediate render textures for post-processing
         this.createPostProcessingTextures();
 
-        // Apply initial dither settings
+        // Explicitly update the viewport dimensions in all pipelines
+        if (this.pipeline) {
+            this.pipeline.updateViewportDimensions(canvasWidth, canvasHeight);
+        }
+        
+        if (this.shaderRectPipeline) {
+            this.shaderRectPipeline.updateViewportDimensions(canvasWidth, canvasHeight);
+        }
+        
+        if (this.ditherPostProcessPipeline) {
+            this.ditherPostProcessPipeline.updateViewportDimensions(canvasWidth, canvasHeight);
+        }
+        
+        if (this.textOverlayPipeline) {
+            this.textOverlayPipeline.updateViewportDimensions(canvasWidth, canvasHeight);
+        }
+
+        // Wait a small delay to ensure the dither pipeline is fully initialized
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Apply dither settings immediately after initialization to ensure consistency
         this.updateDitherSettings();
 
         // Generate initial positions and velocities for birds
@@ -238,13 +268,27 @@ class FlockingExperience extends Experience {
     }
 
     updateDitherSettings() {
-        if (this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
+        // Validate the dither post-process pipeline is available and initialized
+        if (!this.ditherPostProcessPipeline) {
+            console.warn("Cannot update dither settings: dither post-process pipeline not available");
+            return;
+        }
+        
+        if (!this.ditherPostProcessPipeline.isInitialized) {
+            console.warn("Cannot update dither settings: dither post-process pipeline not initialized");
+            return;
+        }
+        
+        // Update the settings in the pipeline
+        try {
             this.ditherPostProcessPipeline.setSettings(
                 this.ditherSettings.patternScale,
                 this.ditherSettings.thresholdOffset,
                 this.ditherSettings.noiseIntensity,
                 this.ditherSettings.colorReduction
             );
+        } catch (error) {
+            console.error("Error updating dither settings:", error);
         }
     }
 
@@ -760,7 +804,22 @@ class FlockingExperience extends Experience {
 
             // 5. Apply post-processing dither effect if enabled
             if (this.ditherSettings.enabled && this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
-                this.ditherPostProcessPipeline.render(commandEncoder, this.intermediateTextureView, textureView);
+                try {
+                    // Always update settings when rendering to ensure they're current
+                    this.updateDitherSettings();
+                    
+                    // Render with the dither effect
+                    this.ditherPostProcessPipeline.render(commandEncoder, this.intermediateTextureView, textureView);
+                    
+                    // Log successful render for debugging
+                    if (this.frameCount % 60 === 0) {  // Log once every ~second
+                        console.log("Applied dither effect with settings:", JSON.stringify(this.ditherSettings));
+                    }
+                } catch (error) {
+                    console.error("Error applying dither effect:", error);
+                    // Fall back to non-dithered rendering if the effect fails
+                    this.ditherSettings.enabled = false;
+                }
             }
 
             // Don't render text overlay again if dithering is enabled
@@ -920,15 +979,34 @@ class FlockingExperience extends Experience {
 
     // Method to toggle the dither effect on/off
     toggleDitherEffect(enabled) {
+        // Simply update the enabled flag
+        if (typeof enabled !== 'boolean') {
+            console.warn("toggleDitherEffect expects a boolean parameter, received:", typeof enabled);
+            return;
+        }
+        
         this.ditherSettings.enabled = enabled;
+        
+        // Log the state change for debugging
+        console.log(`Dither effect ${enabled ? 'enabled' : 'disabled'}`);
     }
 
     // Method to update dither effect settings
     updateDitherEffectSettings(patternScale, thresholdOffset, noiseIntensity, colorReduction) {
+        // Log the old settings for debugging
+        const oldSettings = { ...this.ditherSettings };
+        console.log("Old dither settings:", JSON.stringify(oldSettings));
+        
+        // Update the settings
         this.ditherSettings.patternScale = patternScale;
         this.ditherSettings.thresholdOffset = thresholdOffset;
         this.ditherSettings.noiseIntensity = noiseIntensity;
         this.ditherSettings.colorReduction = colorReduction;
+        
+        // Log the new settings
+        console.log("New dither settings:", JSON.stringify(this.ditherSettings));
+        
+        // Apply the updated settings to the pipeline
         this.updateDitherSettings();
     }
 
