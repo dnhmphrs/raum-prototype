@@ -17,11 +17,12 @@
   // Dither effect state
   let ditherEnabled = true;
   let showControls = false;
+  // see ditherSettings in the FlockingExperience.js file for actual values - these are placeholder to prevent build errors
   let ditherSettings = {
-    patternScale: 1.0,       // Controls pixel size (lower = larger pixels)
-    thresholdOffset: -0.05,   // Slight negative offset for stronger contrast
-    noiseIntensity: 0.08,     // Just a bit of noise to break up patterns
-    colorReduction: 2.0,      // Very low value for extreme color banding
+    patternScale: 0.0,
+    thresholdOffset: 0.00,
+    noiseIntensity: 0.0,
+    colorReduction: 0.0,
   };
   
   // Experience accent color from store
