@@ -204,9 +204,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     </main>
     
     <footer>
-      <div class="footer-text">
         [2025] <a href="https://aufbau.io" class="company-link">AUFBAU</a> WEBGPU EXPERIMENTS // SYSTEM V1.0
-      </div>
     </footer>
   </div>
 </div>
@@ -262,7 +260,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .terminal-header {
-    background-color: var(--primary);
+    background-color: var(--light-black);
     border-bottom: 1px solid var(--home-accent);
     padding: 0.5rem;
     display: flex;
@@ -424,7 +422,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .preview-info {
     padding: 1rem;
-    background-color: var(--primary);
+    background-color: var(--light-black);
     border-top: 1px solid var(--accent, var(--home-accent));
     min-height: 100px;
     display: flex;
@@ -457,7 +455,6 @@ o---o---o---o   o---o---o---o   o---o---o---o
     margin-top: 2rem;
     text-align: center;
     font-size: 0.8rem;
-    opacity: 0.8;
     letter-spacing: 1px;
   }
   
@@ -519,6 +516,8 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .company-link {
     color: var(--home-accent);
+    background-color: var(--light-black);
+    padding: 0.2rem 0.5rem;
     text-decoration: none;
     position: relative;
     transition: all 0.3s ease;
