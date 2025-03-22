@@ -318,15 +318,15 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .experience-item {
     border: 1px solid var(--accent, var(--home-accent));
-    /* background-color: var(--home-background-70);
-    transition: all 0.3s ease; */
+    background-color: var(--light-black);
+    transition: all 0.3s ease; 
     animation: fadeIn 0.5s ease forwards;
     animation-delay: var(--delay);
     opacity: 0;
   }
   
   .experience-item:hover {
-    background-color: var(--light-black);
+    background-color: transparent;
     transform: translateX(5px);
     box-shadow: -5px 0 0 var(--accent, var(--home-accent));
   }
@@ -363,7 +363,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .preview-panel {
     border: 1px solid var(--home-accent);
-    background-color: var(--light-black);
+    /* background-color: var(--light-black); */
     height: 350px;
     position: relative;
     overflow: hidden;
