@@ -5,14 +5,14 @@ const defaultDitherSettings = {
   home: {
     enabled: true,
     patternScale: 3.0,
-    thresholdOffset: 0.08,
+    thresholdOffset: -0.05,
     noiseIntensity: 0.15,
     colorReduction: 5.0
   },
   flocking: {
     enabled: true,
     patternScale: 2.0,
-    thresholdOffset: 0.05,
+    thresholdOffset: -0.05,
     noiseIntensity: 0.08, 
     colorReduction: 2.0
   }

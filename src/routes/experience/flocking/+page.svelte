@@ -98,7 +98,7 @@
   <BackButton />
   
   <!-- Use our new component instead of inline controls -->
-  <DitherControls {engine} />
+  <DitherControls {engine} customStyle="top: 80px; right: 20px;" />
 </div>
 
 <style>

@@ -82,6 +82,10 @@
     <canvas bind:this={canvas}></canvas>
   </div>
 
+  <!-- Add DitherControls component outside the container, positioned at top right -->
+  <DitherControls {engine} customStyle="top: 80px; right: 20px;" />
+
+  {#if $showUI}
   <div class="container {mounted && backgroundLoaded ? 'loaded' : ''}">
     <header>
       <div class="terminal">
@@ -102,9 +106,6 @@
         </div>
       </div>
     </header>
-
-    <!-- Add DitherControls component for the home page -->
-    <DitherControls {engine} customStyle="top: 80px; right: 20px;" />
 
     <main>
       <div class="experience-grid">
@@ -207,6 +208,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
         [2025] <a href="https://aufbau.io" class="company-link">AUFBAU</a> WEBGPU EXPERIMENTS // SYSTEM V1.0
     </footer>
   </div>
+  {/if}
 </div>
 
 <style>
@@ -244,7 +246,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     padding: 2rem;
     opacity: 0;
     transition: opacity 0.5s ease;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(5px);
     border: 1px solid var(--home-primary);
   }
   
@@ -288,7 +290,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .terminal-body {
     padding: 1rem;
-    background-color: var(--home-background);
+    /* background-color: var(--home-background-70); */
     color: var(--home-accent);
     font-family: 'Courier New', monospace;
   }
@@ -315,15 +317,15 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .experience-item {
     border: 1px solid var(--accent, var(--home-accent));
-    background-color: var(--home-background-80);
-    transition: all 0.3s ease;
+    /* background-color: var(--home-background-70);
+    transition: all 0.3s ease; */
     animation: fadeIn 0.5s ease forwards;
     animation-delay: var(--delay);
     opacity: 0;
   }
   
   .experience-item:hover {
-    background-color: var(--home-background-50);
+    background-color: var(--home-primary-50);
     transform: translateX(5px);
     box-shadow: -5px 0 0 var(--accent, var(--home-accent));
   }
@@ -345,7 +347,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   .experience-name {
     font-weight: bold;
     letter-spacing: 2px;
-    color: var(--home-primary);
+    color: inherit;
   }
   
   .experience-arrow {
@@ -377,7 +379,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     flex: 1;
     position: relative;
     overflow: hidden;
-    background-color: var(--home-background-80);
+    /* background-color: var(--home-background-70); */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -451,7 +453,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     align-items: center;
     height: 100%;
     width: 100%;
-    background-color: var(--home-background-80);
+    /* background-color: var(--home-background-70); */
   }
   
   footer {

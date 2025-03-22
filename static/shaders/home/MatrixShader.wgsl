@@ -375,7 +375,7 @@ fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     color += noise;
     
     // Set the background color to #f0f0f0 (convert from hex to float: 240/255 = 0.94)
-    let background_color = vec3<f32>(0.94, 0.94, 0.94);
+    let background_color = vec3<f32>(0.97, 0.97, 0.97);
     
     // Final output with white background - invert the effect by subtracting color from white background
     return vec4<f32>(background_color - color, 1.0);
