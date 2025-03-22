@@ -325,7 +325,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .experience-item:hover {
-    background-color: var(--home-primary-50);
+    background-color: var(--light-black);
     transform: translateX(5px);
     box-shadow: -5px 0 0 var(--accent, var(--home-accent));
   }
@@ -379,7 +379,8 @@ o---o---o---o   o---o---o---o   o---o---o---o
     flex: 1;
     position: relative;
     overflow: hidden;
-    /* background-color: var(--home-background-70); */
+    background-color: var(--light-black);
+    backdrop-filter: invert(100%);
     display: flex;
     justify-content: center;
     align-items: center;

@@ -169,7 +169,7 @@ fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     let glitch_grid_size = grid_size * glitch_resolution_multiplier;
     
     // Create digital rain effect - offset initial time to fill screen
-    let rain_speed = 0.25;
+    let rain_speed = 0.125;
     let initial_offset = 3.0; // Increased initial offset to better fill screen
     let rain_offset = (time + initial_offset) * rain_speed;
     
