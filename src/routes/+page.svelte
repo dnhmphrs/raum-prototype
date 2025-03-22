@@ -3,6 +3,9 @@
   import Engine from '$lib/graphics/Engine.js';
   import HomeBackgroundExperience from '$lib/graphics/experiences/Home/HomeBackgroundExperience.js';
   import { experiences } from '$lib/store/experienceStore.js';
+  import { showUI } from '$lib/store/store';
+  import { setCurrentDitherSettings } from '$lib/store/ditherStore.js';
+  import DitherControls from '$lib/components/DitherControls.svelte';
   // import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   let selectedExp = null;
@@ -40,6 +43,9 @@
     // Initialize WebGPU background
     if (canvas && navigator.gpu) {
       try {
+        // Make sure the home experience's dither settings are current
+        setCurrentDitherSettings('home');
+        
         // Initialize the engine with the canvas
         engine = new Engine(canvas);
         
@@ -71,56 +77,60 @@
   <meta name="description" content="A collection of interactive WebGPU experiences" />
 </svelte:head>
 
-<div class="background-canvas">
-  <canvas bind:this={canvas}></canvas>
-</div>
+<div class="page-wrapper">
+  <div class="background-canvas">
+    <canvas bind:this={canvas}></canvas>
+  </div>
 
-<div class="container {mounted && backgroundLoaded ? 'loaded' : ''}">
-  <header>
-    <div class="terminal">
-      <div class="terminal-header">
-        <span class="terminal-title">webgpu_experiences.exe</span>
-        <div class="terminal-buttons">
-          <span class="terminal-button"></span>
-          <span class="terminal-button"></span>
-          <span class="terminal-button"></span>
+  <div class="container {mounted && backgroundLoaded ? 'loaded' : ''}">
+    <header>
+      <div class="terminal">
+        <div class="terminal-header">
+          <span class="terminal-title">webgpu_experiences.exe</span>
+          <div class="terminal-buttons">
+            <span class="terminal-button"></span>
+            <span class="terminal-button"></span>
+            <span class="terminal-button"></span>
+          </div>
+        </div>
+        <div class="terminal-body">
+          <p class="terminal-text">
+            > INITIALIZING WEBGPU EXPERIENCES...<br>
+            > LOADING MODULES...<br>
+            > SYSTEM READY.
+          </p>
         </div>
       </div>
-      <div class="terminal-body">
-        <p class="terminal-text">
-          > INITIALIZING WEBGPU EXPERIENCES...<br>
-          > LOADING MODULES...<br>
-          > SYSTEM READY.
-        </p>
-      </div>
-    </div>
-  </header>
+    </header>
 
-  <main>
-    <div class="experience-grid">
-      {#each $experiences as exp, i}
-        <div 
-          class="experience-item" 
-          on:mouseenter={() => selectedExp = exp}
-          on:mouseleave={() => selectedExp = null}
-          style="--delay: {i * 150}ms; --accent: {exp.color};"
-        >
-          <a href="/experience/{exp.id}" class="experience-link">
-            <span class="experience-index">[{i + 1}]</span>
-            <span class="experience-name">{exp.name}</span>
-            <span class="experience-arrow">→</span>
-          </a>
-        </div>
-      {/each}
-    </div>
-    
-    <div class="preview-panel">
-      {#if selectedExp}
-        <div class="preview-content" style="--accent: {selectedExp.color};">
-          <div class="preview-ascii">
-            {#if selectedExp.id === 'flocking'}
-              <pre class="ascii-art">
-      /^v^\         /^v^\
+    <!-- Add DitherControls component for the home page -->
+    <DitherControls {engine} customStyle="top: 80px; right: 20px;" />
+
+    <main>
+      <div class="experience-grid">
+        {#each $experiences as exp, i}
+          <div 
+            class="experience-item" 
+            on:mouseenter={() => selectedExp = exp}
+            on:mouseleave={() => selectedExp = null}
+            style="--delay: {i * 150}ms; --accent: {exp.color};"
+          >
+            <a href="/experience/{exp.id}" class="experience-link">
+              <span class="experience-index">[{i + 1}]</span>
+              <span class="experience-name">{exp.name}</span>
+              <span class="experience-arrow">→</span>
+            </a>
+          </div>
+        {/each}
+      </div>
+      
+      <div class="preview-panel">
+        {#if selectedExp}
+          <div class="preview-content" style="--accent: {selectedExp.color};">
+            <div class="preview-ascii">
+              {#if selectedExp.id === 'flocking'}
+                <pre class="ascii-art">
+  /^v^\         /^v^\
                           
          /^v^\
                 /^v^\
@@ -128,29 +138,29 @@
         /^v^\
   
   FLOCKING / HUNTING
-              </pre>
-            {:else if selectedExp.id === 'neuralnet'}
-              <pre class="ascii-art">
-  o---o---o       o---o---o       o---o---o
+                </pre>
+              {:else if selectedExp.id === 'neuralnet'}
+                <pre class="ascii-art">
+o---o---o       o---o---o       o---o---o
  /|\ /|\ /|\     /|\ /|\ /|\     /|\ /|\ /|\
 o---o---o---o   o---o---o---o   o---o---o---o
  \|/ \|/ \|/     \|/ \|/ \|/     \|/ \|/ \|/
   o---o---o       o---o---o       o---o---o
   
   NEURAL NET
-              </pre>
-            {:else if selectedExp.id === 'riemann'}
-              <pre class="ascii-art">
-  .-.       .-.       .-.
+                </pre>
+              {:else if selectedExp.id === 'riemann'}
+                <pre class="ascii-art">
+.-.       .-.       .-.
  /   \     /   \     /   \
 (     )---(     )---(     )
  \   /     \   /     \   /
   '-'       '-'       '-'
   
   RIEMANN SURFACES
-              </pre>
-            {:else if selectedExp.id === 'gridcode'}
-              <pre class="ascii-art">
+                </pre>
+              {:else if selectedExp.id === 'gridcode'}
+                <pre class="ascii-art">
    ⬡     ⬡     ⬡     ⬡  
  ⬡     ⬡     ⬡     ⬡     ⬡
    ⬡     ⬡     ⬡     ⬡  
@@ -158,9 +168,9 @@ o---o---o---o   o---o---o---o   o---o---o---o
    ⬡     ⬡     ⬡     ⬡  
   
   GRID CODE
-              </pre>
-            {:else}
-              <pre class="ascii-art">
+                </pre>
+              {:else}
+                <pre class="ascii-art">
   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
   █             █
   █    WEBGPU   █
@@ -168,18 +178,18 @@ o---o---o---o   o---o---o---o   o---o---o---o
   ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
   
   EXPERIENCE
-              </pre>
-            {/if}
-            <div class="scan-line"></div>
+                </pre>
+              {/if}
+              <div class="scan-line"></div>
+            </div>
+            <div class="preview-info">
+              <h2>{selectedExp.name}</h2>
+              <p>{selectedExp.description}</p>
+            </div>
           </div>
-          <div class="preview-info">
-            <h2>{selectedExp.name}</h2>
-            <p>{selectedExp.description}</p>
-          </div>
-        </div>
-      {:else}
-        <div class="preview-placeholder">
-          <pre class="ascii-art placeholder-ascii">
+        {:else}
+          <div class="preview-placeholder">
+            <pre class="ascii-art placeholder-ascii">
 
 
 
@@ -187,17 +197,18 @@ o---o---o---o   o---o---o---o   o---o---o---o
 
 
 
-          </pre>
-        </div>
-      {/if}
-    </div>
-  </main>
-  
-  <footer>
-    <div class="footer-text">
-      [2025] <a href="https://aufbau.io" class="company-link">AUFBAU</a> WEBGPU EXPERIMENTS // SYSTEM V1.0
-    </div>
-  </footer>
+            </pre>
+          </div>
+        {/if}
+      </div>
+    </main>
+    
+    <footer>
+      <div class="footer-text">
+        [2025] <a href="https://aufbau.io" class="company-link">AUFBAU</a> WEBGPU EXPERIMENTS // SYSTEM V1.0
+      </div>
+    </footer>
+  </div>
 </div>
 
 <style>
@@ -208,20 +219,36 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   :global(body) {
     background-color: transparent;
-    color: #00ff00;
+    color: var(--home-accent);
     font-family: 'Courier New', monospace;
     margin: 0;
     padding: 0;
     overflow-x: hidden;
   }
   
+  :root {
+    --home-accent: #D87093; /* Changed to a modern pink (Pale Violet Red) that works well with off-white */
+    --home-accent-shadow: rgba(216, 112, 147, 0.5);
+  }
+  
+  .page-wrapper {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: calc(100vh / 8); /* Reduced padding-top value */
+  }
+  
   .container {
     max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
     padding: 2rem;
     opacity: 0;
     transition: opacity 0.5s ease;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--background-50);
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   }
   
   .loaded {
@@ -229,14 +256,14 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .terminal {
-    border: 1px solid #00ff00;
+    border: 1px solid var(--home-accent);
     margin-bottom: 2rem;
-    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 10px var(--home-accent-shadow);
   }
   
   .terminal-header {
-    background-color: #000;
-    border-bottom: 1px solid #00ff00;
+    background-color: var(--primary);
+    border-bottom: 1px solid var(--home-accent);
     padding: 0.5rem;
     display: flex;
     justify-content: space-between;
@@ -244,27 +271,28 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .terminal-title {
-    color: #00ff00;
+    color: var(--home-accent);
     font-weight: bold;
   }
   
   .terminal-buttons {
     display: flex;
     gap: 5px;
+    color: var(--background);
   }
   
   .terminal-button {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: #333;
-    border: 1px solid #00ff00;
+    background-color: var(--background);
+    border: 1px solid var(--home-accent);
   }
   
   .terminal-body {
     padding: 1rem;
-    background-color: #000;
-    color: #00ff00;
+    background-color: var(--background);
+    color: var(--home-accent);
     font-family: 'Courier New', monospace;
   }
   
@@ -286,8 +314,8 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .experience-item {
-    border: 1px solid var(--accent, #00ff00);
-    background-color: rgba(0, 0, 0, 0.8);
+    border: 1px solid var(--accent, var(--home-accent));
+    background-color: var(--background-80);
     transition: all 0.3s ease;
     animation: fadeIn 0.5s ease forwards;
     animation-delay: var(--delay);
@@ -295,16 +323,16 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .experience-item:hover {
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: var(--background-50);
     transform: translateX(5px);
-    box-shadow: -5px 0 0 var(--accent, #00ff00);
+    box-shadow: -5px 0 0 var(--accent, var(--home-accent));
   }
   
   .experience-link {
     display: flex;
     padding: 1rem;
     text-decoration: none;
-    color: var(--accent, #00ff00);
+    color: var(--accent, var(--home-accent));
     justify-content: space-between;
     align-items: center;
   }
@@ -330,7 +358,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .preview-panel {
-    border: 1px solid #00ff00;
+    border: 1px solid var(--home-accent);
     height: 350px;
     position: relative;
     overflow: hidden;
@@ -348,7 +376,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     flex: 1;
     position: relative;
     overflow: hidden;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: var(--background-80);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -359,7 +387,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .ascii-art {
     font-family: 'Courier New', monospace;
-    color: var(--accent, #00ff00);
+    color: var(--accent, var(--home-accent));
     text-align: center;
     line-height: 1.5;
     margin: 0 auto;
@@ -367,7 +395,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     white-space: pre;
     animation: pulse 3s infinite alternate;
     letter-spacing: 0;
-    text-shadow: 0 0 5px var(--accent, #00ff00);
+    text-shadow: 0 0 5px var(--accent, var(--home-accent));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -376,7 +404,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .placeholder-ascii {
-    color: #00ff00;
+    color: var(--home-accent);
     opacity: 0.7;
     animation: blink 1s step-end infinite;
     font-size: 18px;
@@ -390,14 +418,14 @@ o---o---o---o   o---o---o---o   o---o---o---o
     left: 0;
     right: 0;
     height: 2px;
-    background-color: rgba(0, 255, 0, 0.5);
+    background-color: rgba(216, 112, 147, 0.5);
     animation: scanLine 2s linear infinite;
   }
   
   .preview-info {
     padding: 1rem;
-    background-color: #000;
-    border-top: 1px solid var(--accent, #00ff00);
+    background-color: var(--primary);
+    border-top: 1px solid var(--accent, var(--home-accent));
     min-height: 100px;
     display: flex;
     flex-direction: column;
@@ -405,7 +433,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .preview-info h2 {
     margin: 0 0 0.5rem 0;
-    color: var(--accent, #00ff00);
+    color: var(--accent, var(--home-accent));
   }
   
   .preview-info p {
@@ -413,6 +441,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     font-size: 0.9rem;
     opacity: 0.8;
     flex: 1;
+    color: var(--background);
   }
   
   .preview-placeholder {
@@ -421,7 +450,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     align-items: center;
     height: 100%;
     width: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: var(--background-80);
   }
   
   footer {
@@ -489,7 +518,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .company-link {
-    color: #00ff00;
+    color: var(--home-accent);
     text-decoration: none;
     position: relative;
     transition: all 0.3s ease;

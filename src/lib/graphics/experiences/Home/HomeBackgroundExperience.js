@@ -1,8 +1,8 @@
 import Experience from '../Experience.js';
 import { createFullScreenQuad } from '../../utils/geometryUtils.js';
 import Pipeline from '../../pipelines/Pipeline.js';
-// Remove the direct import
-// import matrixShader from './MatrixShader.wgsl';
+import DitherPostProcessPipeline from '../../pipelines/DitherPostProcessPipeline.js';
+import { homeDitherSettings, setCurrentDitherSettings } from '../../../store/ditherStore.js';
 
 // Simple fallback shader in case the imported one fails
 const FALLBACK_SHADER = `
@@ -30,7 +30,7 @@ fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     let mouse_vector = uv - mouse;
     let mouse_dist = length(mouse_vector);
     let warp_strength = 0.03; // Very subtle warping
-    let warp_radius = 0.3; // Radius of influence
+    let warp_radius = 0.3;    // Radius of influence
     
     // Only apply warping within the radius
     if (mouse_dist < warp_radius) {
@@ -65,10 +65,10 @@ class HomeBackgroundPipeline extends Pipeline {
     
     async initialize() {
         try {
-            // Load shader code
+            // Load the shader code
             this.shaderCode = await this.resourceManager.experiences.homeBackground.loadShader();
             
-            // Create pipeline layout
+            // Create bind group layout
             const bindGroupLayout = this.device.createBindGroupLayout({
                 entries: [
                     {
@@ -143,15 +143,21 @@ class HomeBackgroundPipeline extends Pipeline {
                 entries: [
                     {
                         binding: 0,
-                        resource: { buffer: this.resourceManager.experiences.homeBackground.timeBuffer }
+                        resource: {
+                            buffer: this.resourceManager.experiences.homeBackground.timeBuffer
+                        }
                     },
                     {
                         binding: 1,
-                        resource: { buffer: this.resourceManager.experiences.homeBackground.resolutionBuffer }
+                        resource: {
+                            buffer: this.resourceManager.experiences.homeBackground.resolutionBuffer
+                        }
                     },
                     {
                         binding: 2,
-                        resource: { buffer: this.resourceManager.experiences.homeBackground.mouseBuffer }
+                        resource: {
+                            buffer: this.resourceManager.experiences.homeBackground.mouseBuffer
+                        }
                     }
                 ]
             });
@@ -200,19 +206,17 @@ class HomeBackgroundExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
         
-        // Store device and resource manager
+        // Store references
         this.device = device;
         this.resourceManager = resourceManager;
         
-        // Initialize loading state
+        // Loading state
         this.isLoading = true;
         this.loadingProgress = 0;
         this.loadingMessage = "Initializing...";
         
-        // Create a full-screen quad
+        // Create a full-screen quad geometry
         const { vertices, indices } = createFullScreenQuad();
-        
-        // Store total indices for rendering
         this.totalIndices = indices.length;
         
         // Create vertex buffer
@@ -233,26 +237,26 @@ class HomeBackgroundExperience extends Experience {
         new Uint16Array(this.indexBuffer.getMappedRange()).set(indices);
         this.indexBuffer.unmap();
         
-        // Create separate uniform buffers for each parameter
+        // Create uniform buffers
         this.timeBuffer = this.device.createBuffer({
-            size: 4, // Single float (4 bytes)
+            size: 4, // single float
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             label: 'Time Uniform Buffer'
         });
         
         this.resolutionBuffer = this.device.createBuffer({
-            size: 8, // Two floats (8 bytes)
+            size: 8, // two floats
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             label: 'Resolution Uniform Buffer'
         });
         
         this.mouseBuffer = this.device.createBuffer({
-            size: 8, // Two floats (8 bytes)
+            size: 8, // two floats
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             label: 'Mouse Uniform Buffer'
         });
         
-        // Animation time
+        // Animation/time tracking
         this.time = 0;
         
         // Mouse position (normalized)
@@ -262,33 +266,65 @@ class HomeBackgroundExperience extends Experience {
         if (typeof window !== 'undefined') {
             window.addEventListener('mousemove', this.handleMouseMove.bind(this));
         }
+        
+        // Dither effect settings
+        this.ditherSettings = {
+            enabled: true,
+            patternScale: 1.0,
+            thresholdOffset: -0.05,
+            noiseIntensity: 0.08,
+            colorReduction: 2.0
+        };
+        this.ditherEnabled = true; // convenience flag
+
+        // Make "home" the active store settings
+        setCurrentDitherSettings('home');
+        
+        // Subscribe to the store, but DO NOT re-update the store inside it:
+        this.ditherSettingsUnsubscribe = homeDitherSettings.subscribe((settings) => {
+            // Just copy them locally:
+            this.ditherSettings = { ...settings };
+            this.ditherEnabled = settings.enabled;
+            
+            // If pipeline is ready, update the pipeline's settings (no store writes):
+            if (this.ditherPostProcess && this.ditherPostProcess.isInitialized) {
+                this.ditherPostProcess.setSettings(
+                    settings.patternScale,
+                    settings.thresholdOffset,
+                    settings.noiseIntensity,
+                    settings.colorReduction
+                );
+            }
+        });
+        
+        // For post-processing
+        this.postProcessingTextures = null;
     }
     
     handleMouseMove(event) {
-        // Update mouse position (normalized coordinates)
         if (typeof window !== 'undefined') {
+            // Flip Y for WebGPU coordinate system
             this.mouse.x = event.clientX / window.innerWidth;
-            this.mouse.y = 1.0 - (event.clientY / window.innerHeight); // Flip Y for WebGPU coordinates
+            this.mouse.y = 1.0 - (event.clientY / window.innerHeight);
         }
     }
     
     async loadShader() {
-        // Fetch the shader from the static directory instead of using the imported one
         let shaderCode = FALLBACK_SHADER;
         try {
-            // Skip directory checks and directly try to load the shader file
+            // Try to load MatrixShader.wgsl from /shaders/home
             const response = await fetch('/shaders/home/MatrixShader.wgsl');
             if (response.ok) {
                 shaderCode = await response.text();
             } else {
-                console.warn("Matrix shader not found in static directory, using fallback shader", response.status, response.statusText);
+                console.warn("Matrix shader not found in /shaders/home, using fallback", response.status, response.statusText);
                 
-                // Try loading from the static directory directly
+                // Possibly try /static/shaders/home
                 const staticResponse = await fetch('/static/shaders/home/MatrixShader.wgsl');
                 if (staticResponse.ok) {
                     shaderCode = await staticResponse.text();
                 } else {
-                    console.warn("Matrix shader not found in /static directory either, using fallback shader");
+                    console.warn("Matrix shader not found in /static/shaders/home either, using fallback");
                 }
             }
         } catch (error) {
@@ -302,35 +338,33 @@ class HomeBackgroundExperience extends Experience {
         this.updateLoadingState(true, "Initializing pipeline...", 10);
         
         try {
-            // Register this experience with the resource manager
-            if (this.resourceManager && this.resourceManager.experiences) {
+            // Register with ResourceManager if available
+            if (this.resourceManager?.experiences) {
                 this.resourceManager.experiences.homeBackground = this;
             } else {
                 console.warn("ResourceManager or experiences not available for registration");
             }
             
-            // Create the pipeline
+            // Create + initialize pipeline
             this.pipeline = new HomeBackgroundPipeline(this.device, this.resourceManager);
-            
-            // Initialize the pipeline
             const success = await this.pipeline.initialize();
             if (!success) {
                 this.updateLoadingState(true, "Failed to initialize pipeline", 100);
                 return false;
             }
-            
             this.updateLoadingState(true, "Pipeline initialized", 50);
             
-            // Set up camera target to center of grid without overriding position
+            // Create post-processing pipeline (dither)
+            this.updateLoadingState(true, "Creating post-processing pipeline...", 60);
+            await this.createPostProcessingPipeline();
+            
+            // Set up camera if available
             this.updateLoadingState(true, "Configuring camera...", 90);
-            if (this.resourceManager && this.resourceManager.camera) {
-                // Look at the center of the grid (0,0,0)
+            if (this.resourceManager?.camera) {
                 this.resourceManager.camera.target = [0, 0, 0];
                 this.resourceManager.camera.updateView();
                 
-                // Set up camera controller if available
                 if (this.resourceManager.cameraController) {
-                    // Set the target to the center of the grid
                     this.resourceManager.cameraController.target = [0, 0, 0];
                 }
             }
@@ -344,29 +378,124 @@ class HomeBackgroundExperience extends Experience {
         }
     }
     
+    async createPostProcessingPipeline() {
+        try {
+            // Determine canvas dimensions
+            let canvasWidth = 800;
+            let canvasHeight = 600;
+            
+            if (this.resourceManager?.canvasSize) {
+                canvasWidth = this.resourceManager.canvasSize.width;
+                canvasHeight = this.resourceManager.canvasSize.height;
+            } else if (typeof window !== 'undefined') {
+                canvasWidth = window.innerWidth;
+                canvasHeight = window.innerHeight;
+            }
+            
+            // Create a viewport buffer for the dither pipeline
+            this.viewportBuffer = this.device.createBuffer({
+                size: 8, // 2 floats
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                label: 'Viewport Buffer'
+            });
+            this.device.queue.writeBuffer(
+                this.viewportBuffer,
+                0,
+                new Float32Array([canvasWidth, canvasHeight])
+            );
+            
+            // Create a post-processing texture
+            this.createPostProcessingTextures(canvasWidth, canvasHeight);
+            
+            // Create the DitherPostProcess pipeline
+            this.ditherPostProcess = new DitherPostProcessPipeline(
+                this.device,
+                this.viewportBuffer,
+                canvasWidth,
+                canvasHeight
+            );
+            
+            // Initialize
+            await this.ditherPostProcess.initialize();
+            
+            // Apply initial store-based settings (no store writes here)
+            this.ditherPostProcess.setSettings(
+                this.ditherSettings.patternScale,
+                this.ditherSettings.thresholdOffset,
+                this.ditherSettings.noiseIntensity,
+                this.ditherSettings.colorReduction
+            );
+            
+            return true;
+        } catch (error) {
+            console.error("Error creating post-processing pipeline:", error);
+            return false;
+        }
+    }
+    
+    createPostProcessingTextures(width = 800, height = 600) {
+        try {
+            // Cleanup any old texture
+            if (this.postProcessingTextures?.texture?.destroy) {
+                this.postProcessingTextures.texture.destroy();
+            }
+            
+            // Create a new texture for the scene
+            const sceneTexture = this.device.createTexture({
+                size: { width, height },
+                format: navigator.gpu.getPreferredCanvasFormat(),
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+            });
+            
+            this.postProcessingTextures = {
+                texture: sceneTexture,
+                view: sceneTexture.createView()
+            };
+            
+            return true;
+        } catch (error) {
+            console.error("Error creating post-processing textures:", error);
+            return false;
+        }
+    }
+    
+    handleResize(width, height) {
+        // Recreate post-processing textures
+        if (this.postProcessingTextures) {
+            this.createPostProcessingTextures(width, height);
+        }
+        
+        // Update dither pipeline
+        if (this.ditherPostProcess) {
+            this.ditherPostProcess.updateViewportDimensions(width, height);
+            this.device.queue.writeBuffer(
+                this.viewportBuffer,
+                0,
+                new Float32Array([width, height])
+            );
+        }
+        return true;
+    }
+    
     render(commandEncoder, textureView) {
-        if (!this.pipeline || !this.pipeline.isInitialized) {
+        if (!this.pipeline?.isInitialized) {
             return;
         }
         
         try {
-            // Get depth texture view
+            // Get the depth texture
             const depthTextureView = this.resourceManager.getDepthTextureView?.();
-            if (!depthTextureView) {
-                return;
-            }
+            if (!depthTextureView) return;
             
-            // Update time (for subtle animation)
+            // Update time
             this.time += 0.01;
-            
-            // Update time uniform buffer
             this.device.queue.writeBuffer(
                 this.timeBuffer,
                 0,
                 new Float32Array([this.time])
             );
             
-            // Update resolution uniform buffer
+            // Update resolution uniform
             if (typeof window !== 'undefined') {
                 this.device.queue.writeBuffer(
                     this.resolutionBuffer,
@@ -375,30 +504,100 @@ class HomeBackgroundExperience extends Experience {
                 );
             }
             
-            // Update mouse uniform buffer
+            // Update mouse uniform
             this.device.queue.writeBuffer(
                 this.mouseBuffer,
                 0,
                 new Float32Array([this.mouse.x, this.mouse.y])
             );
             
-            // Render using pipeline
-            this.pipeline.render(
-                commandEncoder,
-                textureView,
-                depthTextureView,
-                this.vertexBuffer,
-                this.indexBuffer,
-                null, // No longer using uniformBuffer
-                this.totalIndices
-            );
+            if (
+                this.ditherEnabled &&
+                this.ditherPostProcess?.isInitialized &&
+                this.postProcessingTextures
+            ) {
+                // 1) Render scene to intermediate texture
+                this.pipeline.render(
+                    commandEncoder,
+                    this.postProcessingTextures.view,
+                    depthTextureView,
+                    this.vertexBuffer,
+                    this.indexBuffer,
+                    null,
+                    this.totalIndices
+                );
+                
+                // 2) Dither pass → final
+                this.ditherPostProcess.render(
+                    commandEncoder,
+                    this.postProcessingTextures.view,
+                    textureView
+                );
+            } else {
+                // If dither disabled, render directly
+                this.pipeline.render(
+                    commandEncoder,
+                    textureView,
+                    depthTextureView,
+                    this.vertexBuffer,
+                    this.indexBuffer,
+                    null,
+                    this.totalIndices
+                );
+            }
         } catch (error) {
             console.error("Error in Home Background render:", error);
         }
     }
     
+    // Called from UI or wherever you toggle dithering
+    toggleDitherEffect(enabled) {
+        this.ditherEnabled = enabled;
+        this.ditherSettings.enabled = enabled;
+        
+        // Update the store once
+        homeDitherSettings.update((old) => ({
+            ...old,
+            enabled
+        }));
+    }
+    
+    // Called from UI or wherever you change slider values
+    updateDitherEffectSettings(patternScale, thresholdOffset, noiseIntensity, colorReduction) {
+        // Update the local object
+        this.ditherSettings.patternScale = patternScale;
+        this.ditherSettings.thresholdOffset = thresholdOffset;
+        this.ditherSettings.noiseIntensity = noiseIntensity;
+        this.ditherSettings.colorReduction = colorReduction;
+      
+        // Update the store once
+        homeDitherSettings.update((old) => ({
+            ...old,
+            patternScale,
+            thresholdOffset,
+            noiseIntensity,
+            colorReduction
+        }));
+      
+        // Also update pipeline if ready
+        if (this.ditherPostProcess?.isInitialized) {
+            this.ditherPostProcess.setSettings(
+                patternScale,
+                thresholdOffset,
+                noiseIntensity,
+                colorReduction
+            );
+        }
+    }
+    
     cleanup() {
-        // Remove event listener
+        // Unsubscribe from store
+        if (this.ditherSettingsUnsubscribe) {
+            this.ditherSettingsUnsubscribe();
+            this.ditherSettingsUnsubscribe = null;
+        }
+        
+        // Remove mouse listener
         if (typeof window !== 'undefined') {
             window.removeEventListener('mousemove', this.handleMouseMove.bind(this));
         }
@@ -409,26 +608,25 @@ class HomeBackgroundExperience extends Experience {
             this.pipeline = null;
         }
         
-        // Clean up buffers
-        if (this.vertexBuffer) {
-            this.vertexBuffer = null;
+        // Clean up dither pipeline
+        if (this.ditherPostProcess) {
+            this.ditherPostProcess.cleanup();
+            this.ditherPostProcess = null;
         }
         
-        if (this.indexBuffer) {
-            this.indexBuffer = null;
+        // Clean up post-processing textures
+        if (this.postProcessingTextures?.texture?.destroy) {
+            this.postProcessingTextures.texture.destroy();
         }
+        this.postProcessingTextures = null;
         
-        if (this.timeBuffer) {
-            this.timeBuffer = null;
-        }
-        
-        if (this.resolutionBuffer) {
-            this.resolutionBuffer = null;
-        }
-        
-        if (this.mouseBuffer) {
-            this.mouseBuffer = null;
-        }
+        // Null out buffers
+        this.vertexBuffer = null;
+        this.indexBuffer = null;
+        this.timeBuffer = null;
+        this.resolutionBuffer = null;
+        this.mouseBuffer = null;
+        this.viewportBuffer = null;
         
         // Reset state
         this.isLoading = true;
@@ -436,17 +634,15 @@ class HomeBackgroundExperience extends Experience {
         this.time = 0;
         
         // Remove from resource manager
-        if (this.resourceManager && this.resourceManager.experiences) {
-            if (this.resourceManager.experiences.homeBackground === this) {
-                this.resourceManager.experiences.homeBackground = null;
-            }
+        if (this.resourceManager?.experiences?.homeBackground === this) {
+            this.resourceManager.experiences.homeBackground = null;
         }
         
-        // Clear device and resource manager references
+        // Clear references
         this.device = null;
         this.resourceManager = null;
         
-        // Call parent cleanup
+        // Parent cleanup
         super.cleanup();
     }
     
@@ -455,11 +651,14 @@ class HomeBackgroundExperience extends Experience {
         this.loadingMessage = message || this.loadingMessage;
         this.loadingProgress = progress !== undefined ? progress : this.loadingProgress;
         
-        // Update resource manager if available
-        if (this.resourceManager && this.resourceManager.updateLoadingState) {
-            this.resourceManager.updateLoadingState(this.isLoading, this.loadingMessage, this.loadingProgress);
+        if (this.resourceManager?.updateLoadingState) {
+            this.resourceManager.updateLoadingState(
+                this.isLoading,
+                this.loadingMessage,
+                this.loadingProgress
+            );
         }
     }
 }
 
-export default HomeBackgroundExperience; 
+export default HomeBackgroundExperience;

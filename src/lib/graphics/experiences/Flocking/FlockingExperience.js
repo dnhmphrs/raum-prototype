@@ -6,8 +6,9 @@ import PredatorGeometry from './PredatorGeometry';
 import GuidingLineGeometry from './GuidingLineGeometry'
 import FlockingPipeline from './FlockingPipeline';
 import ShaderRectPipeline from './ShaderRectPipeline';
-import DitherPostProcessPipeline from './DitherPostProcessPipeline';
+import DitherPostProcessPipeline from '../../pipelines/DitherPostProcessPipeline.js';
 import TextOverlayPipeline from './TextOverlayPipeline';
+import { flockingDitherSettings, setCurrentDitherSettings } from '../../../store/ditherStore.js';
 
 class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
@@ -45,8 +46,8 @@ class FlockingExperience extends Experience {
         this.orientationState = {
             isHorizontal: Math.random() > 0.5, // random starting orientation
             periodDuration: 8000, // how long to stay in one orientation (ms)
-            glitchDuration: 25,  // MUCH shorter glitch duration (50ms) - just a quick flash
-            glitchProbability: 0.00, // Very low probability of glitches per second (1%)
+            glitchDuration: 75,  // Longer glitch duration for more visibility (75ms)
+            glitchProbability: 0.05, // Higher probability of glitches per second (5%)
             lastMajorChange: performance.now() - 7000, // Initialize near the end of a period to encourage early change
             lastGlitchEnd: 0,  // No glitches at start
             forceGlitchOnOrientationChange: true, // Always glitch during orientation changes
@@ -70,8 +71,8 @@ class FlockingExperience extends Experience {
             // Add glitch clustering behavior
             glitchClusterActive: false,
             glitchClusterEnd: 0,
-            glitchClusterChance: 0.12, // Chance to enter cluster mode
-            maxClusterGlitches: 4, // Maximum number of glitches in a cluster
+            glitchClusterChance: 0.30, // Increased chance to enter cluster mode
+            maxClusterGlitches: 6, // Maximum number of glitches in a cluster
             remainingClusterGlitches: 0,
         };
         
@@ -161,14 +162,27 @@ class FlockingExperience extends Experience {
         this.intermediateTexture = null;
         this.intermediateTextureView = null;
 
-        // Dither effect settings - optimized for extreme pixelation
+        // Dither effect settings - use store instead of hardcoded values
+        this.ditherSettingsUnsubscribe = null;
         this.ditherSettings = {
-            patternScale: 2.0,       // Controls pixel size (lower = larger pixels)
-            thresholdOffset: -0.05,   // Slight negative offset for stronger contrast
-            noiseIntensity: 0.08,     // Just a bit of noise to break up patterns
-            colorReduction: 2.0,      // Very low value for extreme color banding 
-            enabled: true             // Enabled by default
+            patternScale: 2.0,
+            thresholdOffset: -0.05,
+            noiseIntensity: 0.08,
+            colorReduction: 2.0,
+            enabled: true
         };
+
+        // Set flocking as the current experience for dither settings
+        setCurrentDitherSettings('flocking');
+        
+        // Subscribe to the store to get updates
+        this.ditherSettingsUnsubscribe = flockingDitherSettings.subscribe(settings => {
+            this.ditherSettings = { ...settings };
+            // If the pipeline is already initialized, update the settings
+            if (this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
+                this.updateDitherSettings();
+            }
+        });
 
         this.addBirds();
         this.addPredator();
@@ -898,6 +912,12 @@ class FlockingExperience extends Experience {
     }
 
     cleanup() {
+        // Unsubscribe from the store to prevent memory leaks
+        if (this.ditherSettingsUnsubscribe) {
+            this.ditherSettingsUnsubscribe();
+            this.ditherSettingsUnsubscribe = null;
+        }
+        
         // Remove event listeners
         document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
         
@@ -1030,6 +1050,12 @@ class FlockingExperience extends Experience {
     // Method to toggle the dither effect on/off
     toggleDitherEffect(enabled) {
         this.ditherSettings.enabled = enabled;
+        
+        // Update the store
+        flockingDitherSettings.update(settings => ({
+            ...settings,
+            enabled: enabled
+        }));
     }
 
     // Method to update dither effect settings
@@ -1038,6 +1064,16 @@ class FlockingExperience extends Experience {
         this.ditherSettings.thresholdOffset = thresholdOffset;
         this.ditherSettings.noiseIntensity = noiseIntensity;
         this.ditherSettings.colorReduction = colorReduction;
+        
+        // Update the store
+        flockingDitherSettings.update(settings => ({
+            ...settings,
+            patternScale,
+            thresholdOffset,
+            noiseIntensity,
+            colorReduction
+        }));
+        
         this.updateDitherSettings();
     }
 

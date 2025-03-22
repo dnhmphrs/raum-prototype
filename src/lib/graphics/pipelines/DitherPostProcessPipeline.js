@@ -1,4 +1,4 @@
-import Pipeline from '../../pipelines/Pipeline';
+import Pipeline from './Pipeline.js';
 
 export default class DitherPostProcessPipeline extends Pipeline {
     constructor(device, viewportBuffer, canvasWidth = 800, canvasHeight = 600) {
@@ -26,13 +26,13 @@ export default class DitherPostProcessPipeline extends Pipeline {
 
     async initialize() {
         // Create settings buffer
-        this.settingsBuffer = this.device.createBuffer({
+        this.settingsBuffer = this.createBuffer({
             size: 16, // 4 float32 values (4 bytes each)
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             label: 'Dither Settings Buffer'
         });
         
-        // Don't update settings here - they'll be set from FlockingExperience
+        // Don't update settings here - they'll be set from the Experience
         // this.updateSettings();
         
         // Use the built-in shader code directly
@@ -69,7 +69,7 @@ export default class DitherPostProcessPipeline extends Pipeline {
         });
         
         // Create shader module
-        const shaderModule = this.device.createShaderModule({
+        const shaderModule = this.createShaderModule({
             code: this.ditherShaderCode
         });
         
@@ -127,7 +127,6 @@ export default class DitherPostProcessPipeline extends Pipeline {
                 this.settings.noiseIntensity,
                 this.settings.colorReduction
             ]);
-            console.log("Updating dither settings:", JSON.stringify(this.settings));
             this.device.queue.writeBuffer(this.settingsBuffer, 0, settingsArray);
         } catch (error) {
             console.error("Error updating dither settings buffer:", error);
@@ -210,27 +209,10 @@ export default class DitherPostProcessPipeline extends Pipeline {
         // Update stored dimensions
         this.canvasWidth = Math.max(1, width);
         this.canvasHeight = Math.max(1, height);
-        
-        // Important: Update the settings for proper pixelation based on new dimensions
-        if (this.settings && this.settingsBuffer) {
-            this.updateSettings();
-        }
     }
     
     cleanup() {
-        // Clean up resources
-        if (this.settingsBuffer) {
-            if (typeof this.settingsBuffer.destroy === 'function') {
-                this.settingsBuffer.destroy();
-            }
-            this.settingsBuffer = null;
-        }
-        
-        this.renderPipeline = null;
-        this.bindGroup = null;
-        this.sampler = null;
-        
-        // Call parent cleanup
+        // Clean up resources handled by parent class
         super.cleanup();
     }
     

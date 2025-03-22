@@ -6,7 +6,9 @@
   import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import { getExperienceColor } from '$lib/store/experienceStore.js';
   import { showUI } from '$lib/store/store';
+  import { flockingDitherSettings, setCurrentDitherSettings } from '$lib/store/ditherStore.js';
   import BackButton from '$lib/components/BackButton.svelte';
+  import DitherControls from '$lib/components/DitherControls.svelte';
   
   let canvas;
   let engine;
@@ -14,64 +16,17 @@
   let loadingMessage = "Initializing WebGPU...";
   let loadingProgress = -1;
   
-  // Dither effect state
-  let ditherEnabled = true;
-  let showControls = false;
-  // see ditherSettings in the FlockingExperience.js file for actual values - these are placeholder to prevent build errors
-  let ditherSettings = {
-    patternScale: 0.0,
-    thresholdOffset: 0.00,
-    noiseIntensity: 0.0,
-    colorReduction: 0.0,
-  };
-  
   // Experience accent color from store
   const accentColor = getExperienceColor('flocking');
-  
-  // Function to toggle dither effect
-  function toggleDither() {
-    ditherEnabled = !ditherEnabled;
-    if (engine && engine.experience) {
-      engine.experience.toggleDitherEffect(ditherEnabled);
-    }
-  }
-  
-  // Function to toggle controls visibility
-  function toggleControls() {
-    showControls = !showControls;
-  }
-  
-  // Function to update dither settings
-  function updateDitherSettings() {
-    if (engine && engine.experience) {
-      console.log("Sending settings to engine:", JSON.stringify(ditherSettings));
-      engine.experience.updateDitherEffectSettings(
-        ditherSettings.patternScale,
-        ditherSettings.thresholdOffset,
-        ditherSettings.noiseIntensity,
-        ditherSettings.colorReduction
-      );
-    }
-  }
-  
-  // Function to sync UI settings with engine settings
-  function syncSettingsFromEngine() {
-    if (engine && engine.experience && engine.experience.ditherSettings) {
-      const engineSettings = engine.experience.ditherSettings;
-      console.log("Syncing from engine settings:", JSON.stringify(engineSettings));
-      ditherEnabled = engineSettings.enabled;
-      ditherSettings.patternScale = engineSettings.patternScale;
-      ditherSettings.thresholdOffset = engineSettings.thresholdOffset;
-      ditherSettings.noiseIntensity = engineSettings.noiseIntensity;
-      ditherSettings.colorReduction = engineSettings.colorReduction;
-    }
-  }
   
   onMount(async () => {
     if (!navigator.gpu) {
       alert("WebGPU is not supported in your browser. Please try a browser that supports WebGPU.");
       return;
     }
+    
+    // Make sure the flocking experience's dither settings are current
+    setCurrentDitherSettings('flocking');
     
     // Initialize the engine with the canvas
     loadingMessage = "Initializing graphics engine...";
@@ -82,13 +37,6 @@
     loadingMessage = "Loading Flocking simulation...";
     loadingProgress = 60;
     await engine.start(FlockingExperience, getCameraConfig('Flocking'));
-    
-    // Sync settings from engine to UI to ensure consistency
-    syncSettingsFromEngine();
-    
-    // Apply our potentially modified settings back to the engine
-    engine.experience.toggleDitherEffect(ditherEnabled);
-    updateDitherSettings();
     
     loadingMessage = "Finalizing...";
     loadingProgress = 90;
@@ -149,87 +97,8 @@
   
   <BackButton />
   
-  {#if $showUI}
-    <!-- Dither Controls -->
-    <div class="control-panel">
-      <button class="control-toggle" on:click={toggleControls}>
-        {showControls ? '✕' : '⚙'}
-      </button>
-      
-      {#if showControls}
-        <div class="controls-container">
-          <div class="control-group">
-            <label class="control-label">
-              <input type="checkbox" checked={ditherEnabled} on:change={toggleDither} />
-              Dither Effect
-            </label>
-          </div>
-          
-          {#if ditherEnabled}
-            <div class="control-group">
-              <label>
-                Pattern Scale: {ditherSettings.patternScale.toFixed(1)}
-                <input 
-                  type="range" 
-                  min="0.5" 
-                  max="3.0" 
-                  step="0.1" 
-                  bind:value={ditherSettings.patternScale} 
-                  on:change={updateDitherSettings}
-                />
-              </label>
-              <span class="control-hint">Lower = larger pixels</span>
-            </div>
-            
-            <div class="control-group">
-              <label>
-                Threshold Offset: {ditherSettings.thresholdOffset.toFixed(2)}
-                <input 
-                  type="range" 
-                  min="-0.2" 
-                  max="0.2" 
-                  step="0.01" 
-                  bind:value={ditherSettings.thresholdOffset} 
-                  on:change={updateDitherSettings}
-                />
-              </label>
-              <span class="control-hint">Adjusts contrast in dither pattern</span>
-            </div>
-            
-            <div class="control-group">
-              <label>
-                Noise: {ditherSettings.noiseIntensity.toFixed(2)}
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="0.3" 
-                  step="0.01" 
-                  bind:value={ditherSettings.noiseIntensity} 
-                  on:change={updateDitherSettings}
-                />
-              </label>
-              <span class="control-hint">Adds random variation</span>
-            </div>
-            
-            <div class="control-group">
-              <label>
-                Color Reduction: {ditherSettings.colorReduction.toFixed(1)}
-                <input 
-                  type="range" 
-                  min="1.5" 
-                  max="5.0" 
-                  step="0.1" 
-                  bind:value={ditherSettings.colorReduction} 
-                  on:change={updateDitherSettings}
-                />
-              </label>
-              <span class="control-hint">Lower = fewer colors</span>
-            </div>
-          {/if}
-        </div>
-      {/if}
-    </div>
-  {/if}
+  <!-- Use our new component instead of inline controls -->
+  <DitherControls {engine} />
 </div>
 
 <style>
@@ -244,75 +113,5 @@
     width: 100%;
     height: 100%;
     display: block;
-  }
-  
-  .control-panel {
-    position: absolute;
-    top: 20px;
-    right: 80px; /* Positioned to leave space for the new UI toggle button */
-    z-index: 100;
-  }
-  
-  .control-toggle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: none;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.3s;
-    margin-left: auto;
-  }
-  
-  .control-toggle:hover {
-    background-color: rgba(0, 0, 0, 0.9);
-  }
-  
-  .controls-container {
-    position: absolute;
-    top: 50px;
-    right: 0;
-    width: 250px;
-    background-color: rgba(0, 0, 0, 0.8);
-    border-radius: 8px;
-    padding: 15px;
-    color: white;
-    font-size: 12px;
-  }
-  
-  .control-group {
-    margin-bottom: 12px;
-  }
-  
-  .control-group:last-child {
-    margin-bottom: 0;
-  }
-  
-  .control-group label {
-    display: block;
-    margin-bottom: 5px;
-  }
-  
-  .control-group input[type="range"] {
-    width: 100%;
-    margin-top: 5px;
-  }
-  
-  .control-hint {
-    display: block;
-    font-size: 10px;
-    color: #aaa;
-    margin-top: 3px;
-  }
-  
-  .control-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
 </style> 
