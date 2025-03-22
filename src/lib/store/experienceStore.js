@@ -6,25 +6,25 @@ const experienceData = [
     id: 'flocking',
     name: 'FLOCKING',
     description: 'Simulation of collective motion in flocks using parallel compute shaders. Simple local rules generate complex global murmurations; cute emergent behavior in natural systems.',
-    color: '#00bfff'
+    color: '#0077cc'
   },
   {
     id: 'neuralnet',
     name: 'NEURAL NET',
     description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
-    color: '#ff3366'
+    color: '#d92654'
   },
   {
     id: 'riemann',
     name: 'RIEMANN SURFACES',
     description: 'Visualization of complex mathematical functions as 3D surfaces. Early steps to figuring out what Riemann was on about in his 1851 thesis.',
-    color: '#00ff99'
+    color: '#00aa66'
   },
   {
     id: 'gridcode',
     name: 'Θ-FUNCTION // GRID CODE',
     description: 'Model of medial entorhinal grid cells using the Riemann theta functions. Visualising how the brain encodes spatial information in a structured form..',
-    color: '#ff9900'
+    color: '#cc7700'
   }
 ];
 

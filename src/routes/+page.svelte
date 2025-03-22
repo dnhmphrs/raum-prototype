@@ -244,9 +244,8 @@ o---o---o---o   o---o---o---o   o---o---o---o
     padding: 2rem;
     opacity: 0;
     transition: opacity 0.5s ease;
-    background-color: var(--background-50);
-    border: 2px solid var(--primary);
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--home-primary);
   }
   
   .loaded {
@@ -262,7 +261,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   .terminal-header {
     background-color: var(--light-black);
     border-bottom: 1px solid var(--home-accent);
-    padding: 0.5rem;
+    padding: 0.5rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -276,20 +275,20 @@ o---o---o---o   o---o---o---o   o---o---o---o
   .terminal-buttons {
     display: flex;
     gap: 5px;
-    color: var(--background);
+    color: var(--home-background);
   }
   
   .terminal-button {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: var(--background);
+    background-color: var(--light-black);
     border: 1px solid var(--home-accent);
   }
   
   .terminal-body {
     padding: 1rem;
-    background-color: var(--background);
+    background-color: var(--home-background);
     color: var(--home-accent);
     font-family: 'Courier New', monospace;
   }
@@ -297,7 +296,10 @@ o---o---o---o   o---o---o---o   o---o---o---o
   .terminal-text {
     margin: 0;
     line-height: 1.5;
+    color: var(--home-primary);
   }
+
+
   
   main {
     display: grid;
@@ -313,7 +315,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .experience-item {
     border: 1px solid var(--accent, var(--home-accent));
-    background-color: var(--background-80);
+    background-color: var(--home-background-80);
     transition: all 0.3s ease;
     animation: fadeIn 0.5s ease forwards;
     animation-delay: var(--delay);
@@ -321,7 +323,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .experience-item:hover {
-    background-color: var(--background-50);
+    background-color: var(--home-background-50);
     transform: translateX(5px);
     box-shadow: -5px 0 0 var(--accent, var(--home-accent));
   }
@@ -343,6 +345,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   .experience-name {
     font-weight: bold;
     letter-spacing: 2px;
+    color: var(--home-primary);
   }
   
   .experience-arrow {
@@ -374,7 +377,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     flex: 1;
     position: relative;
     overflow: hidden;
-    background-color: var(--background-80);
+    background-color: var(--home-background-80);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -439,7 +442,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     font-size: 0.9rem;
     opacity: 0.8;
     flex: 1;
-    color: var(--background);
+    color: var(--home-background);
   }
   
   .preview-placeholder {
@@ -448,7 +451,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
     align-items: center;
     height: 100%;
     width: 100%;
-    background-color: var(--background-80);
+    background-color: var(--home-background-80);
   }
   
   footer {

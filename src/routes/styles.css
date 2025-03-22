@@ -13,13 +13,19 @@
 }
 
 :root {
-	--background: #f0f0f0;
-	--background-50: #f0f0f080;
-	--background-80: #f0f0f0cc;
-	--primary: #232323;
-	--primary-50: #232323;
+	--background: #232323;
+	--background-50: #23232380;
+	--background-80: #232323cc;
+	--primary: #f0f0f0;
+	--primary-50: #f0f0f080;
 	--light-black: #2c2c2c;
 	--light-black-50: #2c2c2c80;
+
+	--home-background: #f0f0f0;
+	--home-background-50: #f0f0f080;
+	--home-background-80: #f0f0f0cc;
+	--home-primary: #232323;
+	--home-primary-50: #232323;
 }
 
 :root {
