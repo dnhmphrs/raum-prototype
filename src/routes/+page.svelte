@@ -362,6 +362,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   .preview-panel {
     border: 1px solid var(--home-accent);
+    background-color: var(--light-black);
     height: 350px;
     position: relative;
     overflow: hidden;
@@ -462,6 +463,9 @@ o---o---o---o   o---o---o---o   o---o---o---o
     text-align: center;
     font-size: 0.8rem;
     letter-spacing: 1px;
+    background-color: var(--light-black);
+    color: var(--home-background);
+    padding: 0.5rem;
   }
   
   @keyframes fadeIn {

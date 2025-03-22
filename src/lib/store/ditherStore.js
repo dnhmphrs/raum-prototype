@@ -6,7 +6,7 @@ const defaultDitherSettings = {
     enabled: true,
     patternScale: 3.0,
     thresholdOffset: -0.05,
-    noiseIntensity: 0.15,
+    noiseIntensity: 0.05,
     colorReduction: 5.0
   },
   flocking: {

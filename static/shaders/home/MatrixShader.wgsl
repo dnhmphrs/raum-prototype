@@ -171,7 +171,7 @@ fn fragmentMain(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     // Create digital rain effect - offset initial time to fill screen
     let rain_speed = 0.125;
     let initial_offset = 3.0; // Increased initial offset to better fill screen
-    let rain_offset = (time + initial_offset) * rain_speed;
+    let rain_offset = (sin(time * 0.2) + initial_offset) * rain_speed;
     
     // Different columns move at different speeds with more interesting variation
     let column_index = floor(uv_aspect.x * grid_size);
