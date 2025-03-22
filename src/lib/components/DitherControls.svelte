@@ -13,18 +13,15 @@
 
   // If you still need a toggle function
   function toggleDither() {
-    // Just update the store property directly
-    currentDitherSettings.update(settings => ({
-      ...settings,
-      enabled: !settings.enabled
-    }));
+    // The checkbox is already bound to dither.enabled, so we don't need to toggle it,
+    // just pass the current value to the engine
     if (engine?.experience) {
-      engine.experience.toggleDitherEffect(!dither.enabled);
+      engine.experience.toggleDitherEffect(dither.enabled);
     }
   }
 
   // If you need to do something once the user moves a slider
-  // but do not want to spam calls on every “input,” call it
+  // but do not want to spam calls on every "input," call it
   // in on:change (fires after they release). Or use on:input
   // if you want real-time updates.
   function onSliderChange() {
@@ -50,7 +47,6 @@
       <div class="controls-container">
         <div class="control-group">
           <label class="control-label">
-            <!-- Two-way bind directly to $currentDitherSettings.enabled -->
             <input
               type="checkbox"
               bind:checked={dither.enabled}
