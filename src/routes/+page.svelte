@@ -255,6 +255,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   }
   
   .terminal {
+    background-color: var(--light-black);
     border: 1px solid var(--home-accent);
     margin-bottom: 2rem;
     box-shadow: 0 0 10px var(--home-accent-shadow);
@@ -298,7 +299,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   .terminal-text {
     margin: 0;
     line-height: 1.5;
-    color: var(--home-primary);
+    color: var(--home-accent);
   }
 
 
