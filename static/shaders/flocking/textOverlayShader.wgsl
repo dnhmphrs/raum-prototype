@@ -38,10 +38,10 @@ fn renderText(uv: vec2<f32>, t: f32) -> vec4<f32> {
     var warpAmount = 0.008 + speed * 0.003;
     
     // Adjust positioning
-    p.x += -0.1125;
+    p.x += -0.1;
     
     // Make text MUCH smaller (approximately half the size)
-    let textScale = 0.1; // Doubled from 0.2 to make text half the size
+    let textScale = 0.08; // Doubled from 0.2 to make text half the size
     p /= textScale;
     
     // Time-based thickness warping

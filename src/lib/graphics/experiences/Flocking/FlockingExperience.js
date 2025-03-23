@@ -1106,7 +1106,10 @@ class FlockingExperience extends Experience {
                 if (Math.random() < glitchProbability) {
                     // Only if enough time has passed since last glitch
                     const timeSinceLastGlitch = now - this.orientationState.lastGlitchEnd;
-                    if (timeSinceLastGlitch > 1000) { // At least 1 second between glitches
+                    const timeSinceLastMajorChange = now - this.orientationState.lastMajorChange;
+                    
+                    // Allow glitches if enough time has passed
+                    if (timeSinceLastGlitch > 1000 && timeSinceLastMajorChange > 400) {
                         // Schedule a quick glitch
                         this.orientationState.lastGlitchEnd = now + this.orientationState.glitchDuration;
                         
@@ -1206,11 +1209,16 @@ class FlockingExperience extends Experience {
                 }
             }
             
-            // NEW RENDERING ORDER:
+            // MODIFIED RENDERING ORDER:
             // 1. First render the standard background
             this.pipeline.renderBackground(commandEncoder, passDescriptor);
             
-            // 2. Then render video background on top of standard background (if enabled)
+            // 2. Now render shader rectangles on top of the background but BEHIND the video
+            if (this.shaderRectPipeline && this.shaderRectPipeline.isInitialized && !this.shaderRectPipeline.bufferUpdateInProgress) {
+                this.shaderRectPipeline.render(commandEncoder, renderTarget);
+            }
+            
+            // 3. Then render video background on top of shader rectangles
             if (this.useVideoBackground && this.videoBackgroundPipeline && 
                 this.videoBackgroundPipeline.isInitialized && this.videoTexture) {
                 try {
@@ -1233,11 +1241,6 @@ class FlockingExperience extends Experience {
                     "videoBackgroundPipeline exists:", !!this.videoBackgroundPipeline,
                     "pipeline initialized:", this.videoBackgroundPipeline ? this.videoBackgroundPipeline.isInitialized : false,
                     "videoTexture exists:", !!this.videoTexture);
-            }
-            
-            // 3. Now render shader rectangles on top of the background layers
-            if (this.shaderRectPipeline && this.shaderRectPipeline.isInitialized && !this.shaderRectPipeline.bufferUpdateInProgress) {
-                this.shaderRectPipeline.render(commandEncoder, renderTarget);
             }
             
             // 4. Render the birds and predator
