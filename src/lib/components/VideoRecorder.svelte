@@ -52,20 +52,20 @@
   
   // Function to find the best canvas for capture
   function findCanvas() {
-    // Try multiple selectors to find the canvas
+    // Try multiple selectors to find the canvas with the webgpu-canvas class first (highest priority)
     let canvas = document.querySelector('canvas.webgpu-canvas');
     
-    // If not found, try home page specific canvas first (higher priority)
+    // If not found, try home page specific canvas
     if (!canvas) {
       canvas = document.querySelector('.background-canvas canvas');
     }
     
-    // If not found, try other common selectors
+    // If not found, try experience container canvas
     if (!canvas) {
       canvas = document.querySelector('.experience-container canvas');
     }
     
-    // If still not found, try any canvas in the document
+    // If still not found, try any visible canvas
     if (!canvas) {
       const canvases = document.querySelectorAll('canvas');
       if (canvases.length > 0) {
@@ -89,6 +89,10 @@
     
     // Log the found canvas for debugging
     if (canvas) {
+      // Add the webgpu-canvas class if it doesn't have it already
+      if (!canvas.classList.contains('webgpu-canvas')) {
+        canvas.classList.add('webgpu-canvas');
+      }
       console.log("VideoRecorder: Found canvas", canvas, `dimensions: ${canvas.width}x${canvas.height}`);
     } else {
       console.error("VideoRecorder: No suitable canvas found for recording");

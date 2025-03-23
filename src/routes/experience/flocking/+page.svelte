@@ -9,12 +9,14 @@
   import { flockingDitherSettings, setCurrentDitherSettings } from '$lib/store/ditherStore.js';
   import BackButton from '$lib/components/BackButton.svelte';
   import DitherControls from '$lib/components/DitherControls.svelte';
+  import AudioButton from '$lib/components/AudioButton.svelte';
   
   let canvas;
   let engine;
   let mounted = false;
   let loadingMessage = "Initializing WebGPU...";
   let loadingProgress = -1;
+  let flockingExperience = null;
   
   // Experience accent color from store
   const accentColor = getExperienceColor('flocking');
@@ -37,6 +39,11 @@
     loadingMessage = "Loading Flocking simulation...";
     loadingProgress = 60;
     await engine.start(FlockingExperience, getCameraConfig('Flocking'));
+    
+    // Get a reference to the experience for the audio button
+    if (engine && engine.experience) {
+      flockingExperience = engine.experience;
+    }
     
     loadingMessage = "Finalizing...";
     loadingProgress = 90;
@@ -86,7 +93,7 @@
 </div> -->
 
 <div class="experience-container">
-  <canvas bind:this={canvas}></canvas>
+  <canvas bind:this={canvas} class="webgpu-canvas"></canvas>
   
   <LoadingOverlay 
     isLoading={!mounted} 
@@ -99,6 +106,9 @@
   
   <!-- Use our new component instead of inline controls -->
   <DitherControls {engine} customStyle="top: 80px; right: 20px;" />
+  
+  <!-- Add the audio button -->
+  <AudioButton experience={flockingExperience} customStyle="top: 20px; right: 80px;" />
 </div>
 
 <style>

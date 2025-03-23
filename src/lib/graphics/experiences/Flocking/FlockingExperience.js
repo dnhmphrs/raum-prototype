@@ -8,6 +8,7 @@ import FlockingPipeline from './FlockingPipeline';
 import ShaderRectPipeline from './ShaderRectPipeline';
 import DitherPostProcessPipeline from '../../pipelines/DitherPostProcessPipeline.js';
 import TextOverlayPipeline from './TextOverlayPipeline';
+import VideoBackgroundPipeline from './VideoBackgroundPipeline';
 import { flockingDitherSettings, setCurrentDitherSettings } from '../../../store/ditherStore.js';
 
 class FlockingExperience extends Experience {
@@ -17,6 +18,14 @@ class FlockingExperience extends Experience {
         this.birdCount = 2048; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
         
+        // Video related properties
+        this.video = null;
+        this.videoTexture = null;
+        this.videoTextureView = null;
+        this.videoPlaying = false;
+        this.videoBackgroundPipeline = null;
+        this.useVideoBackground = true; // Default to using video background
+
         // Performance tracking variables
         this.frameCount = 0;
         this.frameTimes = [];
@@ -141,6 +150,14 @@ class FlockingExperience extends Experience {
             this.canvas ? this.canvas.height : 600
         );
 
+        // Initialize the VideoBackground pipeline
+        this.videoBackgroundPipeline = new VideoBackgroundPipeline(
+            this.device,
+            resourceManager.getViewportBuffer(),
+            this.canvas ? this.canvas.width : 800,
+            this.canvas ? this.canvas.height : 600
+        );
+
         // Initialize the DitherPostProcess pipeline
         this.ditherPostProcessPipeline = new DitherPostProcessPipeline(
             this.device,
@@ -196,81 +213,390 @@ class FlockingExperience extends Experience {
     }
 
     async initialize() {
-        // Initialize the FlockingPipeline first
-        await this.pipeline.initialize();
-        
-        // Now initialize the other pipelines
-        await this.shaderRectPipeline.initialize();
-        await this.ditherPostProcessPipeline.initialize();
-        await this.textOverlayPipeline.initialize();
+        try {
+            // Initialize the FlockingPipeline first
+            await this.pipeline.initialize();
+            
+            // Now initialize the other pipelines
+            await this.shaderRectPipeline.initialize();
+            await this.videoBackgroundPipeline.initialize();
+            await this.ditherPostProcessPipeline.initialize();
+            await this.textOverlayPipeline.initialize();
+            
+            // Start loading the video after pipelines are ready
+            await this.initializeVideo();
+            
+            // Adjust camera near and far planes to better handle the flocking space
+            if (this.resourceManager && this.resourceManager.camera) {
+                // Use a smaller near plane and larger far plane to prevent clipping
+                this.resourceManager.camera.updateProjection(
+                    this.resourceManager.camera.fov || Math.PI / 4, 
+                    0.01,  // Smaller near plane (was 0.1)
+                    200000 // Larger far plane (was 100000)
+                );
+            }
+            
+            // Create intermediate render textures for post-processing
+            this.createPostProcessingTextures();
+            
+            // Apply initial dither settings
+            this.updateDitherSettings();
+            
+            // Generate initial positions and velocities for birds
+            const initialPositions = [];
+            const initialVelocities = [];
+            const initialPhases = [];
+            const bounds = 6000; // Increased from 5000
+            const boundsHalf = bounds / 2;
+            
+            for (let i = 0; i < this.birdCount; i++) {
+                // Random positions within bounds, but closer to camera position
+                // This ensures birds don't initialize behind a viewable plane
+                const posX = Math.random() * bounds - boundsHalf;
+                
+                // Create a spread of positions, but bias toward camera's field of view
+                const posY = (Math.random() * bounds - boundsHalf) * 0.8; // Y positions biased toward center
+                const posZ = (Math.random() * bounds - boundsHalf) * 0.8; // Z positions biased toward center
+                
+                initialPositions.push([posX, posY, posZ]);
+                
+                // Random velocities with a small magnitude
+                const velX = (Math.random() - 0.5);
+                const velY = (Math.random() - 0.5);
+                const velZ = (Math.random() - 0.5);
+                initialVelocities.push([velX, velY, velZ]);
+                
+                // Random wing phases
+                initialPhases.push(Math.random() * Math.PI * 2); // Randomize initial wing flap positions
+            }
+            
+            // Initialize position and velocity buffers in the pipeline
+            this.pipeline.initializeBirdBuffers(initialPositions, initialVelocities, initialPhases);
+            
+            const initialPredatorPosition = new Float32Array([0.0, 0.0, 0.0]); // Starting at origin
+            const initialPredatorVelocity = new Float32Array([0.0, 0.0, 0.0]); // Initially stationary
+            
+            // Initialize predator position and velocity buffers in the pipeline
+            this.pipeline.initializePredatorBuffers(initialPredatorPosition, initialPredatorVelocity);
+            
+            // Set initial targetIndex to a random bird
+            const initialTargetIndex = Math.floor(Math.random() * this.birdCount);
+            this.pipeline.updateTargetIndex(initialTargetIndex);
+            
+            // Now that everything is initialized and the predator buffer is ready,
+            // update the reference in the TextOverlayPipeline
+            if (this.textOverlayPipeline && this.pipeline && this.pipeline.predatorVelocityBuffer) {
+                this.textOverlayPipeline.updatePredatorVelocityBuffer(this.pipeline.predatorVelocityBuffer);
+            } else {
+                console.warn("Unable to update predatorVelocityBuffer in TextOverlayPipeline");
+            }
+            
+            // Initialize shader rectangles with randomized positions and dimensions
+            this.updateShaderRects(true);
+            
+            return true;
+        } catch (error) {
+            console.error("Error during FlockingExperience initialization:", error);
+            return false;
+        }
+    }
 
-        // Adjust camera near and far planes to better handle the flocking space
-        if (this.resourceManager && this.resourceManager.camera) {
-            // Use a smaller near plane and larger far plane to prevent clipping
-            this.resourceManager.camera.updateProjection(
-                this.resourceManager.camera.fov || Math.PI / 4, 
-                0.01,  // Smaller near plane (was 0.1)
-                200000 // Larger far plane (was 100000)
+    // New method to initialize video
+    async initializeVideo() {
+        try {
+            console.log("Starting video initialization");
+            
+            // Create video element
+            this.video = document.createElement('video');
+            
+            // Set video properties for better cross-origin compatibility
+            this.video.crossOrigin = "anonymous";
+            this.video.preload = "auto";
+            this.video.src = '/pretty_hands.mp4';
+            this.video.loop = true;
+            this.video.muted = false; // Enable audio
+            this.video.playsInline = true;
+            this.video.volume = 0.5; // Set volume to 50%
+            
+            // Set more explicit attributes for better browser support
+            this.video.setAttribute('playsinline', '');
+            this.video.setAttribute('webkit-playsinline', '');
+            
+            console.log("Video element created with src:", this.video.src);
+            
+            // Set video to autoplay when ready
+            this.video.oncanplaythrough = () => {
+                console.log("Video can play through, starting playback");
+                if (!this.videoPlaying) {
+                    this.playVideo();
+                }
+            };
+            
+            // Handle errors
+            this.video.onerror = (event) => {
+                console.error('Video error:', event, this.video.error);
+                this.useVideoBackground = false;
+            };
+            
+            // Start loading the video
+            this.video.load();
+            console.log("Video loading started");
+            
+            // Wait for video to be ready with a timeout
+            const videoReady = await Promise.race([
+                new Promise((resolve) => {
+                    if (this.video.readyState >= 4) { // HAVE_ENOUGH_DATA
+                        console.log("Video already has enough data to play");
+                        resolve(true);
+                    } else {
+                        this.video.oncanplay = () => {
+                            console.log("Video can play, ready state:", this.video.readyState);
+                            resolve(true);
+                        };
+                    }
+                }),
+                new Promise((resolve) => setTimeout(() => {
+                    console.warn("Video loading timed out");
+                    resolve(false);
+                }, 5000)) // 5-second timeout
+            ]);
+            
+            if (!videoReady) {
+                console.warn("Video loading timed out - falling back to standard background");
+                this.useVideoBackground = false;
+                return false;
+            }
+            
+            // Even if video is ready, wait a short amount of time for the first frame
+            // This helps ensure the video frame is actually available for texture extraction
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log("Video is ready, creating texture");
+            
+            // Try playing the video first to decode the first frame
+            try {
+                // Play and immediately pause to decode the first frame
+                const playPromise = this.video.play();
+                if (playPromise !== undefined) {
+                    await playPromise;
+                    // Don't pause - we want it to keep playing
+                    console.log("Video briefly played to decode first frame");
+                }
+            } catch (error) {
+                console.warn("Error during initial frame decode:", error);
+                // Continue anyway, as createVideoTexture has its own error handling
+            }
+            
+            // Create the video texture once the video is ready
+            this.createVideoTexture();
+            
+            return true;
+        } catch (error) {
+            console.error("Error initializing video:", error);
+            this.useVideoBackground = false;
+            return false;
+        }
+    }
+    
+    // Method to create WebGPU video texture
+    createVideoTexture() {
+        if (!this.video || !this.device) {
+            console.error("Cannot create video texture: video or device is null");
+            return;
+        }
+        
+        try {
+            // Wait for valid dimensions
+            if (!this.video.videoWidth || !this.video.videoHeight) {
+                console.warn("Video dimensions not available yet, waiting...");
+                // Set a timeout to try again in 100ms
+                setTimeout(() => this.createVideoTexture(), 100);
+                return;
+            }
+            
+            console.log("Creating video texture with dimensions:", 
+                        this.video.videoWidth, "x", this.video.videoHeight);
+            
+            // Destroy existing texture if it exists
+            if (this.videoTexture) {
+                console.log("Destroying existing video texture");
+                this.videoTexture.destroy();
+                this.videoTexture = null;
+            }
+            
+            // Create the texture with explicit size and format
+            this.videoTexture = this.device.createTexture({
+                label: 'Video Texture',
+                size: [
+                    Math.max(1, this.video.videoWidth), 
+                    Math.max(1, this.video.videoHeight)
+                ],
+                format: 'rgba8unorm',
+                usage: GPUTextureUsage.TEXTURE_BINDING | 
+                       GPUTextureUsage.COPY_DST | 
+                       GPUTextureUsage.RENDER_ATTACHMENT
+            });
+            
+            console.log("Video texture created successfully with size:", 
+                        this.videoTexture.width, "×", this.videoTexture.height);
+            
+            // Immediately try to update the texture with the current video frame
+            // This ensures we have a valid texture before trying to update the pipeline
+            try {
+                if (this.video.readyState >= 2) { // HAVE_CURRENT_DATA or better
+                    this.device.queue.copyExternalImageToTexture(
+                        { source: this.video },
+                        { texture: this.videoTexture },
+                        [Math.max(1, this.video.videoWidth), Math.max(1, this.video.videoHeight)]
+                    );
+                    console.log("Initial video frame copied to texture successfully");
+                }
+            } catch (error) {
+                console.warn("Could not copy initial video frame:", error);
+                // Continue anyway, we'll try again in the next frame
+            }
+            
+            // Update the video texture in the pipeline
+            if (this.videoBackgroundPipeline && this.videoBackgroundPipeline.isInitialized) {
+                console.log("Updating video texture in pipeline");
+                this.videoBackgroundPipeline.updateVideoTexture(this.videoTexture);
+            } else {
+                console.warn("videoBackgroundPipeline is not initialized or not available");
+            }
+        } catch (error) {
+            console.error("Error creating video texture:", error);
+            this.useVideoBackground = false;
+        }
+    }
+    
+    // Method to play the video
+    playVideo() {
+        if (!this.video) {
+            console.error("Cannot play video: video element is null");
+            return;
+        }
+        
+        try {
+            console.log("Attempting to play video");
+            
+            // Set again to ensure browser cooperation
+            this.video.muted = false; // Ensure audio is enabled
+            this.video.playsInline = true;
+            this.video.volume = 0.5; // Set volume to 50%
+            
+            // Try to play the video
+            const playPromise = this.video.play();
+            
+            // Handle the promise returned by play()
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        this.videoPlaying = true;
+                        console.log("Video started playing successfully");
+                        
+                        // Try creating the texture again after successful playback
+                        if (!this.videoTexture) {
+                            setTimeout(() => this.createVideoTexture(), 100);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error playing video:", error);
+                        // Try again with muted if permission issues
+                        if (error.name === "NotAllowedError") {
+                            console.log("Audio playback not allowed, trying muted playback");
+                            this.video.muted = true;
+                            this.video.play().catch(e => {
+                                console.error("Error playing muted video:", e);
+                                // Fall back to standard background if video can't play
+                                this.useVideoBackground = false;
+                            });
+                        } else {
+                            // Fall back to standard background if video can't play
+                            this.useVideoBackground = false;
+                        }
+                    });
+            }
+        } catch (error) {
+            console.error("Error in playVideo:", error);
+            this.useVideoBackground = false;
+        }
+    }
+    
+    // Method to pause the video
+    pauseVideo() {
+        if (this.video && this.videoPlaying) {
+            this.video.pause();
+            this.videoPlaying = false;
+        }
+    }
+    
+    // Method to update video texture with current frame
+    updateVideoTexture() {
+        // Skip if video not playing or texture not created
+        if (!this.videoPlaying || !this.video) {
+            return;
+        }
+        
+        // Skip if video is not ready
+        if (this.video.readyState < 2) { // HAVE_CURRENT_DATA or better
+            return;
+        }
+        
+        // Check if texture exists, try to create it if not
+        if (!this.videoTexture) {
+            console.log("Video texture missing, attempting to create...");
+            this.createVideoTexture();
+            return;
+        }
+        
+        try {
+            // Check if video dimensions are valid
+            if (this.video.videoWidth <= 0 || this.video.videoHeight <= 0) {
+                console.warn("Invalid video dimensions:", 
+                             this.video.videoWidth, "x", this.video.videoHeight);
+                return;
+            }
+            
+            // Check if video decode is ongoing
+            if (this.video.seeking || this.video.waiting) {
+                // Skip this frame if the video is still seeking or waiting
+                return;
+            }
+            
+            // Copy the current video frame to the texture
+            this.device.queue.copyExternalImageToTexture(
+                { source: this.video, origin: [0, 0] },  // Explicitly set origin
+                { texture: this.videoTexture, origin: [0, 0] },  // Explicitly set origin
+                [Math.max(1, this.video.videoWidth), Math.max(1, this.video.videoHeight)]
             );
-        }
-        
-        // Create intermediate render textures for post-processing
-        this.createPostProcessingTextures();
-
-        // Apply initial dither settings
-        this.updateDitherSettings();
-
-        // Generate initial positions and velocities for birds
-        const initialPositions = [];
-        const initialVelocities = [];
-        const initialPhases = [];
-        const bounds = 6000; // Increased from 5000
-        const boundsHalf = bounds / 2;
-
-        for (let i = 0; i < this.birdCount; i++) {
-            // Random positions within bounds, but closer to camera position
-            // This ensures birds don't initialize behind a viewable plane
-            const posX = Math.random() * bounds - boundsHalf;
             
-            // Create a spread of positions, but bias toward camera's field of view
-            const posY = (Math.random() * bounds - boundsHalf) * 0.8; // Y positions biased toward center
-            const posZ = (Math.random() * bounds - boundsHalf) * 0.8; // Z positions biased toward center
+            // If we get here successfully and the bind group is missing,
+            // try to recreate it
+            if (this.videoBackgroundPipeline && 
+                this.videoBackgroundPipeline.isInitialized && 
+                !this.videoBackgroundPipeline.videoBindGroup) {
+                console.log("Texture updated successfully but bind group is missing, recreating...");
+                this.videoBackgroundPipeline.createBindGroup();
+            }
+        } catch (error) {
+            console.error("Error updating video texture:", error, 
+                         "Video state:", 
+                         { readyState: this.video.readyState, 
+                           videoWidth: this.video.videoWidth, 
+                           videoHeight: this.video.videoHeight });
             
-            initialPositions.push([posX, posY, posZ]);
-
-            // Random velocities with a small magnitude
-            const velX = (Math.random() - 0.5);
-            const velY = (Math.random() - 0.5);
-            const velZ = (Math.random() - 0.5);
-            initialVelocities.push([velX, velY, velZ]);
-
-            // Random wing phases
-            initialPhases.push(Math.random() * Math.PI * 2); // Randomize initial wing flap positions
+            // If we get a "lost" error, try to recreate the texture
+            if (error.toString().includes("lost") || error.toString().includes("destroyed") || 
+                error.toString().includes("back resource")) {
+                console.log("Texture lost or video frame not ready, attempting to recreate...");
+                this.videoTexture = null;
+                // Add a delay before trying to recreate to allow for video frame to be ready
+                setTimeout(() => this.createVideoTexture(), 200);
+            } else {
+                // For other errors, disable video background
+                this.useVideoBackground = false;
+            }
         }
-
-        // Initialize position and velocity buffers in the pipeline
-        this.pipeline.initializeBirdBuffers(initialPositions, initialVelocities, initialPhases);
-
-        const initialPredatorPosition = new Float32Array([0.0, 0.0, 0.0]); // Starting at origin
-        const initialPredatorVelocity = new Float32Array([0.0, 0.0, 0.0]); // Initially stationary
-
-        // Initialize predator position and velocity buffers in the pipeline
-        this.pipeline.initializePredatorBuffers(initialPredatorPosition, initialPredatorVelocity);
-
-        // Set initial targetIndex to a random bird
-        const initialTargetIndex = Math.floor(Math.random() * this.birdCount);
-        this.pipeline.updateTargetIndex(initialTargetIndex);
-
-        // Now that everything is initialized and the predator buffer is ready,
-        // update the reference in the TextOverlayPipeline
-        if (this.textOverlayPipeline && this.pipeline && this.pipeline.predatorVelocityBuffer) {
-            this.textOverlayPipeline.updatePredatorVelocityBuffer(this.pipeline.predatorVelocityBuffer);
-        } else {
-            console.warn("Unable to update predatorVelocityBuffer in TextOverlayPipeline");
-        }
-
-        // Initialize shader rectangles with randomized positions and dimensions
-        this.updateShaderRects(true);
     }
 
     createPostProcessingTextures() {
@@ -853,7 +1179,7 @@ class FlockingExperience extends Experience {
                         view: renderTarget,
                         loadOp: 'clear',
                         storeOp: 'store',
-                        clearValue: { r: 0.2, g: 0.5, b: 0.9, a: 1.0 }
+                        clearValue: { r: 0.1, g: 0.1, b: 0.3, a: 1.0 } // Reduced blue from 0.9 to 0.3
                     }
                 ],
                 depthStencilAttachment: {
@@ -864,24 +1190,65 @@ class FlockingExperience extends Experience {
                 }
             };
             
-            // RENDERING ORDER:
-            // 1. First render just the background
+            // Update video texture if video is playing
+            if (this.useVideoBackground && this.videoPlaying && this.video && this.videoTexture) {
+                try {
+                    // Log video data periodically for debugging
+                    if (this.frameCount % 120 === 0) {
+                        console.log("Updating video texture, dimensions:", 
+                            this.video.videoWidth, "x", this.video.videoHeight,
+                            "Video time:", this.video.currentTime,
+                            "Video playing:", !this.video.paused);
+                    }
+                    this.updateVideoTexture();
+                } catch (e) {
+                    console.error("Error updating video texture:", e);
+                }
+            }
+            
+            // NEW RENDERING ORDER:
+            // 1. First render the standard background
             this.pipeline.renderBackground(commandEncoder, passDescriptor);
             
-            // 2. Now render shader rectangles on top of the background
+            // 2. Then render video background on top of standard background (if enabled)
+            if (this.useVideoBackground && this.videoBackgroundPipeline && 
+                this.videoBackgroundPipeline.isInitialized && this.videoTexture) {
+                try {
+                    // Log video rendering periodically for debugging
+                    if (this.frameCount % 120 === 0) {
+                        console.log("Rendering video background, pipeline initialized:", 
+                            this.videoBackgroundPipeline.isInitialized,
+                            "Video texture valid:", !!this.videoTexture,
+                            "Video bind group exists:", !!this.videoBackgroundPipeline.videoBindGroup);
+                    }
+                    // Render video background
+                    this.videoBackgroundPipeline.render(commandEncoder, renderTarget);
+                } catch (e) {
+                    console.error("Error rendering video background:", e);
+                }
+            } else if (this.frameCount % 120 === 0) {
+                // Log why video isn't being rendered
+                console.log("Not rendering video background:",
+                    "useVideoBackground:", this.useVideoBackground,
+                    "videoBackgroundPipeline exists:", !!this.videoBackgroundPipeline,
+                    "pipeline initialized:", this.videoBackgroundPipeline ? this.videoBackgroundPipeline.isInitialized : false,
+                    "videoTexture exists:", !!this.videoTexture);
+            }
+            
+            // 3. Now render shader rectangles on top of the background layers
             if (this.shaderRectPipeline && this.shaderRectPipeline.isInitialized && !this.shaderRectPipeline.bufferUpdateInProgress) {
                 this.shaderRectPipeline.render(commandEncoder, renderTarget);
             }
             
-            // 3. Render the birds and predator
+            // 4. Render the birds and predator
             this.pipeline.renderEntities(commandEncoder, renderTarget, depthView, this.birds, this.predator);
 
-            // 4. Render the text overlay BEFORE the dither effect
+            // 5. Render the text overlay BEFORE the dither effect
             if (this.textOverlayPipeline && this.textOverlayPipeline.isInitialized) {
                 this.textOverlayPipeline.render(commandEncoder, renderTarget);
             }
 
-            // 5. Apply post-processing dither effect if enabled
+            // 6. Apply post-processing dither effect if enabled
             if (this.ditherSettings.enabled && this.ditherPostProcessPipeline && this.ditherPostProcessPipeline.isInitialized) {
                 this.ditherPostProcessPipeline.render(commandEncoder, this.intermediateTextureView, textureView);
             }
@@ -920,6 +1287,29 @@ class FlockingExperience extends Experience {
         
         // Remove event listeners
         document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
+        
+        // Clean up video resources
+        if (this.video) {
+            this.pauseVideo(); // Stop playback
+            this.video.oncanplaythrough = null;
+            this.video.onerror = null;
+            this.video.oncanplay = null;
+            this.video.src = '';
+            this.video.load(); // Reset video element
+            this.video = null;
+        }
+        
+        // Clean up video texture
+        if (this.videoTexture) {
+            this.videoTexture.destroy();
+            this.videoTexture = null;
+        }
+        
+        // Cleanup video pipeline
+        if (this.videoBackgroundPipeline) {
+            this.videoBackgroundPipeline.cleanup();
+            this.videoBackgroundPipeline = null;
+        }
         
         // Cleanup pipeline
         if (this.pipeline) {
@@ -998,6 +1388,11 @@ class FlockingExperience extends Experience {
         // Update shader rect pipeline dimensions
         if (this.shaderRectPipeline) {
             this.shaderRectPipeline.updateViewportDimensions(width, height);
+        }
+        
+        // Update video background pipeline dimensions
+        if (this.videoBackgroundPipeline) {
+            this.videoBackgroundPipeline.updateViewportDimensions(width, height);
         }
         
         // Update dither post-process pipeline dimensions
@@ -1274,6 +1669,29 @@ class FlockingExperience extends Experience {
         
         // Otherwise return the base orientation
         return state.isHorizontal;
+    }
+
+    // Method to toggle video background
+    toggleVideoBackground(enabled) {
+        this.useVideoBackground = enabled;
+        
+        if (enabled) {
+            // Try to initialize video if not already done
+            if (!this.video || !this.videoPlaying) {
+                this.initializeVideo().then(() => {
+                    console.log("Video background enabled");
+                }).catch(error => {
+                    console.error("Error enabling video background:", error);
+                    this.useVideoBackground = false;
+                });
+            }
+        } else {
+            // Pause video to save resources but don't destroy it
+            // so we can quickly switch back
+            if (this.videoPlaying) {
+                this.pauseVideo();
+            }
+        }
     }
 }
 
