@@ -6,6 +6,7 @@
   import { showUI } from '$lib/store/store';
   import { setCurrentDitherSettings } from '$lib/store/ditherStore.js';
   import DitherControls from '$lib/components/DitherControls.svelte';
+  import MemoryStats from '$lib/components/MemoryStats.svelte';
   // import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
   
   let selectedExp = null;
@@ -49,10 +50,15 @@
         // Initialize the engine with the canvas
         engine = new Engine(canvas);
         
-        // Start the background experience
-        await engine.start(HomeBackgroundExperience);
-        
-        backgroundLoaded = true;
+        // Start the background experience - ensure proper async handling
+        try {
+          await engine.start(HomeBackgroundExperience);
+          console.log("Home background experience started successfully");
+          backgroundLoaded = true;
+        } catch (expError) {
+          console.error("Error starting home experience:", expError);
+          backgroundLoaded = true; // Still mark as loaded to avoid blocking UI
+        }
       } catch (error) {
         console.error("Error initializing background shader:", error);
         backgroundLoaded = true; // Still mark as loaded to avoid blocking UI
@@ -84,6 +90,11 @@
 
   <!-- Add DitherControls component outside the container, positioned at top right -->
   <DitherControls {engine} customStyle="top: 80px; right: 20px;" />
+  
+  <!-- Add MemoryStats component with recording capabilities -->
+  {#if backgroundLoaded}
+    <MemoryStats showResourceCounts={false} />
+  {/if}
 
   {#if $showUI}
   <div class="container {mounted && backgroundLoaded ? 'loaded' : ''}">
@@ -224,6 +235,28 @@ o---o---o---o   o---o---o---o   o---o---o---o
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+  }
+  
+  /* Adjust MemoryStats component styling for home page */
+  :global(.memory-stats) {
+    /* Add some extra z-index to ensure it stays on top */
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+  
+  /* Force text color in memory stats to be visible against transparent background */
+  :global(.memory-stats *) {
+    color: var(--light-black);
+  }
+  
+  /* Make sure video recorder styling works on homepage */
+  :global(.video-recorder .capture-popup) {
+    z-index: 1001;
+  }
+  
+  :global(.video-recorder .capture-btn p) {
+    margin: 0;
+    padding: 0;
   }
   
   :root {

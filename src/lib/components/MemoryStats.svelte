@@ -6,6 +6,7 @@
   
   // Props
   export let showResourceCounts = false;
+  export let showOnHomepage = true; // New prop to control visibility on homepage
   
   // Memory usage state
   let memoryUsage = { current: 0, peak: 0 };
@@ -23,6 +24,12 @@
   
   // Check if we're on the homepage
   $: isHomepage = $page && $page.url.pathname === '/';
+  
+  // Determine if component should be visible
+  $: shouldShow = showOnHomepage || !isHomepage;
+  
+  // Add special styling class for homepage
+  $: isOnHomepage = $page && $page.url.pathname === '/';
   
   // Calculate usage percentage
   $: memUsagePercent = typeof window !== 'undefined' && window.performance && window.performance.memory ? 
@@ -135,9 +142,10 @@
   });
 </script>
 
-{#if !isHomepage}
+{#if shouldShow}
 <div class="memory-stats" class:warning={isHighMemory} class:throttling={memoryWarning} 
-     class:leak={leakDetected} class:subtle-leak={subtleLeakDetected && !leakDetected}>
+     class:leak={leakDetected} class:subtle-leak={subtleLeakDetected && !leakDetected}
+     class:homepage={isOnHomepage}>
   <div>Memory: {formatBytes(memoryUsage.current)} ({memUsagePercent}%)</div>
   <div>Peak: {formatBytes(memoryUsage.peak)}</div>
   {#if window.performance && window.performance.memory}
@@ -181,36 +189,38 @@
     position: fixed;
     bottom: 10px;
     left: 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
+    background: transparent;
     font-family: 'Courier New', monospace;
+    color: var(--light-black);
     font-size: 12px;
     padding: 5px 10px;
+    border: 1px solid var(--light-black);
     border-radius: 4px;
     z-index: 100;
     transition: background-color 0.3s ease;
   }
   
+  
   .warning {
     background-color: rgba(255, 150, 0, 0.8);
-    color: black;
+    border-top: 1px solid var(--light-black);
   }
   
   .throttling {
     background-color: rgba(255, 50, 50, 0.9);
-    color: white;
+    border-top: 1px solid var(--light-black);
     animation: pulse 1s infinite;
   }
   
   .leak {
     background-color: rgba(200, 50, 255, 0.9);
-    color: white;
+    border-top: 1px solid var(--light-black);
     animation: pulse 2s infinite;
   }
   
   .subtle-leak {
     background-color: rgba(120, 80, 200, 0.7);
-    color: white;
+    border-top: 1px solid var(--light-black);
     animation: pulse 4s infinite;
   }
   
@@ -232,12 +242,12 @@
     font-weight: bold;
     margin-top: 5px;
     padding-top: 5px;
-    border-top: 1px solid white;
+    border-top: 1px solid var(--light-black);
   }
   
   .resource-counts {
     margin-top: 5px;
     padding-top: 5px;
-    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    border-top: 1px solid var(--light-black);
   }
 </style> 

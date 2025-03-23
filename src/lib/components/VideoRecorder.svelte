@@ -55,6 +55,11 @@
     // Try multiple selectors to find the canvas
     let canvas = document.querySelector('canvas.webgpu-canvas');
     
+    // If not found, try home page specific canvas first (higher priority)
+    if (!canvas) {
+      canvas = document.querySelector('.background-canvas canvas');
+    }
+    
     // If not found, try other common selectors
     if (!canvas) {
       canvas = document.querySelector('.experience-container canvas');
@@ -64,16 +69,29 @@
     if (!canvas) {
       const canvases = document.querySelectorAll('canvas');
       if (canvases.length > 0) {
-        // Use the largest canvas by area as it's likely the main experience canvas
+        // Use the largest visible canvas by area as it's likely the main experience canvas
         let largestArea = 0;
         for (const c of canvases) {
-          const area = c.width * c.height;
-          if (area > largestArea) {
-            largestArea = area;
-            canvas = c;
+          // Check if canvas is visible
+          const rect = c.getBoundingClientRect();
+          const isVisible = rect.width > 0 && rect.height > 0;
+          
+          if (isVisible) {
+            const area = c.width * c.height;
+            if (area > largestArea) {
+              largestArea = area;
+              canvas = c;
+            }
           }
         }
       }
+    }
+    
+    // Log the found canvas for debugging
+    if (canvas) {
+      console.log("VideoRecorder: Found canvas", canvas, `dimensions: ${canvas.width}x${canvas.height}`);
+    } else {
+      console.error("VideoRecorder: No suitable canvas found for recording");
     }
     
     return canvas;
@@ -596,7 +614,7 @@
   .capture-controls {
     margin-top: 5px;
     padding-top: 5px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: 1px solid var(--light-black);
     display: flex;
     justify-content: center;
   }
@@ -609,6 +627,13 @@
     font-size: 14px;
     padding: 2px 5px;
     transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+  }
+  
+  .capture-btn p {
+    margin: 0;
+    padding: 0;
   }
   
   .capture-btn:hover {
@@ -631,7 +656,7 @@
   
   .progress-fill {
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.7);
+    background-color: var(--light-black);
     transition: width 0.3s ease;
   }
   
