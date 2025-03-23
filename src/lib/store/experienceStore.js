@@ -5,7 +5,7 @@ const experienceData = [
   {
     id: 'flocking',
     name: 'FLOCKING',
-    description: 'Simulation of collective motion in flocks using parallel compute shaders. Simple local rules generate complex global murmurations; cute emergent behavior in natural systems.',
+    description: 'Simulation of collective motion in flocks using parallel compute shaders with a hunter that targets prey. Video/Audio background is london-based duo "Pretty Hands"',
     color: '#0077cc'
   },
   {
