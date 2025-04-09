@@ -23,7 +23,7 @@ const experienceData = [
   {
     id: 'gridcode',
     name: 'Θ-FUNCTION // GRID CODE',
-    description: 'Model of medial entorhinal grid cells using the Riemann theta functions. Visualising how the brain encodes spatial information in a structured form..',
+    description: 'Model of medial entorhinal grid cells using the Riemann theta function. Visualising how the brain encodes spatial information in a structured form..',
     color: '#ff9900'
   }
 ];
