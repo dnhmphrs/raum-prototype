@@ -12,7 +12,7 @@ const experienceData = [
     id: 'watersheds',
     name: 'WATERSHEDS',
     description: 'Interactive 3D visualisation of the world\'s watersheds.',
-    color: '#00bfff'
+    color: '#FFDF00'
   },
   {
     id: 'neuralnet',

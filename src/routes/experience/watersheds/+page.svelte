@@ -186,15 +186,15 @@
         font-size: 18px;
         letter-spacing: 2px;
         text-transform: uppercase;
-        color: var(--accent, #00bfff);
+        color: var(--accent, #FFDF00);
     }
     
 
-    .control-panel h3 {
+    /* .control-panel h3 {
         font-size: 14px;
         margin: 15px 0 10px;
         color: #aaa;
-    }
+    } */
     
     .control-panel p {
         margin: 0 0 15px;
