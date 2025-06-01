@@ -8,18 +8,18 @@ const experienceData = [
     description: 'Simulation of collective motion in flocks using parallel compute shaders. Simple local rules generate complex global murmurations; cute emergent behavior in natural systems.',
     color: '#00bfff'
   },
-  // {
-  //   id: 'cube',
-  //   name: 'THETA CUBE',
-  //   description: 'Interactive 3D visualization of Jacobi theta functions rendered on cube geometry. Explore complex mathematical functions in an immersive 3D environment.',
-  //   color: '#ff6600'
-  // },
   {
-    id: 'neuralnet',
-    name: 'NEURAL NET',
-    description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
-    color: '#ff3366'
+    id: 'watersheds',
+    name: 'WATERSHEDS',
+    description: 'Interactive 3D visualisation of the world\'s watersheds.',
+    color: '#00bfff'
   },
+  // {
+  //   id: 'neuralnet',
+  //   name: 'NEURAL NET',
+  //   description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
+  //   color: '#ff3366'
+  // },
   {
     id: 'riemann',
     name: 'RIEMANN SURFACES',
