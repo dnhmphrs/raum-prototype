@@ -25,7 +25,6 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
 
     // Calculate forward direction (negative velocity for correct orientation)
     let forward = normalize(-birdVelocity);
-    let speed = length(birdVelocity);
 
     // Use a stable up vector calculation
     var up = vec3<f32>(0.0, 1.0, 0.0);
@@ -33,14 +32,17 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // Handle near-vertical cases
     let upAlignment = abs(dot(forward, up));
     if (upAlignment > 0.99) {
+        // If looking almost straight up/down, use a different reference vector
         up = vec3<f32>(0.0, 0.0, 1.0);
     }
 
     // Calculate right vector
     let right = normalize(cross(forward, up));
+    
+    // Recalculate actual up vector to ensure orthogonality
     up = normalize(cross(right, forward));
 
-    // Create rotation matrix
+    // Create rotation matrix from orthonormal basis
     let rotationMatrix = mat3x3<f32>(
         right.x, up.x, forward.x,
         right.y, up.y, forward.y,
@@ -48,7 +50,15 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     );
 
     // Apply rotation to vertex position
-    var rotatedPosition = rotationMatrix * vertexPosition;
+    var rotatedPosition = rotationMatrix * vertexPosition; // Changed to var
+
+    // // Animate wings based on phase and velocity
+    // let wingFlap = sin(birdPhase) * 5.0 + length(birdVelocity) * 0.1;
+    // if (rotatedPosition.x > 0.0) { // Right wing
+    //     rotatedPosition.y += wingFlap;
+    // } else if (rotatedPosition.x < 0.0) { // Left wing
+    //     rotatedPosition.y += wingFlap;
+    // }
 
     // Combine with bird's global position
     let worldPosition = rotatedPosition + birdPosition;
@@ -56,25 +66,25 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
     // Transform to clip space
     out.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
 
-    // More subtle, ethereal coloring
-    let baseColor = vec3<f32>(0.941, 0.941, 0.941);
-    let speedFactor = min(speed * 0.1, 1.0);
-    
-    // Subtle color variation based on position and velocity
-    let variation = vec3<f32>(
-        sin(birdPosition.x * 0.01 + birdPosition.y * 0.02) * 0.05,
-        cos(birdPosition.y * 0.01 - birdPosition.z * 0.02) * 0.05,
-        sin(birdPosition.z * 0.01 + birdPosition.x * 0.02) * 0.05
-    );
+    out.color = vec3<f32>(0.0, 0.0, 0.0);
 
-    // Blend colors based on speed
-    // out.color = mix(
-    //     baseColor + variation,
-    //     vec3<f32>(0.95, 0.97, 1.0),
-    //     speedFactor
+    // // Assign colors based on vertex position
+    // if (vertexPosition.z > 15.0 || vertexPosition.z < -15.0) {
+    //     // Wings
+    //     out.color = vec3<f32>(1.0, 1.0, 1.0);
+    // } else {
+    //     // Body
+    //     out.color = vec3<f32>(0.0, 0.0, 0.0);
+    // }
+    
+    // // Add variation
+    // out.color += vec3<f32>(
+    //     fract(sin(birdVelocity.x) * 43758.5453123),
+    //     fract(sin(birdVelocity.y) * 43758.5453123),
+    //     fract(sin(birdVelocity.z) * 43758.5453123)
     // );
 
-    // // Set normal for potential lighting
+    // Set normal for potential lighting (optional)
     out.vNormal = normalize(rotationMatrix * vec3<f32>(0.0, 1.0, 0.0));
 
     return out;
@@ -82,6 +92,9 @@ fn vertex_main(@location(0) vertexPosition: vec3<f32>, @builtin(instance_index) 
 
 @fragment
 fn fragment_main(@location(0) color: vec3<f32>, @location(1) vNormal: vec3<f32>) -> @location(0) vec4<f32> {
-    // Make birds slightly translucent
-    return vec4<f32>(color, 1.0);
+    // Simple lighting
+    let lightDir = normalize(vec3<f32>(1.0, 1.0, 1.0));
+    let lightIntensity = max(dot(vNormal, lightDir), 0.0);
+    let finalColor = color * lightIntensity;
+    return vec4<f32>(finalColor, 1.0);
 }

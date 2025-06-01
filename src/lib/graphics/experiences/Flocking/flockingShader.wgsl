@@ -15,7 +15,7 @@ struct FlockingParams {
 @group(0) @binding(5) var<storage, read> predatorPosition: vec3<f32>;
 @group(0) @binding(6) var<storage, read> predatorVelocity: vec3<f32>;
 
-const SPEED_LIMIT: f32 = 125.0;
+const SPEED_LIMIT: f32 = 100.0;
 const SEPARATION_DISTANCE: f32 = 250.0;
 const NEIGHBOR_RADIUS: f32 = 250.0;
 

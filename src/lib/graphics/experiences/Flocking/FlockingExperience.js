@@ -10,20 +10,12 @@ class FlockingExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
 
-        this.birdCount = 4096; // Adjusted for performance
+        this.birdCount = 8192; // Adjusted for performance
         this.lastTime = performance.now(); // Initialize lastTime
-        
-        // Performance tracking variables
-        this.frameCount = 0;
-        this.frameTimes = [];
-        this.maxFrameHistory = 60; // Track last 60 frames for averaging
-        this.performanceScaleFactor = 1.0; // Initial scale factor
-        this.targetFrameTime = 4.0; // Target ~60fps (in ms)
 
         // Timer variables
         this.targetChangeInterval = 10000; // 10 seconds in milliseconds
         this.lastTargetChangeTime = this.lastTime;
-        this.accumulatedTargetTime = 0; // Accumulated time for target changes
 
         // Separate storage for birds and predator
         this.birds = []; // Array to hold all bird geometries
@@ -41,7 +33,8 @@ class FlockingExperience extends Experience {
             resourceManager.getMouseBuffer(),
             this.birdCount,
             this.canvas ? this.canvas.width : 800,  // Default to 800 if canvas not available
-            this.canvas ? this.canvas.height : 600  // Default to 600 if canvas not available
+            this.canvas ? this.canvas.height : 600,  // Default to 600 if canvas not available
+            this.canvas
         );
 
         this.addBirds();
@@ -50,9 +43,8 @@ class FlockingExperience extends Experience {
         this.guidingLine = new GuidingLineGeometry(this.device);
         this.addObject(this.guidingLine);
 
-        // Bind the visibility change handler and store the bound function
-        this.handleVisibilityChangeBound = this.handleVisibilityChange.bind(this);
-        document.addEventListener('visibilitychange', this.handleVisibilityChangeBound);
+        // Bind the visibility change handler
+        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
     }
 
     async initialize() {
@@ -63,7 +55,7 @@ class FlockingExperience extends Experience {
         const initialPositions = [];
         const initialVelocities = [];
         const initialPhases = [];
-        const bounds = 5000;
+        const bounds = 2500;
         const boundsHalf = bounds / 2;
 
         for (let i = 0; i < this.birdCount; i++) {
@@ -80,7 +72,8 @@ class FlockingExperience extends Experience {
             initialVelocities.push([velX, velY, velZ]);
 
             // Random wing phases
-            initialPhases.push(0); // Initialize with 0 phase
+            const wingPhase = 0;
+            initialPhases.push(wingPhase);
         }
 
         // Initialize position and velocity buffers in the pipeline
@@ -113,65 +106,32 @@ class FlockingExperience extends Experience {
         this.addObject(predator);
     }
 
-    // Update performance metrics
-    updatePerformanceMetrics(frameTime) {
-        this.frameCount++;
-        
-        // Add current frame time to history
-        this.frameTimes.push(frameTime);
-        
-        // Keep only the most recent frames
-        if (this.frameTimes.length > this.maxFrameHistory) {
-            this.frameTimes.shift();
-        }
-        
-        // Calculate average frame time
-        const avgFrameTime = this.frameTimes.reduce((sum, time) => sum + time, 0) / this.frameTimes.length;
-        
-        // Update performance scale factor
-        // If avgFrameTime > targetFrameTime, scale down (< 1.0)
-        // If avgFrameTime < targetFrameTime, scale up (> 1.0), but cap at 1.0 to avoid too fast simulation
-        this.performanceScaleFactor = Math.min(0.5, this.targetFrameTime / Math.max(1.0, avgFrameTime));
-
-        // If performance is consistently poor, switch to low performance mode
-        if (avgFrameTime > 50.0 && !this.pipeline.lowPerformanceMode) { // 50ms = ~20fps
-            this.pipeline.updatePerformanceMode(true);
-        } else if (avgFrameTime < 30.0 && this.pipeline.lowPerformanceMode) { // 30ms = ~33fps
-            // If performance improves, switch back to high quality
-            this.pipeline.updatePerformanceMode(false);
-        }
-    }
-
     render(commandEncoder, textureView) {
         // Calculate deltaTime
         const now = performance.now();
-        const rawDeltaTime = (now - this.lastTime) / 1000; // in seconds
-        this.lastTime = now;
-        
-        // Update performance metrics
-        this.updatePerformanceMetrics(rawDeltaTime * 1000); // Convert to ms for metrics
-        
-        // Apply performance scaling to deltaTime
-        let deltaTime = rawDeltaTime * this.performanceScaleFactor;
-        
-        // Cap maximum deltaTime to prevent large jumps after pauses
-        const MAX_DELTA = 0.1; // 100ms maximum
-        deltaTime = Math.min(deltaTime, MAX_DELTA);
+        let deltaTime = (now - this.lastTime) / 1000; // in seconds
 
         if (document.visibilityState !== 'visible') {
             // If not visible, set deltaTime to zero to pause updates
             deltaTime = 0;
         }
 
+        this.lastTime = now;
+
         // Update deltaTime in the compute shader
         this.pipeline.updateDeltaTime(deltaTime);
 
-        // Handle target change using accumulated time approach
-        this.accumulatedTargetTime += rawDeltaTime * 1000; // Use raw time for real-world timing
-        if (this.accumulatedTargetTime >= this.targetChangeInterval) {
+        // Update wing phases
+        // this.pipeline.updatePhases(now);
+
+        // Handle target change every 10 seconds
+        if (now - this.lastTargetChangeTime >= this.targetChangeInterval) {
             this.changeTarget();
-            this.accumulatedTargetTime = 0;
+            this.lastTargetChangeTime = now;
         }
+
+        // Optionally, adjust flocking parameters dynamically here
+        // Example: this.pipeline.setFlockingParameters(separation, alignment, cohesion, centerGravity);
 
         // Render the pipeline (includes compute pass and render pass)
         const depthView = this.resourceManager.getDepthTextureView();
@@ -201,6 +161,8 @@ class FlockingExperience extends Experience {
 
         // Update the target index in the pipeline
         this.pipeline.updateTargetIndex(newTargetIndex);
+
+        // console.log(`Predator target changed to bird index: ${newTargetIndex}`);
     }
 
     handleVisibilityChange() {
@@ -211,71 +173,30 @@ class FlockingExperience extends Experience {
     }
 
     cleanup() {
-        // Remove event listeners
-        document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
-        
-        // Cleanup pipeline
         if (this.pipeline) {
             this.pipeline.cleanup();
-            this.pipeline = null;
         }
 
         // Cleanup birds
-        if (this.birds && this.birds.length > 0) {
-            this.birds.forEach((bird) => {
-                if (bird && typeof bird.cleanup === 'function') {
-                    bird.cleanup();
-                }
-            });
-            this.birds = [];
-        }
+        this.birds.forEach((bird) => {
+            if (bird.cleanup) {
+                bird.cleanup();
+            }
+        });
+        this.birds = [];
 
         // Cleanup predator
         if (this.predator) {
-            if (typeof this.predator.cleanup === 'function') {
-                this.predator.cleanup();
-            }
+            this.predator.cleanup();
             this.predator = null;
         }
-        
-        // Cleanup guiding line
-        if (this.guidingLine) {
-            if (typeof this.guidingLine.cleanup === 'function') {
-                this.guidingLine.cleanup();
-            }
-            this.guidingLine = null;
-        }
-        
-        // Reset performance tracking
-        this.frameCount = 0;
-        this.frameTimes = [];
-        this.performanceScaleFactor = 1.0;
-        this.accumulatedTargetTime = 0;
-        
-        // Call parent cleanup to handle common resources and tracking
-        super.cleanup();
+
+        document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
     }
 
-    handleResize(width, height) {
-        // Update viewport dimensions in pipeline
+    onResize(width, height) {
         if (this.pipeline) {
             this.pipeline.updateViewportDimensions(width, height);
-        }
-        
-        // Update camera aspect ratio if needed
-        if (this.resourceManager && this.resourceManager.camera) {
-            this.resourceManager.camera.updateAspect(width, height);
-        }
-        
-        // Update depth texture if needed - add null check like in GridCodeExperience
-        if (this.resourceManager && typeof this.resourceManager.updateDepthTexture === 'function') {
-            this.resourceManager.updateDepthTexture(width, height);
-        }
-        
-        // Update the viewport buffer with new dimensions
-        if (this.resourceManager && this.resourceManager.getViewportBuffer()) {
-            const viewportArray = new Float32Array([width, height]);
-            this.device.queue.writeBuffer(this.resourceManager.getViewportBuffer(), 0, viewportArray);
         }
     }
 }
