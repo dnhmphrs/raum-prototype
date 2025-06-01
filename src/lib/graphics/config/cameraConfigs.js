@@ -5,25 +5,15 @@ export const cameraConfigs = {
     fov: 40 * (Math.PI / 180),
     baseDistance: 4000.0  // Large distance for bird flocking view
   },
-  Cube: {
-    position: { x: 0, y: 0, z: 5 },
-    fov: 60 * (Math.PI / 180),
-    baseDistance: 1000.0    // Close for cube inspection
-  },
   NeuralNet: {
     position: { x: 0, y: 350, z: 550 },
     fov: 45 * (Math.PI / 180),
     baseDistance: 75900.0    // Medium distance for network visualization
   },
-  Poincare: {
+  Watersheds: {
     position: { x: 0, y: 0, z: 10 },
     fov: 50 * (Math.PI / 180),
-    baseDistance: 1000.0    // Medium-close for disk view
-  },
-  Lorentz: {
-    position: { x: 0, y: 0, z: 100 },
-    fov: 45 * (Math.PI / 180),
-    baseDistance: 100.0  // Distance for Lorentz attractor
+    baseDistance: 500.0    // Medium-close for disk view
   },
   Riemann: {
     position: { x: 0, y: -4, z: 4 },
