@@ -14,12 +14,12 @@ const experienceData = [
     description: 'Interactive 3D visualisation of the world\'s watersheds.',
     color: '#00bfff'
   },
-  // {
-  //   id: 'neuralnet',
-  //   name: 'NEURAL NET',
-  //   description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
-  //   color: '#ff3366'
-  // },
+  {
+    id: 'neuralnet',
+    name: 'NEURAL NET',
+    description: 'Interactive visualization of neural network training. No use yet. When I make NNs I will also visualise them. I like pretty pictures.',
+    color: '#ff3366'
+  },
   {
     id: 'riemann',
     name: 'RIEMANN SURFACES',
