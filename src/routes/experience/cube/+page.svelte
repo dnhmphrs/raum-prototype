@@ -1,4 +1,4 @@
-<script>
+<!-- <script>
   import ExperienceWrapper from '$lib/components/ExperienceWrapper.svelte';
   import CubeExperience from '$lib/graphics/experiences/Cube/CubeExperience.js';
   import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
@@ -91,4 +91,4 @@
       padding-top: 10px;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
-</style>
+</style> -->
