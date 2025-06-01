@@ -74,9 +74,13 @@
   <title>Flocking Simulation</title>
 </svelte:head>
 
-<!-- <div class="music">
+<div class="music">
   <iframe title="music" style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/album=1967289637/size=small/bgcol=333333/linkcol=ffffff/track=2440001588/transparent=true/" seamless><a href="https://masayoshifujita.bandcamp.com/album/bird-ambience">Bird Ambience by Masayoshi Fujita</a></iframe>
-</div> -->
+</div>
+
+<div class="predator-pov">
+  <p>predator pov - periodic target change</p>
+</div>
 
 <div class="experience-container">
   <canvas bind:this={canvas}></canvas>
@@ -103,6 +107,29 @@
     width: 100%;
     height: 100%;
     display: block;
+  }
+
+  .music {
+    position: absolute;
+    z-index: 1;
+    right: 0px;
+  }
+
+  .predator-pov {
+    position: absolute;
+    z-index: 1;
+    bottom: 10px;
+    left: 10px;
+    border: solid 1px var(--primary);
+    width: 330px;
+    height: 330px;
+    padding: 10px;
+    border-radius: 4px;
+  }
+
+  .predator-pov p {
+    font-size: 12px;
+    font-weight: 700;
   }
   
   .back-button {
