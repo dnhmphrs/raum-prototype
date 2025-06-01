@@ -59,23 +59,23 @@ class CubeExperience extends Experience {
 		this.pipeline2D.render(commandEncoder, passDescriptor2D);
 
 		// Render the 3D pipeline with a `load`
-		const depthView = this.resourceManager.getDepthTextureView();
-		const passDescriptor3D = {
-			colorAttachments: [
-				{
-					view: textureView,
-					loadOp: 'load',
-					storeOp: 'store'
-				}
-			],
-			depthStencilAttachment: {
-				view: depthView,
-				depthLoadOp: 'clear',
-				depthClearValue: 1.0,
-				depthStoreOp: 'store'
-			}
-		};
-		this.pipeline3D.render(commandEncoder, passDescriptor3D, this.objects);
+		// const depthView = this.resourceManager.getDepthTextureView();
+		// const passDescriptor3D = {
+		// 	colorAttachments: [
+		// 		{
+		// 			view: textureView,
+		// 			loadOp: 'load',
+		// 			storeOp: 'store'
+		// 		}
+		// 	],
+		// 	depthStencilAttachment: {
+		// 		view: depthView,
+		// 		depthLoadOp: 'clear',
+		// 		depthClearValue: 1.0,
+		// 		depthStoreOp: 'store'
+		// 	}
+		// };
+		// this.pipeline3D.render(commandEncoder, passDescriptor3D, this.objects);
 	}
 
 	cleanup() {

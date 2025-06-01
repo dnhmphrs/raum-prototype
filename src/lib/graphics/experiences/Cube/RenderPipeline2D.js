@@ -1,15 +1,26 @@
 import Pipeline from '../../pipelines/Pipeline';
-import shaderCode from './theta2D.wgsl';
 
 export default class RenderPipeline2D extends Pipeline {
 	constructor(device, viewportBuffer, mouseBuffer) {
 		super(device);
 		this.viewportBuffer = viewportBuffer;
 		this.mouseBuffer = mouseBuffer;
+		this.shaderCode = null;
 	}
 
 	async initialize() {
 		const format = navigator.gpu.getPreferredCanvasFormat();
+
+		// Fetch the shader from the static directory
+		try {
+			const response = await fetch('/shaders/cube/theta2D.wgsl');
+			if (response.ok) {
+				this.shaderCode = await response.text();
+			}
+		} catch (error) {
+			console.error("Error loading neuron shader:", error);
+			return;
+		}
 
 		const bindGroupLayout = this.device.createBindGroupLayout({
 			label: 'Uniform Bind Group Layout',
@@ -23,11 +34,11 @@ export default class RenderPipeline2D extends Pipeline {
 			label: '2D Render Pipeline',
 			layout: this.device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
 			vertex: {
-				module: this.device.createShaderModule({ label: 'Vertex Shader', code: shaderCode }),
+				module: this.device.createShaderModule({ label: 'Vertex Shader', code: this.shaderCode }),
 				entryPoint: 'vertex_main'
 			},
 			fragment: {
-				module: this.device.createShaderModule({ label: 'Fragment Shader', code: shaderCode }),
+				module: this.device.createShaderModule({ label: 'Fragment Shader', code: this.shaderCode }),
 				entryPoint: 'fragment_main',
 				targets: [{ format }]
 			}

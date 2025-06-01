@@ -1,5 +1,4 @@
 import Pipeline from '../../pipelines/Pipeline';
-import shaderCode from './theta3D.wgsl';
 
 export default class RenderPipeline3D extends Pipeline {
 	constructor(device, camera, viewportBuffer, mouseBuffer) {
@@ -7,11 +6,23 @@ export default class RenderPipeline3D extends Pipeline {
 		this.camera = camera;
 		this.viewportBuffer = viewportBuffer;
 		this.mouseBuffer = mouseBuffer;
+		this.shaderCode = null;
 	}
 
 	async initialize() {
 		const format = navigator.gpu.getPreferredCanvasFormat();
 		const { projectionBuffer, viewBuffer, modelBuffer } = this.camera.getBuffers();
+
+		// Fetch the shader from the static directory
+		try {
+			const response = await fetch('/shaders/cube/theta3D.wgsl');
+			if (response.ok) {
+				this.shaderCode = await response.text();
+			}
+		} catch (error) {
+			console.error("Error loading neuron shader:", error);
+			return;
+		}
 
 		const bindGroupLayout = this.device.createBindGroupLayout({
 			label: '3D Bind Group Layout',
@@ -28,7 +39,7 @@ export default class RenderPipeline3D extends Pipeline {
 			label: '3D Render Pipeline',
 			layout: this.device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
 			vertex: {
-				module: this.device.createShaderModule({ code: shaderCode }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'vertex_main',
 				buffers: [
 					{
@@ -38,7 +49,7 @@ export default class RenderPipeline3D extends Pipeline {
 				]
 			},
 			fragment: {
-				module: this.device.createShaderModule({ code: shaderCode }),
+				module: this.device.createShaderModule({ code: this.shaderCode }),
 				entryPoint: 'fragment_main',
 				targets: [{ format }]
 			},
