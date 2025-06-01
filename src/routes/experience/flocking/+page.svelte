@@ -79,7 +79,7 @@
 </div>
 
 <div class="predator-pov">
-  <p>predator pov - periodic target change</p>
+  <p>predator pov: periodic re-target</p>
 </div>
 
 <div class="experience-container">
@@ -128,8 +128,7 @@
   }
 
   .predator-pov p {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13.7px;
   }
   
   .back-button {
