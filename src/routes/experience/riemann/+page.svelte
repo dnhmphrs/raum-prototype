@@ -30,8 +30,8 @@
     let selectedManifold = manifoldTypes.find(m => m.id === 'ripple');
     
     // Zeta function parameters
-    let zetaNumWaves = 5; // Number of waves for zeta function
-    let zetaScale = 10.0; // Scale factor for zeta function frequencies
+    let zetaNumWaves = 1; // Number of waves for zeta function
+    let zetaScale = 4.0; // Scale factor for zeta function frequencies
     
     // Function to stop event propagation
     function stopPropagation(event) {
