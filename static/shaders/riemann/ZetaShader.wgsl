@@ -1,0 +1,113 @@
+// ZetaShader.wgsl - Riemann Zeta Function Surface
+// Creates a surface with N waves where wave n has frequency log(n) and amplitude 1/n
+
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) worldPosition: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+}
+
+@group(0) @binding(0)
+var<uniform> projectionMatrix: mat4x4<f32>;
+@group(0) @binding(1)
+var<uniform> viewMatrix: mat4x4<f32>;
+@group(0) @binding(2)
+var<uniform> uniforms: vec4<f32>;
+// [unused, unused, unused, time]
+@group(0) @binding(3)
+var<uniform> zetaParams: vec4<f32>;
+// [numWaves, unused, unused, unused]
+
+@vertex
+fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
+    var output: VertexOutput;
+
+    let time = uniforms.w;
+    let numWaves = i32(zetaParams.x);
+
+    // Calculate zeta surface height
+    var height: f32 = 0.0;
+
+    // Sum N waves with frequency log(n) and amplitude 1/n
+    for (var n: i32 = 1; n <= numWaves; n++) {
+        let nf = f32(n);
+        let frequency = log(nf);
+        let amplitude = 1.0 / nf;
+
+        // Distance from center for radial waves
+        let dist = length(position.xy);
+
+        // Create wave with time animation
+        let wave = amplitude * sin(dist * frequency + time * 2.0);
+        height += wave;
+    }
+
+    // Apply the height to the z-coordinate
+    let worldPosition = vec3<f32>(position.x, position.y, height);
+    output.worldPosition = worldPosition;
+
+    // Calculate normal by finite differences for lighting
+    let epsilon = 0.01;
+
+    // Sample nearby points for normal calculation
+    var heightX: f32 = 0.0;
+    var heightY: f32 = 0.0;
+
+    for (var n: i32 = 1; n <= numWaves; n++) {
+        let nf = f32(n);
+        let frequency = log(nf);
+        let amplitude = 1.0 / nf;
+
+        let distX = length(vec2<f32>(position.x + epsilon, position.y));
+        let distY = length(vec2<f32>(position.x, position.y + epsilon));
+
+        heightX += amplitude * sin(distX * frequency + time * 2.0);
+        heightY += amplitude * sin(distY * frequency + time * 2.0);
+    }
+
+    let dx = vec3<f32>(epsilon, 0.0, heightX - height);
+    let dy = vec3<f32>(0.0, epsilon, heightY - height);
+
+    output.normal = normalize(cross(dx, dy));
+
+    output.position = projectionMatrix * viewMatrix * vec4<f32>(worldPosition, 1.0);
+
+    return output;
+}
+
+@fragment
+fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
+    // Light direction
+    let lightDir = normalize(vec3<f32>(1.0, 1.0, 1.0));
+
+    // Basic diffuse lighting
+    let diffuse = max(dot(input.normal, lightDir), 0.0);
+
+    // Color based on height and wave contribution
+    let height = input.worldPosition.z;
+    let numWaves = zetaParams.x;
+
+    // Color transitions based on zeta function properties
+    var color: vec3<f32>;
+
+    if (height > 0.0) {
+        // Positive values - cool colors (blue to cyan)
+        let intensity = min(height * 2.0, 1.0);
+        color = mix(vec3<f32>(0.0, 0.4, 0.8), vec3<f32>(0.0, 0.8, 1.0), intensity);
+    }
+    else {
+        // Negative values - warm colors (red to orange)
+        let intensity = min(- height * 2.0, 1.0);
+        color = mix(vec3<f32>(0.8, 0.2, 0.0), vec3<f32>(1.0, 0.4, 0.0), intensity);
+    }
+
+    // Add wave count influence to color
+    let waveInfluence = numWaves / 20.0;
+    // Normalize assuming max 20 waves
+    color = mix(color, vec3<f32>(0.5, 0.5, 0.5), waveInfluence * 0.3);
+
+    // Apply lighting
+    color = color * (0.3 + 0.7 * diffuse);
+
+    return vec4<f32>(color, 1.0);
+}

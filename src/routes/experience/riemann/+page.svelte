@@ -22,11 +22,15 @@
         { id: 'sine', name: 'Sine Wave' },
         { id: 'ripple', name: 'Ripple' },
         { id: 'weird', name: 'Weird Function' },
-        { id: 'torus', name: 'Torus' }
+        { id: 'torus', name: 'Torus' },
+        { id: 'zeta', name: 'Zeta Function' }
     ];
     
     // Current selected manifold - set ripple as default
     let selectedManifold = manifoldTypes.find(m => m.id === 'ripple');
+    
+    // Zeta function parameters
+    let zetaNumWaves = 5; // Number of waves for zeta function
     
     // Function to stop event propagation
     function stopPropagation(event) {
@@ -65,6 +69,17 @@
         });
     }
     
+    // Function to update zeta number of waves
+    function updateZetaWaves() {
+        if (experience) {
+            experience.setZetaNumWaves(zetaNumWaves);
+        } else if (engine && engine.scene && engine.scene.currentExperience) {
+            engine.scene.currentExperience.setZetaNumWaves(zetaNumWaves);
+        } else if (window.riemannExperience) {
+            window.riemannExperience.setZetaNumWaves(zetaNumWaves);
+        }
+    }
+    
     onMount(async () => {
         if (canvas && navigator.gpu) {
             // Initialize the engine with the canvas
@@ -94,6 +109,9 @@
                 loadingMessage = "Loading Ripple Surface...";
                 loadingProgress = 70;
                 experience.updateSurface('ripple');
+                
+                // Initialize zeta parameters
+                experience.setZetaNumWaves(zetaNumWaves);
             }
             
             // Update loading message to indicate we're finalizing
@@ -173,8 +191,38 @@
             </div>
         </div>
         
+        <!-- Zeta function controls -->
+        {#if selectedManifold.id === 'zeta'}
+            <div class="zeta-controls">
+                <h3>Zeta Parameters</h3>
+                <div class="control-group">
+                    <label for="zeta-waves">Number of Waves: {zetaNumWaves}</label>
+                    <input 
+                        type="range" 
+                        id="zeta-waves" 
+                        min="1" 
+                        max="20" 
+                        step="1" 
+                        bind:value={zetaNumWaves} 
+                        on:input={updateZetaWaves}
+                    />
+                </div>
+                <div class="zeta-info">
+                    <p>Each wave n has:</p>
+                    <ul>
+                        <li>Frequency: log(n)</li>
+                        <li>Amplitude: 1/n</li>
+                    </ul>
+                    <p>Surface shows sum of all {zetaNumWaves} waves.</p>
+                </div>
+            </div>
+        {/if}
+        
         <div class="info">
             <p>Current: <span class="highlight">{selectedManifold.name}</span></p>
+            {#if selectedManifold.id === 'zeta'}
+                <p>The zeta surface demonstrates harmonic series behavior with logarithmic frequencies and harmonic amplitudes.</p>
+            {/if}
         </div>
     </div>
 </div>
@@ -226,6 +274,8 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
         backdrop-filter: blur(5px);
         width: 300px;
+        max-height: calc(100vh - 60px);
+        overflow-y: auto;
     }
     
     .control-panel h2 {
@@ -289,4 +339,57 @@
         padding-top: 10px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
-</style> 
+    
+    .zeta-controls {
+        margin-top: 20px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .control-group {
+        margin-bottom: 15px;
+    }
+    
+    .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 14px;
+        color: #ccc;
+    }
+    
+    .control-group input[type="range"] {
+        width: 100%;
+        -webkit-appearance: none;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        outline: none;
+    }
+    
+    .control-group input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent, #00ffff);
+        cursor: pointer;
+        box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+    }
+    
+    .control-group input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent, #00ffff);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+    }
+    
+    .zeta-info {
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 10px;
+    }
+
+</style>
