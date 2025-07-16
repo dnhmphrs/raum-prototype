@@ -29,7 +29,7 @@ class RiemannExperience extends Experience {
 		}
 
 		// Grid resolution - increase for better visual quality
-		this.resolution = 200;
+		this.resolution = 1000;
 		this.totalVertices = this.resolution * this.resolution;
 		this.totalIndices = (this.resolution - 1) * (this.resolution - 1) * 6;
 
@@ -51,13 +51,14 @@ class RiemannExperience extends Experience {
 
 		// Create zeta parameters buffer
 		this.zetaParamsBuffer = this.device.createBuffer({
-			size: 16, // 4 floats: numWaves, unused, unused, unused
+			size: 16, // 4 floats: numWaves, scale, unused, unused
 			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 			label: 'Zeta Parameters Buffer'
 		});
 
 		// Initialize zeta parameters
 		this.zetaNumWaves = 5; // Default number of waves
+		this.zetaScale = 0.5; // Default scale factor
 		this.updateZetaParams();
 
 		// Initialize time
@@ -75,7 +76,7 @@ class RiemannExperience extends Experience {
 		this.surfaceShaderMap.set('zeta', 'zeta'); // Add zeta mapping
 
 		// Set current surface
-		this.currentSurface = 'flat';
+		this.currentSurface = 'ripple';
 	}
 
 	// Method to update zeta parameters
@@ -85,11 +86,14 @@ class RiemannExperience extends Experience {
 		// Clamp number of waves to reasonable range
 		this.zetaNumWaves = Math.max(1, Math.min(20, this.zetaNumWaves));
 
+		// Clamp scale to reasonable range
+		this.zetaScale = Math.max(1.0, Math.min(100.0, this.zetaScale));
+
 		// Update the buffer
 		this.device.queue.writeBuffer(
 			this.zetaParamsBuffer,
 			0,
-			new Float32Array([this.zetaNumWaves, 0, 0, 0])
+			new Float32Array([this.zetaNumWaves, this.zetaScale, 0, 0])
 		);
 	}
 
@@ -99,9 +103,20 @@ class RiemannExperience extends Experience {
 		this.updateZetaParams();
 	}
 
+	// Method to set scale for zeta surface
+	setZetaScale(scale) {
+		this.zetaScale = scale;
+		this.updateZetaParams();
+	}
+
 	// Method to get current number of waves
 	getZetaNumWaves() {
 		return this.zetaNumWaves;
+	}
+
+	// Method to get current scale
+	getZetaScale() {
+		return this.zetaScale;
 	}
 
 	// Method to update loading state
@@ -456,7 +471,7 @@ class RiemannExperience extends Experience {
 		let index = 0;
 
 		// Scale factor to make the grid larger
-		const scale = 2.0;
+		const scale = 5.0;
 
 		for (let y = 0; y < this.resolution; y++) {
 			for (let x = 0; x < this.resolution; x++) {

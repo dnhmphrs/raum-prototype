@@ -31,6 +31,7 @@
     
     // Zeta function parameters
     let zetaNumWaves = 5; // Number of waves for zeta function
+    let zetaScale = 10.0; // Scale factor for zeta function frequencies
     
     // Function to stop event propagation
     function stopPropagation(event) {
@@ -80,6 +81,17 @@
         }
     }
     
+    // Function to update zeta scale
+    function updateZetaScale() {
+        if (experience) {
+            experience.setZetaScale(zetaScale);
+        } else if (engine && engine.scene && engine.scene.currentExperience) {
+            engine.scene.currentExperience.setZetaScale(zetaScale);
+        } else if (window.riemannExperience) {
+            window.riemannExperience.setZetaScale(zetaScale);
+        }
+    }
+    
     onMount(async () => {
         if (canvas && navigator.gpu) {
             // Initialize the engine with the canvas
@@ -112,6 +124,7 @@
                 
                 // Initialize zeta parameters
                 experience.setZetaNumWaves(zetaNumWaves);
+                experience.setZetaScale(zetaScale);
             }
             
             // Update loading message to indicate we're finalizing
@@ -207,13 +220,26 @@
                         on:input={updateZetaWaves}
                     />
                 </div>
+                <div class="control-group">
+                    <label for="zeta-scale">Frequency Scale: {zetaScale.toFixed(2)}</label>
+                    <input 
+                        type="range" 
+                        id="zeta-scale" 
+                        min="0.1" 
+                        max="100.0" 
+                        step="1.0" 
+                        bind:value={zetaScale} 
+                        on:input={updateZetaScale}
+                    />
+                </div>
                 <div class="zeta-info">
                     <p>Each wave n has:</p>
                     <ul>
-                        <li>Frequency: log(n)</li>
+                        <li>Frequency: log(n) × {zetaScale.toFixed(2)}</li>
                         <li>Amplitude: 1/n</li>
                     </ul>
                     <p>Surface shows sum of all {zetaNumWaves} waves.</p>
+                    <p class="scale-help">Lower scale = zoomed out, higher scale = zoomed in</p>
                 </div>
             </div>
         {/if}
@@ -391,5 +417,41 @@
         opacity: 0.8;
         margin-top: 10px;
     }
-
+    
+    .zeta-info ul {
+        margin: 5px 0;
+        padding-left: 20px;
+    }
+    
+    .zeta-info li {
+        margin: 2px 0;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+    }
+    
+    .scale-help {
+        font-style: italic;
+        color: #999;
+        margin-top: 8px;
+    }
+    
+    /* Custom scrollbar for control panel */
+    .control-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .control-panel::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+    }
+    
+    .control-panel::-webkit-scrollbar-thumb {
+        background-color: var(--accent, #00ffff);
+        border-radius: 3px;
+        opacity: 0.7;
+    }
+    
+    .control-panel::-webkit-scrollbar-thumb:hover {
+        opacity: 1;
+    }
 </style>

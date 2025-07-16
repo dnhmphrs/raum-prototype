@@ -16,7 +16,7 @@ var<uniform> uniforms: vec4<f32>;
 // [unused, unused, unused, time]
 @group(0) @binding(3)
 var<uniform> zetaParams: vec4<f32>;
-// [numWaves, unused, unused, unused]
+// [numWaves, scale, unused, unused]
 
 @vertex
 fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
@@ -24,14 +24,15 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
 
     let time = uniforms.w;
     let numWaves = i32(zetaParams.x);
+    let scale = zetaParams.y;
 
     // Calculate zeta surface height
     var height: f32 = 0.0;
 
     // Sum N waves with frequency log(n) and amplitude 1/n
-    for (var n: i32 = 1; n <= numWaves; n++) {
+    for (var n: i32 = 2; n <= numWaves; n++) {
         let nf = f32(n);
-        let frequency = log(nf);
+        let frequency = log(nf) * scale;
         let amplitude = 1.0 / nf;
 
         // Distance from center for radial waves
@@ -53,9 +54,9 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     var heightX: f32 = 0.0;
     var heightY: f32 = 0.0;
 
-    for (var n: i32 = 1; n <= numWaves; n++) {
+    for (var n: i32 = 2; n <= numWaves; n++) {
         let nf = f32(n);
-        let frequency = log(nf);
+        let frequency = log(nf) * scale;
         let amplitude = 1.0 / nf;
 
         let distX = length(vec2<f32>(position.x + epsilon, position.y));
