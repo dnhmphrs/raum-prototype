@@ -225,7 +225,7 @@
                     <input 
                         type="range" 
                         id="zeta-scale" 
-                        min="0.1" 
+                        min="1.0" 
                         max="100.0" 
                         step="1.0" 
                         bind:value={zetaScale} 
