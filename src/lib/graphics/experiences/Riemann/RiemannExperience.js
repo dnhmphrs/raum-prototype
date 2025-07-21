@@ -51,15 +51,27 @@ class RiemannExperience extends Experience {
 
 		// Create zeta parameters buffer
 		this.zetaParamsBuffer = this.device.createBuffer({
-			size: 16, // 4 floats: numWaves, scale, unused, unused
+			size: 16, // 4 floats: numWaves, scale, scalingMode, phaseMode
 			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 			label: 'Zeta Parameters Buffer'
+		});
+
+		// Create geometry parameters buffer
+		this.geometryParamsBuffer = this.device.createBuffer({
+			size: 16, // 4 floats: geometryMode, unused, unused, unused
+			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+			label: 'Geometry Parameters Buffer'
 		});
 
 		// Initialize zeta parameters
 		this.zetaNumWaves = 5; // Default number of waves
 		this.zetaScale = 0.5; // Default scale factor
+		this.zetaScalingMode = 0; // 0=log, 1=theta/quadratic
+		this.zetaPhaseMode = 0; // 0=auto, 1=manual
+		this.zetaManualPhase = 0; // radians, -2π to 2π
+		this.zetaGeometryMode = 0; // 0=euclidean, 1=poincare disc
 		this.updateZetaParams();
+		this.updateGeometryParams();
 
 		// Initialize time
 		this.time = 0;
@@ -89,11 +101,35 @@ class RiemannExperience extends Experience {
 		// Clamp scale to reasonable range
 		this.zetaScale = Math.max(1.0, Math.min(100.0, this.zetaScale));
 
+		// Clamp scalingMode and phaseMode
+		this.zetaScalingMode = this.zetaScalingMode === 1 ? 1 : 0;
+		this.zetaPhaseMode = this.zetaPhaseMode === 1 ? 1 : 0;
+
 		// Update the buffer
 		this.device.queue.writeBuffer(
 			this.zetaParamsBuffer,
 			0,
-			new Float32Array([this.zetaNumWaves, this.zetaScale, 0, 0])
+			new Float32Array([
+				this.zetaNumWaves,
+				this.zetaScale,
+				this.zetaScalingMode,
+				this.zetaPhaseMode
+			])
+		);
+	}
+
+	// Add method to update geometry parameters
+	updateGeometryParams() {
+		if (!this.device || !this.geometryParamsBuffer) return;
+
+		// Clamp geometry mode
+		this.zetaGeometryMode = this.zetaGeometryMode === 1 ? 1 : 0;
+
+		// Update the buffer
+		this.device.queue.writeBuffer(
+			this.geometryParamsBuffer,
+			0,
+			new Float32Array([this.zetaGeometryMode, 0, 0, 0])
 		);
 	}
 
@@ -117,6 +153,39 @@ class RiemannExperience extends Experience {
 	// Method to get current scale
 	getZetaScale() {
 		return this.zetaScale;
+	}
+
+	// Add setters/getters
+	setZetaScalingMode(mode) {
+		this.zetaScalingMode = mode === 1 ? 1 : 0;
+		this.updateZetaParams();
+	}
+	getZetaScalingMode() {
+		return this.zetaScalingMode;
+	}
+	setZetaPhaseMode(mode) {
+		this.zetaPhaseMode = mode === 1 ? 1 : 0;
+		this.updateZetaParams();
+	}
+	getZetaPhaseMode() {
+		return this.zetaPhaseMode;
+	}
+	setZetaManualPhase(phase) {
+		// Clamp to -2π to 2π
+		const pi2 = Math.PI * 2;
+		this.zetaManualPhase = Math.max(-pi2, Math.min(pi2, phase));
+	}
+	getZetaManualPhase() {
+		return this.zetaManualPhase;
+	}
+
+	// Add setters/getters for geometry mode
+	setZetaGeometryMode(mode) {
+		this.zetaGeometryMode = mode === 1 ? 1 : 0;
+		this.updateGeometryParams();
+	}
+	getZetaGeometryMode() {
+		return this.zetaGeometryMode;
 	}
 
 	// Method to update loading state
@@ -554,7 +623,9 @@ class RiemannExperience extends Experience {
 			}
 
 			// Update time with smoother value for more elegant animation
-			this.time += 0.015;
+			if (this.zetaPhaseMode === 0) {
+				this.time += 0.015;
+			}
 
 			// Only the weird surface needs to be updated each frame for animation
 			if (this.currentSurface === 'weird') {
@@ -578,7 +649,8 @@ class RiemannExperience extends Experience {
 			// Update values without creating new array
 			this._timeUniformData[0] = 0.15;
 			this._timeUniformData[1] = 0.2;
-			this._timeUniformData[2] = 0.05;
+			// z = manual phase, w = time
+			this._timeUniformData[2] = this.zetaManualPhase;
 			this._timeUniformData[3] = this.time;
 
 			// Write reused buffer to GPU
@@ -611,7 +683,8 @@ class RiemannExperience extends Experience {
 				this.uniformBuffer,
 				this.totalIndices,
 				shaderType,
-				this.zetaParamsBuffer // Pass zeta parameters buffer
+				this.zetaParamsBuffer, // Pass zeta parameters buffer
+				this.geometryParamsBuffer // Pass geometry parameters buffer
 			);
 		} catch (error) {
 			console.error('Error in Riemann render:', error);
@@ -722,6 +795,10 @@ class RiemannExperience extends Experience {
 
 		if (this.zetaParamsBuffer) {
 			this.zetaParamsBuffer = null;
+		}
+
+		if (this.geometryParamsBuffer) {
+			this.geometryParamsBuffer = null;
 		}
 
 		// Clean up cached arrays we added to prevent memory leaks

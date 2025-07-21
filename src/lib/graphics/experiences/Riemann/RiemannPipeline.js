@@ -54,6 +54,11 @@ class RiemannPipeline {
 						binding: 3,
 						visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
 						buffer: { type: 'uniform' } // Zeta parameters
+					},
+					{
+						binding: 4,
+						visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+						buffer: { type: 'uniform' } // Geometry parameters
 					}
 				]
 			});
@@ -181,7 +186,8 @@ class RiemannPipeline {
 		uniformBuffer,
 		indexCount,
 		shaderType = null,
-		zetaParamsBuffer = null
+		zetaParamsBuffer = null,
+		geometryParamsBuffer = null
 	) {
 		if (!this.isInitialized || !textureView) {
 			return;
@@ -214,8 +220,8 @@ class RiemannPipeline {
 			// Create bind group for this render pass
 			let bindGroup;
 
-			if (this.currentShaderType === 'zeta' && zetaParamsBuffer) {
-				// Create bind group with zeta parameters
+			if (this.currentShaderType === 'zeta' && zetaParamsBuffer && geometryParamsBuffer) {
+				// Create bind group with zeta and geometry parameters
 				bindGroup = this.device.createBindGroup({
 					layout: this.bindGroupLayouts.zeta,
 					entries: [
@@ -234,6 +240,30 @@ class RiemannPipeline {
 						{
 							binding: 3,
 							resource: { buffer: zetaParamsBuffer }
+						},
+						{
+							binding: 4,
+							resource: { buffer: geometryParamsBuffer }
+						}
+					]
+				});
+			} else if (this.currentShaderType === 'zeta' && zetaParamsBuffer) {
+				// Fallback: Create bind group without geometry parameters (shouldn't happen in normal operation)
+				console.warn('Zeta shader missing geometry parameters, using standard layout');
+				bindGroup = this.device.createBindGroup({
+					layout: this.bindGroupLayouts.standard,
+					entries: [
+						{
+							binding: 0,
+							resource: { buffer: projectionBuffer }
+						},
+						{
+							binding: 1,
+							resource: { buffer: viewBuffer }
+						},
+						{
+							binding: 2,
+							resource: { buffer: uniformBuffer }
 						}
 					]
 				});

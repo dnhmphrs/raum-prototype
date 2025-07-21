@@ -32,6 +32,13 @@
     // Zeta function parameters
     let zetaNumWaves = 1; // Number of waves for zeta function
     let zetaScale = 4.0; // Scale factor for zeta function frequencies
+    let zetaScalingMode = 0; // 0=log, 1=theta
+    let zetaPhaseMode = 0; // 0=auto, 1=manual
+    let zetaManualPhase = 0; // radians
+    let zetaGeometryMode = 0; // 0=euclidean, 1=poincare
+    const pi = Math.PI;
+    const pi2 = Math.PI * 2;
+    const phaseStep = pi / 8;
     
     // Function to stop event propagation
     function stopPropagation(event) {
@@ -91,6 +98,19 @@
             window.riemannExperience.setZetaScale(zetaScale);
         }
     }
+
+    function updateZetaScalingMode() {
+        if (experience) experience.setZetaScalingMode(zetaScalingMode);
+    }
+    function updateZetaPhaseMode() {
+        if (experience) experience.setZetaPhaseMode(zetaPhaseMode);
+    }
+    function updateZetaManualPhase() {
+        if (experience) experience.setZetaManualPhase(zetaManualPhase);
+    }
+    function updateZetaGeometryMode() {
+        if (experience) experience.setZetaGeometryMode(zetaGeometryMode);
+    }
     
     onMount(async () => {
         if (canvas && navigator.gpu) {
@@ -125,6 +145,10 @@
                 // Initialize zeta parameters
                 experience.setZetaNumWaves(zetaNumWaves);
                 experience.setZetaScale(zetaScale);
+                experience.setZetaScalingMode(zetaScalingMode);
+                experience.setZetaPhaseMode(zetaPhaseMode);
+                experience.setZetaManualPhase(zetaManualPhase);
+                experience.setZetaGeometryMode(zetaGeometryMode);
             }
             
             // Update loading message to indicate we're finalizing
@@ -232,10 +256,46 @@
                         on:input={updateZetaScale}
                     />
                 </div>
+                <div class="control-group">
+                    <label>Scaling Mode:</label>
+                    <div class="button-group-row">
+                        <button on:click={() => { zetaScalingMode = 0; updateZetaScalingMode(); }} class:active={zetaScalingMode === 0}>log(p)</button>
+                        <button on:click={() => { zetaScalingMode = 1; updateZetaScalingMode(); }} class:active={zetaScalingMode === 1}>theta/p</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Phase Mode:</label>
+                    <div class="button-group-row">
+                        <button on:click={() => { zetaPhaseMode = 0; updateZetaPhaseMode(); }} class:active={zetaPhaseMode === 0}>Auto</button>
+                        <button on:click={() => { zetaPhaseMode = 1; updateZetaPhaseMode(); }} class:active={zetaPhaseMode === 1}>Manual</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Geometry:</label>
+                    <div class="button-group-row">
+                        <button on:click={() => { zetaGeometryMode = 0; updateZetaGeometryMode(); }} class:active={zetaGeometryMode === 0}>Euclidean</button>
+                        <button on:click={() => { zetaGeometryMode = 1; updateZetaGeometryMode(); }} class:active={zetaGeometryMode === 1}>Poincaré Disc</button>
+                    </div>
+                </div>
+                {#if zetaPhaseMode === 1}
+                <div class="control-group">
+                    <label for="zeta-manual-phase">Manual Phase: {zetaManualPhase.toFixed(2)} rad</label>
+                    <input
+                        type="range"
+                        id="zeta-manual-phase"
+                        min={-pi2}
+                        max={pi2}
+                        step={phaseStep}
+                        bind:value={zetaManualPhase}
+                        on:input={updateZetaManualPhase}
+                    />
+                    <div style="font-size:12px;opacity:0.7;">Range: -2π to 2π, step π/8</div>
+                </div>
+                {/if}
                 <div class="zeta-info">
                     <p>Each wave n has:</p>
                     <ul>
-                        <li>Frequency: log(n) × {zetaScale.toFixed(2)}</li>
+                        <li>Frequency: {zetaScalingMode === 0 ? 'log(n)' : 'n'} × {zetaScale.toFixed(2)}</li>
                         <li>Amplitude: 1/n</li>
                     </ul>
                     <p>Surface shows sum of all {zetaNumWaves} waves.</p>
@@ -453,5 +513,32 @@
     
     .control-panel::-webkit-scrollbar-thumb:hover {
         opacity: 1;
+    }
+
+    .button-group-row {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+    .button-group-row button {
+        background-color: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 8px 12px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+    }
+    .button-group-row button:hover {
+        background-color: rgba(0, 0, 0, 0.7);
+        border-color: var(--accent, #00ffff);
+    }
+    .button-group-row button.active {
+        background-color: rgba(0, 0, 0, 0.8);
+        border-color: var(--accent, #00ffff);
+        color: var(--accent, #00ffff);
     }
 </style>
