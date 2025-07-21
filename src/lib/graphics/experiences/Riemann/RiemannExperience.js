@@ -70,6 +70,7 @@ class RiemannExperience extends Experience {
 		this.zetaPhaseMode = 0; // 0=auto, 1=manual
 		this.zetaManualPhase = 0; // radians, -2π to 2π
 		this.zetaGeometryMode = 0; // 0=euclidean, 1=poincare disc
+		this.zetaWaveMode = 0; // 0=radial, 1=hexagonal (default radial)
 		this.updateZetaParams();
 		this.updateGeometryParams();
 
@@ -122,14 +123,15 @@ class RiemannExperience extends Experience {
 	updateGeometryParams() {
 		if (!this.device || !this.geometryParamsBuffer) return;
 
-		// Clamp geometry mode
+		// Clamp geometry and wave modes
 		this.zetaGeometryMode = this.zetaGeometryMode === 1 ? 1 : 0;
+		this.zetaWaveMode = this.zetaWaveMode === 1 ? 1 : 0;
 
 		// Update the buffer
 		this.device.queue.writeBuffer(
 			this.geometryParamsBuffer,
 			0,
-			new Float32Array([this.zetaGeometryMode, 0, 0, 0])
+			new Float32Array([this.zetaGeometryMode, this.zetaWaveMode, 0, 0])
 		);
 	}
 
@@ -186,6 +188,15 @@ class RiemannExperience extends Experience {
 	}
 	getZetaGeometryMode() {
 		return this.zetaGeometryMode;
+	}
+
+	// Add setters/getters for wave mode
+	setZetaWaveMode(mode) {
+		this.zetaWaveMode = mode === 1 ? 1 : 0;
+		this.updateGeometryParams();
+	}
+	getZetaWaveMode() {
+		return this.zetaWaveMode;
 	}
 
 	// Method to update loading state

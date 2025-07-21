@@ -36,6 +36,7 @@
     let zetaPhaseMode = 0; // 0=auto, 1=manual
     let zetaManualPhase = 0; // radians
     let zetaGeometryMode = 0; // 0=euclidean, 1=poincare
+    let zetaWaveMode = 0; // 0=radial, 1=hexagonal (default radial)
     const pi = Math.PI;
     const pi2 = Math.PI * 2;
     const phaseStep = pi / 8;
@@ -111,6 +112,9 @@
     function updateZetaGeometryMode() {
         if (experience) experience.setZetaGeometryMode(zetaGeometryMode);
     }
+    function updateZetaWaveMode() {
+        if (experience) experience.setZetaWaveMode(zetaWaveMode);
+    }
     
     onMount(async () => {
         if (canvas && navigator.gpu) {
@@ -149,6 +153,7 @@
                 experience.setZetaPhaseMode(zetaPhaseMode);
                 experience.setZetaManualPhase(zetaManualPhase);
                 experience.setZetaGeometryMode(zetaGeometryMode);
+                experience.setZetaWaveMode(zetaWaveMode);
             }
             
             // Update loading message to indicate we're finalizing
@@ -275,6 +280,13 @@
                     <div class="button-group-row">
                         <button on:click={() => { zetaGeometryMode = 0; updateZetaGeometryMode(); }} class:active={zetaGeometryMode === 0}>Euclidean</button>
                         <button on:click={() => { zetaGeometryMode = 1; updateZetaGeometryMode(); }} class:active={zetaGeometryMode === 1}>Poincaré Disc</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Wave Mode:</label>
+                    <div class="button-group-row">
+                        <button on:click={() => { zetaWaveMode = 0; updateZetaWaveMode(); }} class:active={zetaWaveMode === 0}>Radial</button>
+                        <button on:click={() => { zetaWaveMode = 1; updateZetaWaveMode(); }} class:active={zetaWaveMode === 1}>Hexagonal</button>
                     </div>
                 </div>
                 {#if zetaPhaseMode === 1}
