@@ -97,7 +97,7 @@ class RiemannExperience extends Experience {
 		if (!this.device || !this.zetaParamsBuffer) return;
 
 		// Clamp number of waves to reasonable range
-		this.zetaNumWaves = Math.max(1, Math.min(20, this.zetaNumWaves));
+		this.zetaNumWaves = Math.max(1, Math.min(50, this.zetaNumWaves));
 
 		// Clamp scale to reasonable range
 		this.zetaScale = Math.max(1.0, Math.min(100.0, this.zetaScale));

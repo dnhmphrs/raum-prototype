@@ -243,7 +243,7 @@
                         type="range" 
                         id="zeta-waves" 
                         min="1" 
-                        max="20" 
+                        max="50" 
                         step="1" 
                         bind:value={zetaNumWaves} 
                         on:input={updateZetaWaves}
