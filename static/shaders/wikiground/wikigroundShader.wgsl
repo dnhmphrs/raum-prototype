@@ -36,8 +36,9 @@ fn yawY(v: vec3<f32>, ang: f32) -> vec3<f32> {
 }
 
 fn cartesianToLonLat(n: vec3<f32>) -> vec2<f32> {
-  let r = yawY(normalize(n), ROT_Y);
+  let r = yawY(normalize(n), ROT_Y); // * sin(uTime.t); // for FUNK
   let lon = atan2(r.z, r.x);               // [-pi, pi]
+  //   let lon = atan2(r.x, r.z);                 // funky
   let lat = asin(clamp(r.y, -1.0, 1.0));   // [-pi/2, pi/2]
   return vec2<f32>(lon, lat);
 }
@@ -123,17 +124,17 @@ fn contour_mask_px(v: f32, half_px: f32) -> f32 {
 @fragment
 fn fragmentMain(in: VSOut) -> @location(0) vec4<f32> {
   // Black base
-  var color = vec3<f32>(0.0, 0.0, 0.0);
+  var color = vec3<f32>(0.0 , 0.0 , 0.0);
 
   // Elevation (meters, un-exaggerated) for contouring
   let h = in.elevBase;
   let isLand = h >= 0.0;
 
   // Elevation intervals (meters). Tweak to taste.
-  let minorIntervalLand = 200.0;
+  let minorIntervalLand = 250.0;
   let majorIntervalLand = 1000.0;
-  let minorIntervalSea  = 500.0;
-  let majorIntervalSea  = 2000.0;
+  let minorIntervalSea  = 250.0;
+  let majorIntervalSea  = 1000.0;
 
   // Desired line half-widths **in pixels**
   let MINOR_HALF_PX : f32 = 0.6;   // ~1.2px line
@@ -159,7 +160,7 @@ fn fragmentMain(in: VSOut) -> @location(0) vec4<f32> {
   let line = max(major, minor * 0.6);
 
   // Line colors
-  var lineColor = vec3<f32>(0.35, 0.65, 1.0); // ocean (blue-ish)
+  var lineColor = vec3<f32>(0.35, 0.65 , 1.0); // ocean (blue-ish)
   if (isLand) {
     lineColor = vec3<f32>(0.95, 0.95, 0.95); // land (white)
   }
