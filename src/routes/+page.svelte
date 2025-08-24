@@ -149,7 +149,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
   
   RIEMANN SURFACES
               </pre>
-            {:else if selectedExp.id === 'watersheds'}
+            {:else if selectedExp.id === 'wikiground'}
               <pre class="ascii-art">
   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       ~ ~ ~ ~ ~ ~ ~
@@ -158,7 +158,7 @@ o---o---o---o   o---o---o---o   o---o---o---o
       ~ ~ ~ ~ ~ ~ ~
     ~ ~ ~ ~ ~ ~ ~ ~ ~
   
-  WATERSHEDS
+  WIKIGROUND
               </pre>
             {:else if selectedExp.id === 'gridcode'}
               <pre class="ascii-art">

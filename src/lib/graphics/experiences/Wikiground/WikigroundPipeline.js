@@ -1,4 +1,4 @@
-class WatershedsPipeline {
+class WikigroundPipeline {
     constructor(device, resourceManager) {
         this.device = device;
         this.resourceManager = resourceManager;
@@ -38,12 +38,12 @@ class WatershedsPipeline {
             });
             
             // Initialize shader
-            await this.initializeShader('/shaders/watersheds/watershedsShader.wgsl');
+            await this.initializeShader('/shaders/wikiground/wikigroundShader.wgsl');
             
             this.isInitialized = true;
             return true;
         } catch (error) {
-            console.error("Error initializing Watersheds pipeline:", error);
+            console.error("Error initializing Wikiground pipeline:", error);
             return false;
         }
     }
@@ -60,7 +60,7 @@ class WatershedsPipeline {
             // Create shader module
             this.shaderModule = this.device.createShaderModule({
                 code: shaderCode,
-                label: 'Watersheds Sphere Shader'
+                label: 'Wikiground Sphere Shader'
             });
             
             // Create render pipeline
@@ -98,7 +98,7 @@ class WatershedsPipeline {
             
             return true;
         } catch (error) {
-            console.error(`Error initializing Watersheds shader:`, error);
+            console.error(`Error initializing Wikiground shader:`, error);
             return false;
         }
     }
@@ -110,7 +110,7 @@ class WatershedsPipeline {
         
         // Validate depth texture view
         if (!depthTextureView) {
-            console.warn("Skipping render in Watersheds pipeline: depthTextureView is null");
+            console.warn("Skipping render in Wikiground pipeline: depthTextureView is null");
             return;
         }
         
@@ -162,7 +162,7 @@ class WatershedsPipeline {
             passEncoder.drawIndexed(indexCount);
             passEncoder.end();
         } catch (error) {
-            console.error("Error in Watersheds Pipeline render:", error);
+            console.error("Error in Wikiground Pipeline render:", error);
         }
     }
     
@@ -197,9 +197,9 @@ class WatershedsPipeline {
             this.device = null;
             this.resourceManager = null;
         } catch (error) {
-            console.error("Error during WatershedsPipeline cleanup:", error);
+            console.error("Error during WikigroundPipeline cleanup:", error);
         }
     }
 }
 
-export default WatershedsPipeline;
+export default WikigroundPipeline;

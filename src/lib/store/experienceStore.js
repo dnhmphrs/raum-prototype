@@ -8,12 +8,12 @@ const experienceData = [
     description: 'Simulation of collective motion in flocks using parallel compute shaders. Simple local rules generate complex global murmurations; cute emergent behavior in natural systems.',
     color: '#00bfff'
   },
-  // {
-  //   id: 'watersheds',
-  //   name: 'WATERSHEDS',
-  //   description: 'Interactive 3D visualisation of the world\'s watersheds.',
-  //   color: '#FFDF00'
-  // },
+  {
+    id: 'wikiground',
+    name: 'WIKIGROUND',
+    description: 'Interactive 3D visualisation of the world\'s topography.',
+    color: '#FFDF00'
+  },
   {
     id: 'neuralnet',
     name: 'NEURAL NET',

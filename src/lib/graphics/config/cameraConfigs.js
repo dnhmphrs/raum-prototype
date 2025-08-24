@@ -10,7 +10,7 @@ export const cameraConfigs = {
     fov: 45 * (Math.PI / 180),
     baseDistance: 75900.0    // Medium distance for network visualization
   },
-  Watersheds: {
+  Wikiground: {
     position: { x: 0, y: 0, z: 10 },
     fov: 50 * (Math.PI / 180),
     baseDistance: 500.0    // Medium-close for disk view

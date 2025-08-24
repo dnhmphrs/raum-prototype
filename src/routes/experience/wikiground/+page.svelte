@@ -1,7 +1,7 @@
 <script>
     import { onMount, onDestroy } from 'svelte';
     import Engine from '$lib/graphics/Engine.js';
-    import WatershedsExperience from '$lib/graphics/experiences/Watersheds/WatershedsExperience.js';
+    import WikigroundExperience from '$lib/graphics/experiences/Wikiground/WikigroundExperience.js';
     import { getCameraConfig } from '$lib/graphics/config/cameraConfigs.js';
     import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
     import { getExperienceColor } from '$lib/store/experienceStore.js';
@@ -14,7 +14,7 @@
     let loadingProgress = -1;
     
     // Experience accent color from store
-    const accentColor = getExperienceColor('watersheds');
+    const accentColor = getExperienceColor('wikiground');
     
     onMount(async () => {
         if (canvas && navigator.gpu) {
@@ -23,21 +23,21 @@
             loadingProgress = 20;
             engine = new Engine(canvas);
             
-            // Get the Watersheds camera config
-            const cameraConfig = getCameraConfig('Watersheds');
+            // Get the Wikiground camera config
+            const cameraConfig = getCameraConfig('Wikiground');
             
-            // Start the Watersheds experience with the camera config
-            loadingMessage = "Loading Watersheds experience...";
+            // Start the Wikiground experience with the camera config
+            loadingMessage = "Loading Wikiground experience...";
             loadingProgress = 40;
-            const result = await engine.start(WatershedsExperience, cameraConfig);
+            const result = await engine.start(WikigroundExperience, cameraConfig);
             
             // Try to get the experience reference
             if (engine.experience) {
                 experience = engine.experience;
             } else if (engine.scene && engine.scene.currentExperience) {
                 experience = engine.scene.currentExperience;
-            } else if (window.watershedsExperience) {
-                experience = window.watershedsExperience;
+            } else if (window.wikigroundExperience) {
+                experience = window.wikigroundExperience;
             }
             
             // Update loading message to indicate we're finalizing
@@ -81,7 +81,7 @@
 </script>
 
 <svelte:head>
-    <title>Watersheds Experience</title>
+    <title>Wikiground Experience</title>
 </svelte:head>
 
 <div class="experience-container">
@@ -102,8 +102,8 @@
         class="control-panel"
         style="--accent: {accentColor};"
     >
-        <h2>WATERSHEDS</h2>
-        <p>The Earth's watersheds</p>
+        <h2>WIKIGROUND</h2>
+        <p>The Earth's topograhpy. Base layer for a free and open source platform for mapping resources to the natural landscape</p>
 
         <div class="info">
             info to come

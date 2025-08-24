@@ -68,7 +68,7 @@ fn vertexMain(@location(0) position: vec3<f32>) -> VertexOutput {
     // Calculate zeta surface height using prime frequencies
     var height: f32 = 0.0;
     // Determine phase
-    let phase = select(time, manualPhase, phaseMode == 1.0);
+    let phase = select(-time, manualPhase, phaseMode == 1.0);
 
     // Only calculate waves if inside disc (for Poincaré mode)
     if (geometryMode == 0.0 || isInsideDisc) {

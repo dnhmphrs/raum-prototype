@@ -1,7 +1,7 @@
 import Experience from '../Experience.js';
-import WatershedsPipeline from './WatershedsPipeline.js';
+import WikigroundPipeline from './WikigroundPipeline.js';
 
-class WatershedsExperience extends Experience {
+class WikigroundExperience extends Experience {
     constructor(device, resourceManager) {
         super(device, resourceManager);
         
@@ -22,7 +22,7 @@ class WatershedsExperience extends Experience {
             if (!this.resourceManager.experiences) {
                 this.resourceManager.experiences = {};
             }
-            this.resourceManager.experiences.watersheds = this;
+            this.resourceManager.experiences.wikiground = this;
         }
         
         // Sphere resolution
@@ -40,7 +40,7 @@ class WatershedsExperience extends Experience {
         this.uniformBuffer = this.device.createBuffer({
             size: 16, // 4 floats: time, radius, unused, unused
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            label: 'Watersheds Uniforms Buffer'
+            label: 'Wikiground Uniforms Buffer'
         });
         
         // Store a reference to this for cleanup
@@ -48,9 +48,9 @@ class WatershedsExperience extends Experience {
         
         // Expose this experience globally
         if (typeof window !== 'undefined') {
-            this._previousGlobalRef = window.watershedsExperience;
-            window.watershedsExperience = this;
-            this._globalRef = window.watershedsExperience;
+            this._previousGlobalRef = window.wikigroundExperience;
+            window.wikigroundExperience = this;
+            this._globalRef = window.wikigroundExperience;
         }
     }
     
@@ -62,7 +62,7 @@ class WatershedsExperience extends Experience {
         
         // Dispatch a custom event that the UI can listen for
         if (typeof window !== 'undefined') {
-            const event = new CustomEvent('watersheds-loading-update', { 
+            const event = new CustomEvent('wikiground-loading-update', { 
                 detail: { 
                     isLoading: this.isLoading,
                     message: this.loadingMessage,
@@ -107,7 +107,7 @@ class WatershedsExperience extends Experience {
             size: vertices.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true,
-            label: 'Watersheds Vertex Buffer'
+            label: 'Wikiground Vertex Buffer'
         });
         new Float32Array(this.vertexBuffer.getMappedRange()).set(vertices);
         this.vertexBuffer.unmap();
@@ -138,7 +138,7 @@ class WatershedsExperience extends Experience {
             size: indices.byteLength,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true,
-            label: 'Watersheds Index Buffer'
+            label: 'Wikiground Index Buffer'
         });
         new Uint32Array(this.indexBuffer.getMappedRange()).set(indices);
         this.indexBuffer.unmap();
@@ -149,7 +149,7 @@ class WatershedsExperience extends Experience {
         
         try {
             // Create the pipeline
-            this.pipeline = new WatershedsPipeline(this.device, this.resourceManager);
+            this.pipeline = new WikigroundPipeline(this.device, this.resourceManager);
             
             // Initialize the pipeline
             const success = await this.pipeline.initialize();
@@ -216,7 +216,7 @@ class WatershedsExperience extends Experience {
                 this.totalIndices
             );
         } catch (error) {
-            console.error("Error in Watersheds render:", error);
+            console.error("Error in Wikiground render:", error);
         }
     }
     
@@ -240,8 +240,8 @@ class WatershedsExperience extends Experience {
         
         // Dispatch an event to notify UI components that we're shutting down
         if (typeof window !== 'undefined') {
-            const event = new CustomEvent('watersheds-shutdown', { 
-                detail: { experience: 'watersheds' } 
+            const event = new CustomEvent('wikiground-shutdown', { 
+                detail: { experience: 'wikiground' } 
             });
             window.dispatchEvent(event);
         }
@@ -293,14 +293,14 @@ class WatershedsExperience extends Experience {
         
         // Remove from resource manager
         if (this.resourceManager && this.resourceManager.experiences) {
-            if (this.resourceManager.experiences.watersheds === this) {
-                this.resourceManager.experiences.watersheds = null;
+            if (this.resourceManager.experiences.wikiground === this) {
+                this.resourceManager.experiences.wikiground = null;
             }
         }
         
         // Remove global reference
-        if (typeof window !== 'undefined' && window.watershedsExperience === this) {
-            window.watershedsExperience = this._previousGlobalRef;
+        if (typeof window !== 'undefined' && window.wikigroundExperience === this) {
+            window.wikigroundExperience = this._previousGlobalRef;
         }
         
         // Clear references
@@ -309,8 +309,8 @@ class WatershedsExperience extends Experience {
         
         // Dispatch an event to notify UI components that we're cleaning up
         if (typeof window !== 'undefined') {
-            const event = new CustomEvent('watersheds-cleanup', { 
-                detail: { experience: 'watersheds' } 
+            const event = new CustomEvent('wikiground-cleanup', { 
+                detail: { experience: 'wikiground' } 
             });
             window.dispatchEvent(event);
         }
@@ -320,4 +320,4 @@ class WatershedsExperience extends Experience {
     }
 }
 
-export default WatershedsExperience;
+export default WikigroundExperience;
