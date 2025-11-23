@@ -1,117 +1,165 @@
 import Experience from '../Experience';
 import NeuronGeometry from './NeuronGeometry';
-import CubeGeometry from './CubeGeometry';
 import NeuralNetPipeline from './NeuralNetPipeline';
+import GraphStructure from './GraphStructure';
+import ChipFiringSimulation from './ChipFiringSimulation';
+import MagneticFieldComputation from './MagneticFieldComputation';
 
 class NeuralNetExperience extends Experience {
 	constructor(device, resourceManager) {
 		super(device, resourceManager);
 
-		this.neuronCount = 1600; // Number of neurons in the network
-		this.connections = []; // Store connections between neurons
-		this.dendriteCount = 0; // Initialize dendriteCount
-
-		this.addNeurons(); // Add neuron geometries
+		// Graph parameters
+		this.numNodes = 150; // Number of neurons in the network
+		this.connectivity = 0.015; // Erdős-Rényi connectivity probability (adjust for desired density)
+		
+		// Simulation parameters
+		this.minChips = 2;
+		this.maxChips = 8;
+		this.autoAddChips = true; // Continuously add chips to keep simulation active
+		this.chipsPerStep = 1; // Number of random chips to add each step
+		this.stepsPerFrame = 1; // Number of simulation steps per render frame
+		
+		// Create graph structure
+		this.graph = new GraphStructure(this.numNodes, this.connectivity);
+		
+		// Create chip firing simulation
+		this.chipFiring = new ChipFiringSimulation(this.graph);
+		
+		// Initialize with random chips
+		this.chipFiring.initializeRandomChips(this.minChips, this.maxChips);
+		
+		// Magnetic field computation
+		this.magneticFieldEnabled = true;
+		this.magneticField = null; // Will be initialized after positions are set
+		this.showMagneticField = true; // Toggle for visualization
+		
+		// Add neuron geometries
+		this.addNeurons();
+		
+		console.log('Graph stats:', this.graph.getStats());
 	}
 
 	async initialize() {
-		const positions = Array.from({ length: this.neuronCount }, () => {
-			// Skew factor less than 1 increases density towards edges
-			const skewFactor = 1.125; // Adjust this value between 0 and 1
+		// Embed nodes in unit ball and scale to desired size
+		const unitBallPositions = this.graph.embedInUnitBall();
+		this.positions = this.graph.scalePositions(unitBallPositions, 200);
+		
+		// Get edges from graph
+		const edges = this.graph.getEdges();
+		
+		// Convert edges to connection format expected by pipeline
+		this.connections = edges.map(([source, target]) => ({
+			source,
+			target
+		}));
+		
+		console.log(`Initialized ${this.numNodes} nodes with ${this.connections.length} edges`);
 
-			const randomSkewedTowardsEdges = (min, max, skewFactor) => {
-				const u = Math.random();
-				const skewed_u =
-					u < 0.5 ? 0.5 * Math.pow(2 * u, skewFactor) : 1 - 0.5 * Math.pow(2 * (1 - u), skewFactor);
-				return min + (max - min) * skewed_u;
-			};
-
-			const x = randomSkewedTowardsEdges(-200, 200, skewFactor);
-			const y = randomSkewedTowardsEdges(-50, 50, skewFactor); // Y is narrow
-			const z = randomSkewedTowardsEdges(-200, 200, skewFactor);
-
-			return [x, y, z];
-		});
-
-		// Generate random connections (~10 per neuron)
-		this.connections = Array.from({ length: this.neuronCount }, (_, i) =>
-			Array.from({ length: 2 }, () => ({
-				source: i,
-				target: Math.floor(Math.random() * this.neuronCount)
-			}))
-		).flat();
-
-		const minPosition = [-200, -50, -200];
-		const maxPosition = [200, 50, 200];
-
-		// Create the cube geometry
-		this.cube = new CubeGeometry(this.device, minPosition, maxPosition);
-
-		const minLargerPosition = [-4000, -4000, -4000]; // Larger cube boundaries
-		const maxLargerPosition = [4000, 4000, 4000];
-
-		// Calculate 5% of the existing connections
-		const extraConnectionCount = Math.floor(this.connections.length * 0.1);
-		const extraDendritePositions = [];
-
-		for (let i = 0; i < extraConnectionCount; i++) {
-			// Select a random source position from the existing neurons
-			const sourcePosition = [
-				Math.random() * (maxLargerPosition[0] - minLargerPosition[0]) + minLargerPosition[0],
-				Math.random() * (maxLargerPosition[1] - minLargerPosition[1]) + minLargerPosition[1],
-				Math.random() * (maxLargerPosition[2] - minLargerPosition[2]) + minLargerPosition[2]
-			];
-
-			// Generate a target position randomly within the larger cube
-			const targetPosition = [
-				Math.random() * (maxLargerPosition[0] - minLargerPosition[0]) + minLargerPosition[0],
-				Math.random() * (maxLargerPosition[1] - minLargerPosition[1]) + minLargerPosition[1],
-				Math.random() * (maxLargerPosition[2] - minLargerPosition[2]) + minLargerPosition[2]
-			];
-
-			// Store the positions of the source and target
-			extraDendritePositions.push({
-				sourcePosition: sourcePosition,
-				targetPosition: targetPosition
-			});
-		}
-
-		// 	// Store the positions of the source and target
-		// 	extraDendritePositions.push({
-		// 		sourcePosition: sourcePosition,
-		// 		targetPosition: targetPosition
-		// 	});
-		// }
-
-		this.dendriteCount = this.connections.length + extraDendritePositions.length;
-
-		// Initialize the pipeline AFTER connections are generated
+		// Initialize the pipeline (without cube)
 		this.pipeline = new NeuralNetPipeline(
 			this.device,
 			this.resourceManager.camera,
 			this.resourceManager.getViewportBuffer(),
 			this.resourceManager.getMouseBuffer(),
-			this.neuronCount,
-			this.dendriteCount,
-			this.cube
+			this.numNodes,
+			this.connections.length
 		);
 		await this.pipeline.initialize();
 
 		// Pass positions and connections to the pipeline
-		this.pipeline.updatePositions(positions);
-		this.pipeline.updateConnections(this.connections, positions, extraDendritePositions);
+		this.pipeline.updatePositions(this.positions);
+		this.pipeline.updateConnections(this.connections, this.positions);
+		
+		// Initialize magnetic field computation
+		this.magneticField = new MagneticFieldComputation(this.graph, this.positions);
+		console.log('Magnetic field computation initialized');
 	}
 
 	addNeurons() {
-		// Add neurons to the scene
-		for (let i = 0; i < this.neuronCount; i++) {
+		// Add neuron geometries
+		for (let i = 0; i < this.numNodes; i++) {
 			this.addObject(new NeuronGeometry(this.device));
 		}
 	}
 
 	render(commandEncoder, textureView) {
-		// Update neuron activity phases
-		this.pipeline.updateActivity(performance.now());
+		// Run chip firing simulation steps
+		const firedNodes = [];
+		for (let i = 0; i < this.stepsPerFrame; i++) {
+			const fired = this.chipFiring.step();
+			
+			// Track which nodes fired for magnetic field computation
+			if (fired > 0 && this.magneticField) {
+				firedNodes.push(...Array.from(this.chipFiring.lastFired));
+			}
+			
+			// Optionally add random chips to keep simulation active
+			if (this.autoAddChips) {
+				this.chipFiring.addRandomChips(this.chipsPerStep);
+			}
+		}
+		
+		// Update magnetic field from firings
+		if (this.magneticField && firedNodes.length > 0) {
+			// Convert to neighbor map for current computation
+			const neighborMap = [];
+			for (let i = 0; i < this.numNodes; i++) {
+				neighborMap[i] = this.graph.getNeighbors(i);
+			}
+			
+			this.magneticField.updateCurrentsFromFiring(firedNodes, neighborMap);
+		}
+		
+		// Periodically regenerate field lines (every 30 frames, or immediately when toggled on)
+		if (!this._fieldLineCounter) this._fieldLineCounter = 0;
+		this._fieldLineCounter++;
+		
+		// Check if magnetic field was just enabled
+		const fieldJustEnabled = this.magneticFieldEnabled && !this._previousMagneticFieldEnabled;
+		this._previousMagneticFieldEnabled = this.magneticFieldEnabled;
+		
+		if (this.magneticField && this.magneticFieldEnabled) {
+			// Generate field lines immediately when enabled, or every 30 frames
+			if (fieldJustEnabled || this._fieldLineCounter % 30 === 0) {
+				const fieldLines = this.magneticField.generateFieldLines(30, 80, 10);
+				
+				// Pass field lines to pipeline for rendering
+				if (fieldLines.length > 0) {
+					this.pipeline.updateFieldLines(fieldLines);
+					console.log(`Generated ${fieldLines.length} field lines with ${fieldLines.reduce((sum, line) => sum + line.length, 0)} total points`);
+				} else {
+					// Clear field lines if none generated
+					this.pipeline.updateFieldLines([]);
+				}
+			}
+		} else if (this.magneticField && !this.magneticFieldEnabled) {
+			// Clear field lines when magnetic field is disabled
+			this.pipeline.updateFieldLines([]);
+		}
+		
+		// Decay activity for smooth visualization
+		this.chipFiring.decayActivity(0.92);
+		
+		// Get current activity state
+		const state = this.chipFiring.getState();
+		
+		// Update activity in pipeline (pass sink node index)
+		this.pipeline.updateActivityFromChipFiring(state.activity, this.graph.sinkNodeIndex);
+		
+		// Dispatch event with current state for UI components
+		if (typeof window !== 'undefined') {
+			const event = new CustomEvent('chip-firing-update', {
+				detail: {
+					chips: this.chipFiring.chips,
+					activity: state.activity,
+					activityHistory: this.chipFiring.activityHistory,
+					stats: this.chipFiring.getStats(),
+					sinkNodeIndex: this.graph.sinkNodeIndex
+				}
+			});
+			window.dispatchEvent(event);
+		}
 
 		// Render the pipeline
 		const depthView = this.resourceManager.getDepthTextureView();
@@ -132,14 +180,11 @@ class NeuralNetExperience extends Experience {
 			}
 		};
 
-		// Pass the neuron count and connections for instanced drawing
-		this.pipeline.render(commandEncoder, passDescriptor, this.objects, this.neuronCount);
+		// Render
+		this.pipeline.render(commandEncoder, passDescriptor, this.objects, this.numNodes);
 	}
 
-	// cleanup() {
-	// 	this.pipeline.cleanup();
-	// 	super.cleanup();
-	// }
+
 	cleanup() {
 		// Clean up pipeline
 		if (this.pipeline) {
@@ -147,17 +192,19 @@ class NeuralNetExperience extends Experience {
 			this.pipeline = null;
 		}
 
-		// Clean up cube geometry
-		if (this.cube) {
-			if (typeof this.cube.cleanup === 'function') {
-				this.cube.cleanup();
-			}
-			this.cube = null;
+		// Clean up simulation and graph
+		if (this.chipFiring) {
+			this.chipFiring.reset();
+			this.chipFiring = null;
+		}
+		
+		if (this.graph) {
+			this.graph = null;
 		}
 
 		// Reset state
 		this.connections = [];
-		this.dendriteCount = 0;
+		this.positions = null;
 		
 		// Call parent cleanup to handle objects and resource tracking
 		super.cleanup();
